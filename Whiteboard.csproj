@@ -21,15 +21,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Сервер лицензий лежит в этом же репозитории и собирается отдельно.
-         Без явного исключения SDK забрал бы его исходники в сборку приложения,
-         потому что по умолчанию берёт все *.cs из папки проекта. -->
-    <Compile Remove="server/**" />
-    <None Remove="server/**" />
-    <Content Remove="server/**" />
-    <Page Remove="server/**" />
-    <Resource Remove="server/**" />
-    <EmbeddedResource Remove="server/**" />
+    <!-- Остальные части проекта лежат в этом же репозитории и собираются
+         отдельно. Без явного исключения SDK забрал бы их в сборку приложения:
+         по умолчанию он берёт все файлы из папки проекта — вместе с исходниками
+         сервера и с node_modules веб-приложения. -->
+    <Compile Remove="server/**;webapp/**;web/**;installer/**;docs/**;dist/**" />
+    <None Remove="server/**;webapp/**;web/**;installer/**;docs/**;dist/**" />
+    <Content Remove="server/**;webapp/**;web/**;installer/**;docs/**;dist/**" />
+    <Page Remove="server/**;webapp/**;web/**;installer/**;docs/**;dist/**" />
+    <Resource Remove="server/**;webapp/**;web/**;installer/**;docs/**;dist/**" />
+    <EmbeddedResource Remove="server/**;webapp/**;web/**;installer/**;docs/**;dist/**" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">

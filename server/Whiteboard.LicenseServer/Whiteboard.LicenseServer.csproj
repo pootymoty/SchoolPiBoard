@@ -11,6 +11,10 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
+    <!-- Backplane SignalR: несколько инстансов сервера должны видеть
+         сообщения друг друга. Отсюда же берётся клиент Redis для присутствия. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.8" />
   </ItemGroup>
 
   <ItemGroup>

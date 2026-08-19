@@ -6,7 +6,7 @@ namespace Whiteboard.LicenseServer.Configuration;
 /// Настройки сервиса. Всё, что является секретом, приходит из переменных
 /// окружения — в appsettings.json лежат только пустые заглушки.
 /// </summary>
-public sealed class ServerOptions
+public sealed record ServerOptions
 {
     public required string ConnectionString { get; init; }
     public required LicenseOptions License { get; init; }
@@ -15,6 +15,8 @@ public sealed class ServerOptions
     public required RobokassaOptions Robokassa { get; init; }
     public required TrialOptions Trial { get; init; }
     public required WebOptions Web { get; init; }
+    public required AuthOptions Auth { get; init; }
+    public required RedisOptions Redis { get; init; }
 
     /// <summary>
     /// Собирает настройки и сразу проверяет их. В боевом режиме отсутствие
@@ -77,9 +79,32 @@ public sealed class ServerOptions
             Web = new WebOptions
             {
                 AllowedOrigins = configuration.GetSection("Web:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>(),
+                AppOrigins = configuration.GetSection("Web:AppOrigins").Get<string[]>() ?? Array.Empty<string>(),
                 SiteUrl = configuration["Web:SiteUrl"] ?? string.Empty
+            },
+
+            Auth = new AuthOptions
+            {
+                // В разработке подходит секрет лицензий: отдельный секрет нужен
+                // ради того, чтобы утечка одного не давала подделать другое.
+                TokenSecret = First(configuration["Auth:TokenSecret"], "AUTH_TOKEN_SECRET"),
+                Issuer = configuration["Auth:Issuer"] ?? "whiteboard-web",
+                Audience = configuration["Auth:Audience"] ?? "whiteboard-web",
+                TokenLifetimeDays = ReadInt(configuration["Auth:TokenLifetimeDays"], 30),
+                SubscriptionTrialDays = ReadInt(configuration["Auth:SubscriptionTrialDays"], 7)
+            },
+
+            Redis = new RedisOptions
+            {
+                ConnectionString = First(configuration["Redis:ConnectionString"], "REDIS_CONNECTION_STRING")
             }
         };
+
+        if (string.IsNullOrWhiteSpace(options.Auth.TokenSecret) && development)
+        {
+            // Локально не заставляем заводить второй секрет.
+            options = options with { Auth = options.Auth with { TokenSecret = options.License.TokenSecret } };
+        }
 
         var missing = new List<string>();
 
@@ -92,7 +117,14 @@ public sealed class ServerOptions
         if (!development)
         {
             // В разработке без этих значений сервис поднимается: письма пишутся
-            // в лог, а вебхук принимается без проверки подписи.
+            // в лог, вебхук принимается без проверки подписи, а присутствие
+            // участников держится в памяти одного процесса.
+            if (string.IsNullOrWhiteSpace(options.Auth.TokenSecret))
+                missing.Add("AUTH_TOKEN_SECRET");
+
+            if (string.IsNullOrWhiteSpace(options.Redis.ConnectionString))
+                missing.Add("REDIS_CONNECTION_STRING");
+
             if (string.IsNullOrWhiteSpace(options.Stripe.WebhookSecret))
                 missing.Add("STRIPE_WEBHOOK_SECRET");
 
@@ -224,6 +256,39 @@ public sealed class WebOptions
     /// <summary>Домены сайта, которым разрешены запросы из браузера (CORS).</summary>
     public required string[] AllowedOrigins { get; init; }
 
+    /// <summary>
+    /// Домены веб-приложения. Отдельно от AllowedOrigins, потому что здесь
+    /// нужны cookie/заголовки и WebSocket, а странице покупки — только POST формы.
+    /// </summary>
+    public required string[] AppOrigins { get; init; }
+
     /// <summary>Адрес страницы покупки — используется в сообщениях об ошибке.</summary>
     public required string SiteUrl { get; init; }
+}
+
+/// <summary>Вход в веб-версию.</summary>
+public sealed record AuthOptions
+{
+    /// <summary>Секрет подписи токенов входа.</summary>
+    public required string TokenSecret { get; init; }
+
+    public required string Issuer { get; init; }
+
+    public required string Audience { get; init; }
+
+    public required int TokenLifetimeDays { get; init; }
+
+    /// <summary>Сколько дней длится пробная подписка после регистрации.</summary>
+    public required int SubscriptionTrialDays { get; init; }
+}
+
+/// <summary>
+/// Redis. Нужен для двух вещей: рассылки сообщений SignalR между несколькими
+/// инстансами сервера и хранения того, кто сейчас в доске.
+/// </summary>
+public sealed record RedisOptions
+{
+    public required string ConnectionString { get; init; }
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(ConnectionString);
 }
