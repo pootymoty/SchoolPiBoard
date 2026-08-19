@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Whiteboard</AssemblyName>
+    <RootNamespace>Whiteboard</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>2.2.0</Version>
+
+    <!-- Иконка EXE-файла и панели задач -->
+    <ApplicationIcon>whiteboard.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Та же иконка как ресурс — чтобы задать её окнам через Icon="..." -->
+    <Resource Include="whiteboard.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Сервер лицензий, страница продукта и установщик лежат рядом и
+         собираются отдельно. Без явного исключения SDK забрал бы их файлы
+         в сборку приложения: по умолчанию он берёт всё из папки проекта. -->
+    <Compile Remove="server/**;web/**;installer/**;dist/**" />
+    <None Remove="server/**;web/**;installer/**;dist/**" />
+    <Content Remove="server/**;web/**;installer/**;dist/**" />
+    <Page Remove="server/**;web/**;installer/**;dist/**" />
+    <Resource Remove="server/**;web/**;installer/**;dist/**" />
+    <EmbeddedResource Remove="server/**;web/**;installer/**;dist/**" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+</Project>
