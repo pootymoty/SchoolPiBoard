@@ -1,0 +1,101 @@
+using System.Text;
+
+namespace Whiteboard.Services;
+
+/// <summary>
+/// То, что приложение помнит о лицензии между запусками.
+/// Сохраняется в %APPDATA%\WhiteboardApp\license.dat (см. <see cref="LicenseStorage"/>).
+/// </summary>
+public class LicenseState
+{
+    /// <summary>Ключ в каноническом виде XXXX-XXXX-XXXX-XXXX.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>Компьютер, на котором ключ активирован.</summary>
+    public string HardwareId { get; set; } = string.Empty;
+
+    /// <summary>Подписанный сервером токен активации. Клиент его не разбирает.</summary>
+    public string Token { get; set; } = string.Empty;
+
+    /// <summary>Почта покупателя — показывается в разделе «О программе».</summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>UTC-время первой активации на этом компьютере.</summary>
+    public DateTime ActivatedAt { get; set; }
+
+    /// <summary>UTC-время последней успешной проверки. От него считается офлайн-период.</summary>
+    public DateTime LastValidatedAt { get; set; }
+
+    /// <summary>Сколько устройств занято ключом на момент последней проверки.</summary>
+    public int DevicesUsed { get; set; }
+
+    /// <summary>Сколько устройств разрешено — приходит с сервера, по умолчанию 2.</summary>
+    public int DeviceLimit { get; set; } = LicenseOptions.DefaultDeviceLimit;
+}
+
+/// <summary>Настройки лицензирования на стороне клиента.</summary>
+public static class LicenseOptions
+{
+    /// <summary>
+    /// Адрес сервера лицензий по умолчанию. Перед выпуском заменяется на боевой;
+    /// для отладки перекрывается переменной окружения WHITEBOARD_LICENSE_URL
+    /// или полем licenseServerUrl в settings.json.
+    /// </summary>
+    public const string DefaultServerUrl = "https://api.whiteboard.example.com";
+
+    public const string ServerUrlEnvironmentVariable = "WHITEBOARD_LICENSE_URL";
+
+    /// <summary>Сколько дней приложение работает без связи с сервером.</summary>
+    public const int GraceDays = 14;
+
+    /// <summary>Максимум устройств на один ключ (окончательное слово всё равно за сервером).</summary>
+    public const int DefaultDeviceLimit = 2;
+
+    /// <summary>Как часто дёргается фоновая проверка.</summary>
+    public static readonly TimeSpan ValidationInterval = TimeSpan.FromDays(1);
+}
+
+/// <summary>
+/// Приведение ключа к каноническому виду. Алфавит ключа не содержит
+/// символов, которые легко перепутать (I, L, O, 0, 1), поэтому достаточно
+/// убрать разделители и поднять регистр.
+/// </summary>
+public static class LicenseKeyFormat
+{
+    public const int GroupCount = 4;
+    public const int GroupSize = 4;
+    public const int Length = GroupCount * GroupSize;
+
+    /// <summary>«abcd efgh…» → «ABCD-EFGH-…». Лишние символы отбрасываются.</summary>
+    public static string Normalize(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+
+        var letters = new StringBuilder(Length);
+        foreach (var symbol in input)
+        {
+            if (letters.Length == Length)
+                break;
+            if (char.IsLetterOrDigit(symbol))
+                letters.Append(char.ToUpperInvariant(symbol));
+        }
+
+        var result = new StringBuilder(Length + GroupCount - 1);
+        for (var i = 0; i < letters.Length; i++)
+        {
+            if (i > 0 && i % GroupSize == 0)
+                result.Append('-');
+            result.Append(letters[i]);
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>Похоже ли введённое на полный ключ (16 символов).</summary>
+    public static bool IsComplete(string? input)
+    {
+        var normalized = Normalize(input);
+        return normalized.Length == Length + GroupCount - 1;
+    }
+}

@@ -9,7 +9,7 @@
     <AssemblyName>Whiteboard</AssemblyName>
     <RootNamespace>Whiteboard</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
 
     <!-- Иконка EXE-файла и панели задач -->
     <ApplicationIcon>whiteboard.ico</ApplicationIcon>
@@ -18,6 +18,18 @@
   <ItemGroup>
     <!-- Та же иконка как ресурс — чтобы задать её окнам через Icon="..." -->
     <Resource Include="whiteboard.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Сервер лицензий лежит в этом же репозитории и собирается отдельно.
+         Без явного исключения SDK забрал бы его исходники в сборку приложения,
+         потому что по умолчанию берёт все *.cs из папки проекта. -->
+    <Compile Remove="server/**" />
+    <None Remove="server/**" />
+    <Content Remove="server/**" />
+    <Page Remove="server/**" />
+    <Resource Remove="server/**" />
+    <EmbeddedResource Remove="server/**" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">

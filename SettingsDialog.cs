@@ -8,13 +8,14 @@ using Whiteboard.Services;
 namespace Whiteboard.Views;
 
 /// <summary>
-/// Настройки приложения. Сейчас единственный раздел — папка,
-/// в которой хранятся доски.
+/// Настройки приложения: папка, в которой хранятся доски,
+/// и состояние лицензии.
 /// </summary>
 public class SettingsDialog : Window
 {
     private readonly MainWindow _shell;
     private readonly TextBlock _folderLabel;
+    private readonly TextBlock _licenseLabel;
 
     public SettingsDialog(MainWindow shell)
     {
@@ -105,6 +106,42 @@ public class SettingsDialog : Window
 
         root.Children.Add(actions);
 
+        // ============ Лицензия ============
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "Лицензия",
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 26, 0, 0)
+        });
+
+        _licenseLabel = new TextBlock
+        {
+            Text = DescribeLicense(),
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0)
+        };
+        root.Children.Add(_licenseLabel);
+
+        var licenseButton = new Button
+        {
+            Content = "О программе и лицензии",
+            Style = (Style)Application.Current.Resources["TextButton"],
+            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+        licenseButton.Click += (_, _) =>
+        {
+            new LicenseInfoDialog(this).ShowDialog();
+            _licenseLabel.Text = DescribeLicense();
+        };
+        root.Children.Add(licenseButton);
+
         var close = new Button
         {
             Content = "Закрыть",
@@ -119,6 +156,21 @@ public class SettingsDialog : Window
         root.Children.Add(close);
 
         Content = root;
+    }
+
+    /// <summary>Короткая строка о состоянии лицензии для раздела настроек.</summary>
+    private static string DescribeLicense()
+    {
+        var state = LicenseManager.State;
+        if (state is null)
+            return "Лицензия не активирована.";
+
+        var devices = $"устройств занято: {Math.Max(state.DevicesUsed, 1)} из {state.DeviceLimit}";
+        var email = string.IsNullOrWhiteSpace(state.Email) ? null : state.Email;
+
+        return email is null
+            ? $"Ключ {state.Key} · {devices}"
+            : $"Ключ {state.Key} · {email} · {devices}";
     }
 
     private void ChangeFolder()

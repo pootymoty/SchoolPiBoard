@@ -40,15 +40,66 @@ public partial class App : Application
         {
             ThemeManager.Initialize();
 
+            // Пока идёт активация, ни одного окна приложения ещё нет: при режиме
+            // по умолчанию WPF закрыл бы приложение сразу после закрытия окна
+            // активации, не дав открыть список досок.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+            LicenseManager.Initialize(AppSettings.Load());
+
+            if (!PassLicenseGate())
+            {
+                Shutdown(0);
+                return;
+            }
+
             var window = new MainWindow();
             MainWindow = window;
             window.Show();
+
+            ShutdownMode = ShutdownMode.OnLastWindowClose;
+
+            // Фоновая проверка: раз в сутки, без блокировки интерфейса.
+            LicenseManager.StartBackgroundCheck(OnLicenseRevoked);
         }
         catch (Exception ex)
         {
             Report(ex, "Startup");
             Shutdown(1);
         }
+    }
+
+    /// <summary>
+    /// Пускает приложение дальше, если лицензия в порядке. Иначе показывает
+    /// экран активации и возвращает его результат.
+    /// </summary>
+    private static bool PassLicenseGate()
+    {
+        var verdict = LicenseManager.Evaluate();
+        if (verdict == LicenseGateResult.Allowed)
+            return true;
+
+        var activation = new ActivationWindow(verdict == LicenseGateResult.NeedsRevalidation);
+        activation.ShowDialog();
+        return activation.Activated;
+    }
+
+    /// <summary>Сервер подтвердил, что ключ отозван — дальше работать нельзя.</summary>
+    private static void OnLicenseRevoked()
+    {
+        const string title = "Лицензия больше не действует";
+        const string message =
+            "Сервер сообщил, что этот ключ отозван, поэтому Whiteboard закроется.\n\n" +
+            "Доски и настройки остаются на компьютере — они снова откроются, " +
+            "как только будет введён действующий ключ.";
+
+        var owner = Current?.MainWindow;
+        if (owner is not null)
+            ConfirmDialog.Info(owner, title, message);
+        else
+            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+
+        Current?.Shutdown();
     }
 
     private static void Report(Exception? exception, string source)

@@ -19,6 +19,12 @@ public class AppSettings
     /// <summary>Папка, в которой лежит файл с досками.</summary>
     public string DataFolder { get; set; } = ConfigDirectory;
 
+    /// <summary>
+    /// Адрес сервера лицензий. Обычно менять не нужно; поле существует,
+    /// чтобы адрес можно было переключить без пересборки приложения.
+    /// </summary>
+    public string LicenseServerUrl { get; set; } = LicenseOptions.DefaultServerUrl;
+
     public static AppSettings Load()
     {
         try
