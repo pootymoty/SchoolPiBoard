@@ -1,22 +1,15 @@
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace Whiteboard.Services;
 
 /// <summary>
-/// Хранит состояние лицензии в %APPDATA%\WhiteboardApp\license.dat.
-///
-/// Файл шифруется AES на ключе, выведенном из отпечатка компьютера. Это не
-/// защита от целевого взлома (ключ выводится тем же кодом, что и в приложении),
-/// а две практические вещи: файл нельзя отредактировать блокнотом и нельзя
-/// просто скопировать на другой компьютер — там он не расшифруется.
+/// Хранит состояние лицензии (или пробного периода) в
+/// %APPDATA%\WhiteboardApp\license.dat. Файл зашифрован — см. <see cref="LocalCrypto"/>.
 /// </summary>
 public static class LicenseStorage
 {
-    private static readonly byte[] Magic = { (byte)'W', (byte)'B', (byte)'L', (byte)'1' };
-    private const int IvLength = 16;
+    private const string Purpose = "LicenseFile";
 
     private static readonly string Folder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -34,27 +27,20 @@ public static class LicenseStorage
             if (!File.Exists(FilePath))
                 return null;
 
-            var raw = File.ReadAllBytes(FilePath);
-            if (raw.Length <= Magic.Length + IvLength)
+            var json = LocalCrypto.Unprotect(Purpose, File.ReadAllBytes(FilePath));
+            if (json is null)
                 return null;
 
-            for (var i = 0; i < Magic.Length; i++)
-            {
-                if (raw[i] != Magic[i])
-                    return null;
-            }
+            var state = JsonSerializer.Deserialize<LicenseState>(json);
+            if (state is null || state.Mode == LicenseMode.None)
+                return null;
 
-            using var aes = CreateAes();
-            var iv = new byte[IvLength];
-            Array.Copy(raw, Magic.Length, iv, 0, IvLength);
-            aes.IV = iv;
+            // Лицензия без ключа и пробный период без даты окончания
+            // одинаково бессмысленны — считаем файл испорченным.
+            if (state.Mode == LicenseMode.Licensed && string.IsNullOrWhiteSpace(state.Key))
+                return null;
 
-            using var decryptor = aes.CreateDecryptor();
-            var offset = Magic.Length + IvLength;
-            var plain = decryptor.TransformFinalBlock(raw, offset, raw.Length - offset);
-
-            var state = JsonSerializer.Deserialize<LicenseState>(Encoding.UTF8.GetString(plain));
-            if (state is null || string.IsNullOrWhiteSpace(state.Key))
+            if (state.Mode == LicenseMode.Trial && state.TrialExpiresAt == default)
                 return null;
 
             return state;
@@ -73,17 +59,7 @@ public static class LicenseStorage
         {
             Directory.CreateDirectory(Folder);
 
-            var plain = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(state, JsonOptions));
-
-            using var aes = CreateAes();
-            aes.GenerateIV();
-            using var encryptor = aes.CreateEncryptor();
-            var body = encryptor.TransformFinalBlock(plain, 0, plain.Length);
-
-            var bytes = new byte[Magic.Length + IvLength + body.Length];
-            Array.Copy(Magic, 0, bytes, 0, Magic.Length);
-            Array.Copy(aes.IV, 0, bytes, Magic.Length, IvLength);
-            Array.Copy(body, 0, bytes, Magic.Length + IvLength, body.Length);
+            var bytes = LocalCrypto.Protect(Purpose, JsonSerializer.Serialize(state, JsonOptions));
 
             var tmp = FilePath + ".tmp";
             File.WriteAllBytes(tmp, bytes);
@@ -107,15 +83,5 @@ public static class LicenseStorage
         {
             // Файл может быть занят — не критично.
         }
-    }
-
-    private static Aes CreateAes()
-    {
-        var aes = Aes.Create();
-        aes.Mode = CipherMode.CBC;
-        aes.Padding = PaddingMode.PKCS7;
-        aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(
-            "Whiteboard.LicenseFile.v1|" + HardwareId.Current));
-        return aes;
     }
 }

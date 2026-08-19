@@ -12,6 +12,10 @@ public class LicenseDbContext : DbContext
 
     public DbSet<LicenseActivation> Activations => Set<LicenseActivation>();
 
+    public DbSet<TrialActivation> Trials => Set<TrialActivation>();
+
+    public DbSet<Payment> Payments => Set<Payment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<License>(entity =>
@@ -48,6 +52,38 @@ public class LicenseDbContext : DbContext
             entity.Property(x => x.LastValidatedAt).HasColumnName("last_validated_at");
 
             entity.HasIndex(x => new { x.LicenseId, x.HardwareId }).IsUnique();
+        });
+
+        modelBuilder.Entity<TrialActivation>(entity =>
+        {
+            entity.ToTable("trial_activations");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.HardwareId).HasColumnName("hardware_id").IsRequired();
+            entity.Property(x => x.Email).HasColumnName("email").IsRequired();
+            entity.Property(x => x.StartedAt).HasColumnName("started_at");
+            entity.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+
+            entity.HasIndex(x => x.HardwareId).IsUnique();
+        });
+
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.InvoiceId).HasColumnName("invoice_id");
+            entity.Property(x => x.Email).HasColumnName("email").IsRequired();
+            entity.Property(x => x.Amount).HasColumnName("amount").HasPrecision(12, 2);
+            entity.Property(x => x.Provider).HasColumnName("provider").IsRequired();
+            entity.Property(x => x.Status).HasColumnName("status").IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.PaidAt).HasColumnName("paid_at");
+            entity.Property(x => x.LicenseId).HasColumnName("license_id");
+
+            entity.HasIndex(x => x.InvoiceId).IsUnique();
         });
     }
 }

@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <!-- Схема применяется при старте, поэтому файл должен лежать рядом с EXE. -->
-    <None Update="sql/001_init.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="sql/*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

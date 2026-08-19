@@ -19,6 +19,9 @@ public enum LicenseCallStatus
     /// <summary>Лимит устройств исчерпан.</summary>
     DeviceLimit,
 
+    /// <summary>Пробный период на этом компьютере уже был.</summary>
+    TrialUsed,
+
     /// <summary>До сервера не достучались: нет сети, таймаут, DNS.</summary>
     Offline,
 
@@ -26,7 +29,7 @@ public enum LicenseCallStatus
     ServerError
 }
 
-public sealed class LicenseCallResult
+public sealed record LicenseCallResult
 {
     public LicenseCallStatus Status { get; init; }
     public string? Token { get; init; }
@@ -34,6 +37,11 @@ public sealed class LicenseCallResult
     public DateTime? ActivatedAt { get; init; }
     public int DevicesUsed { get; init; }
     public int DeviceLimit { get; init; } = LicenseOptions.DefaultDeviceLimit;
+
+    /// <summary>Начало и конец пробного периода — приходят от /trial/start.</summary>
+    public DateTime? TrialStartedAt { get; init; }
+
+    public DateTime? TrialExpiresAt { get; init; }
 
     /// <summary>Готовое к показу сообщение об ошибке.</summary>
     public string Message { get; init; } = string.Empty;
@@ -58,19 +66,32 @@ public sealed class LicenseApiClient
     }
 
     public Task<LicenseCallResult> ActivateAsync(string key, string hardwareId, CancellationToken token = default)
-        => SendAsync("/license/activate", key, hardwareId, token);
+        => SendAsync("/license/activate", new { key, hardwareId }, token);
 
     public Task<LicenseCallResult> DeactivateAsync(string key, string hardwareId, CancellationToken token = default)
-        => SendAsync("/license/deactivate", key, hardwareId, token);
+        => SendAsync("/license/deactivate", new { key, hardwareId }, token);
+
+    /// <summary>
+    /// Запрос пробного периода. Отдельный код 409 здесь означает не лимит
+    /// устройств, а «три дня уже брали», поэтому статус переименовываем.
+    /// </summary>
+    public async Task<LicenseCallResult> StartTrialAsync(string hardwareId, string email, CancellationToken token = default)
+    {
+        var result = await SendAsync("/trial/start", new { hardwareId, email }, token).ConfigureAwait(false);
+
+        return result.Status == LicenseCallStatus.DeviceLimit
+            ? result with { Status = LicenseCallStatus.TrialUsed }
+            : result;
+    }
 
     /// <summary>
     /// Фоновая проверка. Сервер отвечает 200 и полем valid — «нет» здесь
     /// означает именно отозванный ключ, а не проблему со связью.
     /// </summary>
     public Task<LicenseCallResult> ValidateAsync(string key, string hardwareId, CancellationToken token = default)
-        => SendAsync("/license/validate", key, hardwareId, token);
+        => SendAsync("/license/validate", new { key, hardwareId }, token);
 
-    private async Task<LicenseCallResult> SendAsync(string path, string key, string hardwareId, CancellationToken token)
+    private async Task<LicenseCallResult> SendAsync(string path, object payload, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(_baseUrl))
         {
@@ -83,12 +104,12 @@ public sealed class LicenseApiClient
 
         try
         {
-            var payload = JsonSerializer.Serialize(new { key, hardwareId });
-            using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            var body = JsonSerializer.Serialize(payload);
+            using var content = new StringContent(body, Encoding.UTF8, "application/json");
             using var response = await Http.PostAsync(_baseUrl + path, content, token).ConfigureAwait(false);
 
-            var body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-            return Interpret(response.StatusCode, body);
+            var answer = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+            return Interpret(response.StatusCode, answer);
         }
         catch (OperationCanceledException)
         {
@@ -138,7 +159,9 @@ public sealed class LicenseApiClient
                 Email = fields.Email,
                 ActivatedAt = fields.ActivatedAt,
                 DevicesUsed = fields.DevicesUsed ?? 1,
-                DeviceLimit = fields.DeviceLimit ?? LicenseOptions.DefaultDeviceLimit
+                DeviceLimit = fields.DeviceLimit ?? LicenseOptions.DefaultDeviceLimit,
+                TrialStartedAt = fields.StartedAt,
+                TrialExpiresAt = fields.ExpiresAt
             };
         }
 
@@ -158,6 +181,7 @@ public sealed class LicenseApiClient
                 Status = LicenseCallStatus.DeviceLimit,
                 DevicesUsed = fields.DevicesUsed ?? LicenseOptions.DefaultDeviceLimit,
                 DeviceLimit = fields.DeviceLimit ?? LicenseOptions.DefaultDeviceLimit,
+                TrialExpiresAt = fields.ExpiresAt,
                 Message = fields.Message ?? "Ключ уже используется на другом компьютере."
             };
         }
@@ -197,6 +221,8 @@ public sealed class LicenseApiClient
         public int? DevicesUsed { get; private init; }
         public int? DeviceLimit { get; private init; }
         public DateTime? ActivatedAt { get; private init; }
+        public DateTime? StartedAt { get; private init; }
+        public DateTime? ExpiresAt { get; private init; }
 
         public static Fields Parse(string body)
         {
@@ -218,7 +244,9 @@ public sealed class LicenseApiClient
                     Valid = ReadBool(root, "valid"),
                     DevicesUsed = ReadInt(root, "devicesUsed"),
                     DeviceLimit = ReadInt(root, "deviceLimit"),
-                    ActivatedAt = ReadDate(root, "activatedAt")
+                    ActivatedAt = ReadDate(root, "activatedAt"),
+                    StartedAt = ReadDate(root, "startedAt"),
+                    ExpiresAt = ReadDate(root, "expiresAt")
                 };
             }
             catch (JsonException)

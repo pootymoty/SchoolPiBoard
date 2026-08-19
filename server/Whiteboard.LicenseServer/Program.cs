@@ -16,18 +16,34 @@ builder.Services.AddSingleton(options);
 builder.Services.AddSingleton(options.License);
 builder.Services.AddSingleton(options.Stripe);
 builder.Services.AddSingleton(options.Email);
+builder.Services.AddSingleton(options.Robokassa);
+builder.Services.AddSingleton(options.Trial);
+builder.Services.AddSingleton(options.Web);
 
 // Повторные попытки Npgsql намеренно не включены: сервис сам открывает
 // транзакции при активации, а стратегия повторов с ними несовместима.
 builder.Services.AddDbContext<LicenseDbContext>(db => db.UseNpgsql(options.ConnectionString));
 
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<RobokassaService>();
 builder.Services.AddScoped<LicenseService>();
+builder.Services.AddScoped<TrialService>();
+builder.Services.AddScoped<PurchaseService>();
 
 if (options.Email.IsConfigured)
     builder.Services.AddHttpClient<IEmailSender, SendGridEmailSender>();
 else
     builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+
+// Страница покупки живёт на сайте, а не здесь: обычная форма уходит сюда
+// без CORS, но для запросов из скриптов домены нужно перечислить явно.
+builder.Services.AddCors(cors =>
+{
+    cors.AddPolicy(PurchaseEndpoints.CorsPolicy, policy => policy
+        .WithOrigins(options.Web.AllowedOrigins)
+        .AllowAnyHeader()
+        .WithMethods("POST"));
+});
 
 builder.Services.Configure<ForwardedHeadersOptions>(forwarded =>
 {
@@ -63,12 +79,20 @@ var app = builder.Build();
 await DatabaseInitializer.ApplySchemaAsync(app.Services);
 
 app.UseForwardedHeaders();
+app.UseCors();
 app.UseRateLimiter();
 
 app.MapLicenseEndpoints();
+app.MapTrialEndpoints();
+app.MapPurchaseEndpoints();
 app.MapStripeWebhook();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+if (!options.Robokassa.IsConfigured)
+    app.Logger.LogWarning("Робокасса не настроена: покупка недоступна, /purchase/start вернёт 503.");
+else if (options.Robokassa.IsTest)
+    app.Logger.LogWarning("Робокасса работает в ТЕСТОВОМ режиме: деньги не списываются.");
 
 app.Run();
 

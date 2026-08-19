@@ -2,12 +2,31 @@ using System.Text;
 
 namespace Whiteboard.Services;
 
+/// <summary>На каком основании приложение работает.</summary>
+public enum LicenseMode
+{
+    /// <summary>Оснований нет — нужен ключ или пробный период.</summary>
+    None = 0,
+
+    /// <summary>Куплен бессрочный ключ.</summary>
+    Licensed = 1,
+
+    /// <summary>Идёт пробный период.</summary>
+    Trial = 2
+}
+
 /// <summary>
 /// То, что приложение помнит о лицензии между запусками.
 /// Сохраняется в %APPDATA%\WhiteboardApp\license.dat (см. <see cref="LicenseStorage"/>).
 /// </summary>
 public class LicenseState
 {
+    /// <summary>
+    /// Ключ или пробный период. Значение по умолчанию — «ключ»: так файлы,
+    /// записанные до появления пробного периода, читаются без миграции.
+    /// </summary>
+    public LicenseMode Mode { get; set; } = LicenseMode.Licensed;
+
     /// <summary>Ключ в каноническом виде XXXX-XXXX-XXXX-XXXX.</summary>
     public string Key { get; set; } = string.Empty;
 
@@ -31,6 +50,14 @@ public class LicenseState
 
     /// <summary>Сколько устройств разрешено — приходит с сервера, по умолчанию 2.</summary>
     public int DeviceLimit { get; set; } = LicenseOptions.DefaultDeviceLimit;
+
+    /// <summary>UTC-время начала пробного периода.</summary>
+    public DateTime TrialStartedAt { get; set; }
+
+    /// <summary>UTC-время окончания пробного периода.</summary>
+    public DateTime TrialExpiresAt { get; set; }
+
+    public bool IsTrial => Mode == LicenseMode.Trial;
 }
 
 /// <summary>Настройки лицензирования на стороне клиента.</summary>
@@ -53,6 +80,13 @@ public static class LicenseOptions
 
     /// <summary>Как часто дёргается фоновая проверка.</summary>
     public static readonly TimeSpan ValidationInterval = TimeSpan.FromDays(1);
+
+    /// <summary>
+    /// Длительность пробного периода. Значение справочное — настоящий срок
+    /// назначает сервер, здесь оно нужно только для текстов на экране.
+    /// </summary>
+    public const int TrialDays = 3;
+
 }
 
 /// <summary>

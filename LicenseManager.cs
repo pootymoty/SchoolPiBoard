@@ -3,27 +3,33 @@ using System.Windows;
 
 namespace Whiteboard.Services;
 
-/// <summary>Что делать с лицензией на старте приложения.</summary>
+/// <summary>Что делать на старте приложения.</summary>
 public enum LicenseGateResult
 {
-    /// <summary>Лицензия есть и проверка не просрочена — пускаем.</summary>
+    /// <summary>Есть действующий ключ или незакончившийся пробный период.</summary>
     Allowed,
 
-    /// <summary>Лицензии нет — нужен экран активации (требуется интернет).</summary>
+    /// <summary>Оснований работать нет — нужен экран активации (требуется интернет).</summary>
     NeedsActivation,
 
-    /// <summary>Лицензия есть, но офлайн-период вышел — нужна проверка на сервере.</summary>
-    NeedsRevalidation
+    /// <summary>Ключ есть, но офлайн-период вышел — нужна проверка на сервере.</summary>
+    NeedsRevalidation,
+
+    /// <summary>Пробный период закончился — дальше только по ключу.</summary>
+    TrialExpired
 }
 
 /// <summary>
-/// Вся логика лицензии в одном месте: состояние, активация, офлайн-период
-/// и фоновая проверка. Логику самой доски не трогает — это слой поверх.
+/// Вся логика лицензии в одном месте: состояние, активация, пробный период,
+/// офлайн-период и фоновая проверка. Логику самой доски не трогает.
 /// </summary>
 public static class LicenseManager
 {
     /// <summary>Сколько дней приложение работает без связи с сервером.</summary>
     public const int GraceDays = LicenseOptions.GraceDays;
+
+    /// <summary>Длительность пробного периода (для текстов; срок назначает сервер).</summary>
+    public const int TrialDays = LicenseOptions.TrialDays;
 
     private static string _serverUrl = LicenseOptions.DefaultServerUrl;
 
@@ -31,7 +37,16 @@ public static class LicenseManager
 
     public static string ServerUrl => _serverUrl;
 
-    /// <summary>Читает сохранённую лицензию и адрес сервера. Вызывается один раз при старте.</summary>
+    /// <summary>Идёт ли сейчас пробный период.</summary>
+    public static bool IsTrial => State?.Mode == LicenseMode.Trial;
+
+    /// <summary>Куплен ли ключ.</summary>
+    public static bool IsLicensed => State?.Mode == LicenseMode.Licensed;
+
+    /// <summary>Показывать ли кнопку «Попробовать бесплатно».</summary>
+    public static bool TrialAvailable => State is null && !TrialGuard.WasUsed;
+
+    /// <summary>Читает сохранённое состояние и адрес сервера. Вызывается один раз при старте.</summary>
     public static void Initialize(AppSettings settings)
     {
         // Переменная окружения удобна для отладки и приёмки: она перекрывает
@@ -45,23 +60,66 @@ public static class LicenseManager
                 : LicenseOptions.DefaultServerUrl;
 
         State = LicenseStorage.Load();
+
+        if (State is null)
+            State = RestoreTrialFromMark();
+    }
+
+    /// <summary>
+    /// Файл лицензии удалили посреди пробного периода. Метка о выданных днях
+    /// лежит отдельно, поэтому восстанавливаем остаток вместо новых трёх дней.
+    /// </summary>
+    private static LicenseState? RestoreTrialFromMark()
+    {
+        var expiry = TrialGuard.KnownExpiry;
+        if (expiry is null || expiry <= DateTime.UtcNow)
+            return null;
+
+        var restored = new LicenseState
+        {
+            Mode = LicenseMode.Trial,
+            HardwareId = HardwareId.Current,
+            TrialStartedAt = expiry.Value.AddDays(-TrialDays),
+            TrialExpiresAt = expiry.Value,
+            LastValidatedAt = DateTime.UtcNow
+        };
+
+        LicenseStorage.Save(restored);
+        return restored;
     }
 
     public static LicenseGateResult Evaluate()
     {
         var state = State;
-        if (state is null || string.IsNullOrWhiteSpace(state.Key))
+        if (state is null)
             return LicenseGateResult.NeedsActivation;
 
-        // Файл лицензии от другого компьютера. Обычно он сюда и не доедет
-        // (не расшифруется), но проверка дешёвая.
-        if (!string.Equals(state.HardwareId, HardwareId.Current, StringComparison.OrdinalIgnoreCase))
+        // Состояние от другого компьютера. Обычно оно сюда и не доедет
+        // (файл не расшифруется), но проверка дешёвая.
+        if (!string.IsNullOrEmpty(state.HardwareId) &&
+            !string.Equals(state.HardwareId, HardwareId.Current, StringComparison.OrdinalIgnoreCase))
+        {
             return LicenseGateResult.NeedsActivation;
+        }
 
         var now = DateTime.UtcNow;
 
-        // Часы перевели назад — самый простой способ растянуть офлайн-период.
-        // Сутки допуска на переезд между часовыми поясами и правку времени.
+        if (state.Mode == LicenseMode.Trial)
+        {
+            // Часы перевели назад — самый дешёвый способ растянуть три дня.
+            if (now < state.TrialStartedAt.AddDays(-1))
+                return LicenseGateResult.TrialExpired;
+
+            return now >= state.TrialExpiresAt
+                ? LicenseGateResult.TrialExpired
+                : LicenseGateResult.Allowed;
+        }
+
+        if (string.IsNullOrWhiteSpace(state.Key))
+            return LicenseGateResult.NeedsActivation;
+
+        // Тот же приём с часами, но для офлайн-периода лицензии.
+        // Сутки допуска на смену часового пояса и правку времени.
         if (now < state.LastValidatedAt.AddDays(-1))
             return LicenseGateResult.NeedsRevalidation;
 
@@ -72,15 +130,18 @@ public static class LicenseManager
     }
 
     /// <summary>Сколько дней офлайн-периода осталось (0, если он уже вышел).</summary>
-    public static int OfflineDaysLeft
+    public static int OfflineDaysLeft => DaysLeft(State?.LastValidatedAt.AddDays(GraceDays));
+
+    /// <summary>Сколько дней пробного периода осталось.</summary>
+    public static int TrialDaysLeft => IsTrial ? DaysLeft(State?.TrialExpiresAt) : 0;
+
+    private static int DaysLeft(DateTime? until)
     {
-        get
-        {
-            if (State is null)
-                return 0;
-            var left = State.LastValidatedAt.AddDays(GraceDays) - DateTime.UtcNow;
-            return left <= TimeSpan.Zero ? 0 : (int)Math.Ceiling(left.TotalDays);
-        }
+        if (until is null)
+            return 0;
+
+        var left = until.Value - DateTime.UtcNow;
+        return left <= TimeSpan.Zero ? 0 : (int)Math.Ceiling(left.TotalDays);
     }
 
     /// <summary>
@@ -109,6 +170,7 @@ public static class LicenseManager
         var now = DateTime.UtcNow;
         State = new LicenseState
         {
+            Mode = LicenseMode.Licensed,
             Key = normalized,
             HardwareId = HardwareId.Current,
             Token = result.Token ?? string.Empty,
@@ -123,11 +185,51 @@ public static class LicenseManager
         return result;
     }
 
+    /// <summary>
+    /// Запрашивает пробный период. Требует интернета: три дня выдаёт сервер,
+    /// он же помнит, что этот компьютер их уже брал.
+    /// </summary>
+    public static async Task<LicenseCallResult> StartTrialAsync(string email)
+    {
+        var client = new LicenseApiClient(_serverUrl);
+        var result = await client.StartTrialAsync(HardwareId.Current, email.Trim()).ConfigureAwait(false);
+
+        if (result.IsOk && result.TrialExpiresAt is not null)
+        {
+            var startedAt = result.TrialStartedAt ?? DateTime.UtcNow;
+
+            State = new LicenseState
+            {
+                Mode = LicenseMode.Trial,
+                HardwareId = HardwareId.Current,
+                Email = email.Trim(),
+                TrialStartedAt = startedAt,
+                TrialExpiresAt = result.TrialExpiresAt.Value,
+                LastValidatedAt = DateTime.UtcNow
+            };
+            LicenseStorage.Save(State);
+            TrialGuard.Remember(startedAt, result.TrialExpiresAt.Value);
+
+            return result;
+        }
+
+        if (result.Status == LicenseCallStatus.TrialUsed)
+        {
+            // Сервер помнит выданный период, а локальная метка пропала —
+            // возвращаем её на место, чтобы кнопка больше не предлагалась.
+            TrialGuard.Remember(
+                result.TrialStartedAt ?? DateTime.UtcNow,
+                result.TrialExpiresAt ?? DateTime.UtcNow);
+        }
+
+        return result;
+    }
+
     /// <summary>Освобождает слот устройства. Работает только онлайн.</summary>
     public static async Task<LicenseCallResult> DeactivateAsync()
     {
         var state = State;
-        if (state is null)
+        if (state is null || state.Mode != LicenseMode.Licensed)
         {
             return new LicenseCallResult
             {
@@ -160,7 +262,9 @@ public static class LicenseManager
     public static void StartBackgroundCheck(Action onRevoked)
     {
         var state = State;
-        if (state is null)
+
+        // Пробному периоду проверять нечего: его срок уже записан локально.
+        if (state is null || state.Mode != LicenseMode.Licensed)
             return;
 
         if (DateTime.UtcNow - state.LastValidatedAt < LicenseOptions.ValidationInterval)

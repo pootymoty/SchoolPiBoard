@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Whiteboard.LicenseServer.Configuration;
 
 /// <summary>
@@ -10,6 +12,9 @@ public sealed class ServerOptions
     public required LicenseOptions License { get; init; }
     public required StripeOptions Stripe { get; init; }
     public required EmailOptions Email { get; init; }
+    public required RobokassaOptions Robokassa { get; init; }
+    public required TrialOptions Trial { get; init; }
+    public required WebOptions Web { get; init; }
 
     /// <summary>
     /// Собирает настройки и сразу проверяет их. В боевом режиме отсутствие
@@ -46,6 +51,33 @@ public sealed class ServerOptions
                 FromEmail = configuration["SendGrid:FromEmail"] ?? string.Empty,
                 FromName = configuration["SendGrid:FromName"] ?? "Whiteboard",
                 Subject = configuration["SendGrid:Subject"] ?? "Ваш ключ Whiteboard"
+            },
+
+            Robokassa = new RobokassaOptions
+            {
+                MerchantLogin = configuration["Robokassa:MerchantLogin"] ?? string.Empty,
+                Password1 = First(configuration["Robokassa:Password1"], "ROBOKASSA_PASSWORD1"),
+                Password2 = First(configuration["Robokassa:Password2"], "ROBOKASSA_PASSWORD2"),
+                Amount = ReadDecimal(configuration["Robokassa:Amount"], 15000m),
+                Description = configuration["Robokassa:Description"] ?? "Лицензия Whiteboard (бессрочная)",
+                PaymentUrl = configuration["Robokassa:PaymentUrl"]
+                             ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
+                IsTest = ReadBool(configuration["Robokassa:IsTest"], false),
+                SendReceipt = ReadBool(configuration["Robokassa:SendReceipt"], false),
+                TaxSystem = configuration["Robokassa:TaxSystem"] ?? "npd",
+                Tax = configuration["Robokassa:Tax"] ?? "none"
+            },
+
+            Trial = new TrialOptions
+            {
+                Days = ReadInt(configuration["Trial:Days"], 3),
+                OneTrialPerEmail = ReadBool(configuration["Trial:OneTrialPerEmail"], true)
+            },
+
+            Web = new WebOptions
+            {
+                AllowedOrigins = configuration.GetSection("Web:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>(),
+                SiteUrl = configuration["Web:SiteUrl"] ?? string.Empty
             }
         };
 
@@ -80,6 +112,19 @@ public sealed class ServerOptions
 
         return options;
     }
+
+    private static decimal ReadDecimal(string? value, decimal fallback)
+        => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) && parsed > 0
+            ? parsed
+            : fallback;
+
+    private static int ReadInt(string? value, int fallback)
+        => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0
+            ? parsed
+            : fallback;
+
+    private static bool ReadBool(string? value, bool fallback)
+        => bool.TryParse(value, out var parsed) ? parsed : fallback;
 
     private static string First(string? fromConfiguration, string environmentVariable)
     {
@@ -120,4 +165,65 @@ public sealed class EmailOptions
     public required string Subject { get; init; }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(FromEmail);
+}
+
+/// <summary>
+/// Робокасса. Пароли — секреты и приходят из окружения; логин магазина
+/// и цена лежат в конфиге, потому что не секретны и меняются осознанно.
+/// </summary>
+public sealed class RobokassaOptions
+{
+    public required string MerchantLogin { get; init; }
+    public required string Password1 { get; init; }
+    public required string Password2 { get; init; }
+
+    /// <summary>Цена лицензии в рублях.</summary>
+    public required decimal Amount { get; init; }
+
+    /// <summary>Назначение платежа — видно покупателю и попадает в чек.</summary>
+    public required string Description { get; init; }
+
+    public required string PaymentUrl { get; init; }
+
+    /// <summary>Тестовый режим Робокассы: деньги не списываются.</summary>
+    public required bool IsTest { get; init; }
+
+    /// <summary>
+    /// Передавать ли состав чека параметром Receipt. Для самозанятого чек
+    /// обычно формирует сама Робокасса, поэтому по умолчанию выключено —
+    /// включать только если фискализация с составом чека включена в кабинете.
+    /// </summary>
+    public required bool SendReceipt { get; init; }
+
+    /// <summary>Система налогообложения в чеке (для самозанятого — npd).</summary>
+    public required string TaxSystem { get; init; }
+
+    /// <summary>Ставка НДС в чеке (для самозанятого — none).</summary>
+    public required string Tax { get; init; }
+
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(MerchantLogin) &&
+        !string.IsNullOrWhiteSpace(Password1) &&
+        !string.IsNullOrWhiteSpace(Password2);
+}
+
+public sealed class TrialOptions
+{
+    /// <summary>Длительность пробного периода в днях.</summary>
+    public required int Days { get; init; }
+
+    /// <summary>
+    /// Считать ли повтором пробный период с той же почтой на другом компьютере.
+    /// Отсекает переустановку Windows и смену диска.
+    /// </summary>
+    public required bool OneTrialPerEmail { get; init; }
+}
+
+public sealed class WebOptions
+{
+    /// <summary>Домены сайта, которым разрешены запросы из браузера (CORS).</summary>
+    public required string[] AllowedOrigins { get; init; }
+
+    /// <summary>Адрес страницы покупки — используется в сообщениях об ошибке.</summary>
+    public required string SiteUrl { get; init; }
 }

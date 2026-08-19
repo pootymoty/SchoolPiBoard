@@ -165,6 +165,14 @@ public class SettingsDialog : Window
         if (state is null)
             return "Лицензия не активирована.";
 
+        if (state.Mode == LicenseMode.Trial)
+        {
+            var left = LicenseManager.TrialDaysLeft;
+            return left > 0
+                ? $"Пробный период · осталось {left} дн. · до {state.TrialExpiresAt.ToLocalTime():dd.MM.yyyy}"
+                : "Пробный период закончился — нужен ключ.";
+        }
+
         var devices = $"устройств занято: {Math.Max(state.DevicesUsed, 1)} из {state.DeviceLimit}";
         var email = string.IsNullOrWhiteSpace(state.Email) ? null : state.Email;
 

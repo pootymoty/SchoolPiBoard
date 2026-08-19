@@ -39,9 +39,6 @@ public enum DeactivationOutcome
 /// <summary>Вся работа с лицензиями: активация, проверка, освобождение слота, выпуск ключа.</summary>
 public sealed class LicenseService
 {
-    /// <summary>Идентификатор устройства — хеш, присланный клиентом; длиннее быть не должно.</summary>
-    private const int MaxHardwareIdLength = 128;
-
     private readonly LicenseDbContext _db;
     private readonly LicenseOptions _options;
     private readonly ILogger<LicenseService> _logger;
@@ -58,7 +55,7 @@ public sealed class LicenseService
     public async Task<ActivationResult> ActivateAsync(string? key, string? hardwareId, CancellationToken cancellationToken)
     {
         var normalizedKey = LicenseKey.Normalize(key);
-        var device = NormalizeHardwareId(hardwareId);
+        var device = DeviceId.Normalize(hardwareId);
 
         if (!LicenseKey.IsWellFormed(normalizedKey) || device is null)
             return new ActivationResult(ActivationOutcome.BadRequest, null, null, 0, DeviceLimit);
@@ -116,7 +113,7 @@ public sealed class LicenseService
     public async Task<ValidationResult> ValidateAsync(string? key, string? hardwareId, CancellationToken cancellationToken)
     {
         var normalizedKey = LicenseKey.Normalize(key);
-        var device = NormalizeHardwareId(hardwareId);
+        var device = DeviceId.Normalize(hardwareId);
 
         if (!LicenseKey.IsWellFormed(normalizedKey) || device is null)
             return new ValidationResult(false, "bad_request", 0, DeviceLimit);
@@ -147,7 +144,7 @@ public sealed class LicenseService
     public async Task<DeactivationOutcome> DeactivateAsync(string? key, string? hardwareId, CancellationToken cancellationToken)
     {
         var normalizedKey = LicenseKey.Normalize(key);
-        var device = NormalizeHardwareId(hardwareId);
+        var device = DeviceId.Normalize(hardwareId);
 
         if (!LicenseKey.IsWellFormed(normalizedKey) || device is null)
             return DeactivationOutcome.BadRequest;
@@ -234,20 +231,5 @@ public sealed class LicenseService
         // 31^16 вариантов: пять совпадений подряд означают не совпадение,
         // а поломку генератора случайных чисел.
         throw new InvalidOperationException("Не удалось подобрать свободный ключ.");
-    }
-
-    private static string? NormalizeHardwareId(string? hardwareId)
-    {
-        var value = hardwareId?.Trim();
-        if (string.IsNullOrEmpty(value) || value.Length > MaxHardwareIdLength)
-            return null;
-
-        foreach (var symbol in value)
-        {
-            if (!char.IsLetterOrDigit(symbol) && symbol != '-' && symbol != '_')
-                return null;
-        }
-
-        return value.ToUpperInvariant();
     }
 }

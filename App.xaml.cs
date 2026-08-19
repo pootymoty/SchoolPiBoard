@@ -47,7 +47,12 @@ public partial class App : Application
 
             LicenseManager.Initialize(AppSettings.Load());
 
-            if (!PassLicenseGate())
+            // Установщик на последней странице предлагает ввести ключ сразу —
+            // тогда приложение запускается с этим ключом командной строки.
+            var forceKeyEntry = e.Args.Any(argument =>
+                string.Equals(argument, "--activate", StringComparison.OrdinalIgnoreCase));
+
+            if (!PassLicenseGate(forceKeyEntry))
             {
                 Shutdown(0);
                 return;
@@ -73,13 +78,28 @@ public partial class App : Application
     /// Пускает приложение дальше, если лицензия в порядке. Иначе показывает
     /// экран активации и возвращает его результат.
     /// </summary>
-    private static bool PassLicenseGate()
+    private static bool PassLicenseGate(bool forceKeyEntry)
     {
         var verdict = LicenseManager.Evaluate();
-        if (verdict == LicenseGateResult.Allowed)
-            return true;
 
-        var activation = new ActivationWindow(verdict == LicenseGateResult.NeedsRevalidation);
+        if (verdict == LicenseGateResult.Allowed)
+        {
+            // Работать уже можно; ключ спрашиваем только потому, что об этом
+            // попросили явно. Отказ от ввода ничего не ломает.
+            if (forceKeyEntry)
+                new ActivationWindow(ActivationMode.ManualEntry).ShowDialog();
+
+            return true;
+        }
+
+        var mode = verdict switch
+        {
+            LicenseGateResult.NeedsRevalidation => ActivationMode.Revalidation,
+            LicenseGateResult.TrialExpired => ActivationMode.TrialExpired,
+            _ => ActivationMode.FirstRun
+        };
+
+        var activation = new ActivationWindow(mode);
         activation.ShowDialog();
         return activation.Activated;
     }

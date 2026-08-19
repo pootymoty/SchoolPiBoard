@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace Whiteboard.LicenseServer.Services;
@@ -80,10 +78,6 @@ public sealed class StripeEvent
             return false;
         }
     }
-
-    /// <summary>SHA-256 от идентификатора платежа: в базе хранится только он.</summary>
-    public static string HashPaymentId(string paymentId) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(paymentId))).ToLowerInvariant();
 
     private static string? ReadCustomerEmail(JsonElement payment)
     {

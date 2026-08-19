@@ -61,7 +61,7 @@ public static class StripeWebhookEndpoints
 
             var license = await licenses.IssueForPaymentAsync(
                 stripeEvent.Email.Trim(),
-                StripeEvent.HashPaymentId(stripeEvent.PaymentId!),
+                PaymentHash.ForStripe(stripeEvent.PaymentId!),
                 cancellationToken);
 
             if (license.EmailSentAt is null)

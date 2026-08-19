@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<!--
+  Страница покупки и скачивания Whiteboard.
+
+  Файл самодостаточный: стили внутри, скриптов нет вовсе — форма покупки
+  уходит обычным POST на сервер лицензий, поэтому ни CORS, ни JS не нужны.
+  В разметке намеренно нет удвоенных фигурных скобок и скобок с процентом:
+  Jinja принимает их за подстановку — в том числе внутри HTML-комментариев, —
+  поэтому файл можно положить в templates Flask как есть.
+
+  ЧТО ЗАМЕНИТЬ ПЕРЕД ПУБЛИКАЦИЕЙ (искать слово ЗАГЛУШКА):
+    1. action у формы покупки  — адрес сервера лицензий
+    2. ссылку на установщик     — где лежит WhiteboardSetup.exe
+    3. реквизиты и контакты в подвале
+    4. цену, если она изменится (в трёх местах: кнопка, блок цены, условия)
+
+  Стили собраны в :root — перекрасить под сайт можно, не трогая разметку.
+-->
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Whiteboard — доска для учителя</title>
+  <meta name="description" content="Программа-доска для рисования и объяснений. Работает офлайн, данные остаются на вашем компьютере. Бессрочная лицензия, 3 дня бесплатно.">
+
+  <style>
+    :root {
+      --page-bg: #f4f5f8;
+      --card-bg: #ffffff;
+      --text: #1f2026;
+      --text-muted: #61636e;
+      --accent: #5b6cf7;
+      --accent-hover: #4a59e0;
+      --border: #e2e3ea;
+      --radius: 14px;
+      --maxw: 880px;
+      --font: "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--page-bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .wrap {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    section { padding: 48px 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; }
+    h2 { font-size: 24px; margin: 0 0 18px; }
+    h3 { font-size: 17px; margin: 26px 0 8px; }
+    p { margin: 0 0 14px; }
+
+    .lead { font-size: 18px; color: var(--text-muted); margin-bottom: 26px; }
+    .muted { color: var(--text-muted); }
+    .small { font-size: 14px; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px;
+    }
+
+    .columns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .columns > * { flex: 1 1 300px; }
+
+    .price {
+      font-size: 32px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    .price-note { color: var(--text-muted); margin-bottom: 20px; }
+
+    label { display: block; font-size: 14px; margin-bottom: 6px; }
+
+    input[type="email"] {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--page-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    input[type="email"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .agree {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin: 16px 0 18px;
+    }
+    .agree input { margin-top: 4px; }
+
+    .button {
+      display: inline-block;
+      padding: 13px 26px;
+      font-size: 16px;
+      font-family: inherit;
+      font-weight: 600;
+      color: #ffffff;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .button:hover { background: var(--accent-hover); }
+    .button.secondary {
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--border);
+    }
+    .button.secondary:hover { background: var(--page-bg); }
+    .button.wide { width: 100%; }
+
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding-left: 42px;
+      margin-bottom: 16px;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 28px;
+    }
+
+    dl.terms dt { font-weight: 600; margin-top: 18px; }
+    dl.terms dd { margin: 4px 0 0; color: var(--text-muted); }
+
+    .faq { margin-top: 10px; }
+    .faq summary {
+      cursor: pointer;
+      font-weight: 600;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .faq p { margin: 12px 0 18px; color: var(--text-muted); }
+
+    footer {
+      padding: 34px 0 60px;
+      color: var(--text-muted);
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    a { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 27px; }
+      section { padding: 34px 0; }
+    }
+  </style>
+</head>
+
+<body>
+
+<section>
+  <div class="wrap">
+    <h1>Whiteboard — доска для объяснений</h1>
+    <p class="lead">
+      Рисуйте, чертите фигуры и разбирайте задачи прямо на экране.
+      Программа работает на вашем компьютере и без интернета,
+      а доски хранятся только у вас.
+    </p>
+    <p>
+      <a class="button" href="#buy">Купить за 15 000 ₽</a>
+      <a class="button secondary" href="#download">Скачать и попробовать 3 дня</a>
+    </p>
+  </div>
+</section>
+
+<section id="buy">
+  <div class="wrap">
+    <h2>Покупка лицензии</h2>
+
+    <div class="columns">
+      <div class="card">
+        <p class="price">15 000 ₽</p>
+        <p class="price-note">Разовый платёж. Лицензия бессрочная — продлевать не нужно.</p>
+
+        <!-- ЗАГЛУШКА: подставьте адрес сервера лицензий -->
+        <form method="post" action="https://api.example.com/purchase/start">
+          <label for="email">Почта для получения ключа</label>
+          <input id="email" name="email" type="email" required
+                 autocomplete="email" placeholder="уже-работает@почта.ру">
+
+          <label class="agree">
+            <input type="checkbox" name="agree" required>
+            <span>Я принимаю <a href="#terms">условия использования</a></span>
+          </label>
+
+          <button class="button wide" type="submit">Перейти к оплате</button>
+        </form>
+
+        <p class="small muted" style="margin-top: 14px;">
+          Оплата проходит на защищённой странице Робокассы. Данные карты
+          не попадают ни на этот сайт, ни в программу.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0;">Что входит</h3>
+        <ul>
+          <li>Бессрочный ключ без абонентской платы</li>
+          <li>Работа на 2 компьютерах одновременно</li>
+          <li>Все будущие обновления версии 2.x</li>
+          <li>Работа без интернета</li>
+        </ul>
+
+        <h3>Как приходит ключ</h3>
+        <p class="muted">
+          Сразу после оплаты — письмом на указанную почту. Если письма нет
+          в течение 15 минут, проверьте папку «Спам» и напишите нам.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>Скачать программу</h2>
+
+    <div class="columns">
+      <div class="card">
+        <h3 style="margin-top: 0;">Установщик для Windows</h3>
+        <p class="muted small">
+          Windows 10 или 11, 64-разрядная. Около 200 МБ.
+          Ничего доустанавливать не нужно — всё уже внутри.
+        </p>
+        <!-- ЗАГЛУШКА: ссылка на файл установщика -->
+        <p><a class="button" href="/download/WhiteboardSetup.exe">Скачать установщик</a></p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0;">3 дня бесплатно</h3>
+        <p class="muted">
+          Скачать и попробовать можно до покупки. При первом запуске программа
+          предложит ввести ключ или начать пробный период — 3 дня полной версии
+          без ограничений по возможностям.
+        </p>
+        <p class="small muted">
+          Пробный период даётся один раз на компьютер, для его начала нужен интернет.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Как начать</h2>
+    <ol class="steps">
+      <li>Скачайте установщик и пройдите обычный мастер установки.</li>
+      <li>Оплатите лицензию — ключ придёт на почту в течение нескольких минут.</li>
+      <li>Введите ключ сразу после установки или позже, при запуске программы.</li>
+      <li>Дальше программа работает офлайн. Раз в две недели ей нужен интернет
+          для короткой проверки лицензии.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="terms">
+  <div class="wrap">
+    <h2>Условия использования</h2>
+    <p class="small muted">
+      ЗАГЛУШКА: перед публикацией текст следует показать юристу.
+      Ниже описано то, как программа работает на самом деле.
+    </p>
+
+    <dl class="terms">
+      <dt>Что вы покупаете</dt>
+      <dd>
+        Право использовать программу Whiteboard. Оплата разовая, срок действия
+        лицензии не ограничен: ключ не «сгорает» и не требует продления.
+      </dd>
+
+      <dt>Сколько компьютеров</dt>
+      <dd>
+        Один ключ работает не более чем на двух компьютерах одновременно.
+        Компьютер можно освободить в программе: Настройки → «О программе
+        и лицензии» → «Отвязать этот компьютер», — и активировать ключ
+        на другом.
+      </dd>
+
+      <dt>Интернет</dt>
+      <dd>
+        Он нужен один раз при активации ключа и затем не реже одного раза
+        в 14 дней — для фоновой проверки. Всё остальное время программа
+        работает офлайн. При проверке передаётся только ключ и обезличенный
+        идентификатор компьютера.
+      </dd>
+
+      <dt>Пробный период</dt>
+      <dd>
+        3 дня полной версии, один раз на компьютер. Для начала пробного
+        периода нужны интернет и адрес почты — почта используется только
+        для того, чтобы период не выдавался повторно.
+      </dd>
+
+      <dt>Ваши данные</dt>
+      <dd>
+        Доски и настройки хранятся только на вашем компьютере и никуда
+        не передаются. Удаление программы их не стирает.
+      </dd>
+
+      <dt>Передача ключа другим людям</dt>
+      <dd>
+        Ключ предназначен для одного покупателя. Публикация ключа
+        или его передача третьим лицам — основание для отзыва лицензии
+        без возврата средств.
+      </dd>
+
+      <dt>Возврат</dt>
+      <dd>
+        ЗАГЛУШКА: правила возврата нужно согласовать. Именно для того, чтобы
+        не покупать «вслепую», перед оплатой доступны 3 бесплатных дня —
+        мы рекомендуем сначала проверить программу на своём компьютере.
+      </dd>
+
+      <dt>Работоспособность</dt>
+      <dd>
+        Программа предоставляется «как есть». Мы не отвечаем за возможную
+        потерю данных — важные доски стоит копировать самостоятельно.
+      </dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Частые вопросы</h2>
+
+    <div class="faq">
+      <details>
+        <summary>Ключ действует год или навсегда?</summary>
+        <p>Навсегда. Это разовая покупка без абонентской платы и без даты окончания.</p>
+      </details>
+
+      <details>
+        <summary>Что будет, если интернета нет две недели?</summary>
+        <p>
+          Программа попросит выйти в сеть и нажать «Проверить». Доски и настройки
+          при этом остаются на месте — они откроются сразу после проверки.
+        </p>
+      </details>
+
+      <details>
+        <summary>Я переустановил Windows. Ключ пропал?</summary>
+        <p>
+          Нет. Введите тот же ключ заново. Если оба слота заняты старыми
+          компьютерами, напишите нам — мы освободим их.
+        </p>
+      </details>
+
+      <details>
+        <summary>Можно поставить на школьный и на домашний компьютер?</summary>
+        <p>Да, два компьютера на один ключ — это как раз такой случай.</p>
+      </details>
+
+      <details>
+        <summary>Нужен ли отдельно .NET или другие компоненты?</summary>
+        <p>Нет. Установщик содержит всё необходимое и работает без интернета.</p>
+      </details>
+
+      <details>
+        <summary>Не пришло письмо с ключом</summary>
+        <p>
+          Проверьте папку «Спам». Если письма нет — напишите нам с адреса,
+          указанного при оплате, и мы вышлем ключ повторно.
+        </p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <!-- ЗАГЛУШКА: реквизиты и контакты -->
+    <p>
+      Whiteboard, версия 2.2 · Продавец: ЗАГЛУШКА (ФИО), плательщик налога
+      на профессиональный доход, ИНН ЗАГЛУШКА
+    </p>
+    <p>
+      Поддержка: <a href="mailto:support@example.com">support@example.com</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

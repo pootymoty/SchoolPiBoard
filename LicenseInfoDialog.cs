@@ -15,6 +15,7 @@ public class LicenseInfoDialog : Window
 {
     private readonly StackPanel _details;
     private readonly Button _deactivateButton;
+    private readonly Button _enterKeyButton;
     private readonly TextBlock _status;
 
     public LicenseInfoDialog(Window owner)
@@ -102,12 +103,28 @@ public class LicenseInfoDialog : Window
             Margin = new Thickness(0, 22, 0, 0)
         };
 
+        _enterKeyButton = new Button
+        {
+            Content = "Ввести ключ",
+            Style = (Style)Application.Current.Resources["TextButton"],
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            MinWidth = 130,
+            Visibility = Visibility.Collapsed
+        };
+        _enterKeyButton.Click += (_, _) =>
+        {
+            new ActivationWindow(ActivationMode.ManualEntry) { Owner = this }.ShowDialog();
+            FillDetails();
+        };
+        buttons.Children.Add(_enterKeyButton);
+
         _deactivateButton = new Button
         {
             Content = "Отвязать этот компьютер",
             Style = (Style)Application.Current.Resources["TextButton"],
             HorizontalContentAlignment = HorizontalAlignment.Center,
-            MinWidth = 200
+            MinWidth = 200,
+            Margin = new Thickness(10, 0, 0, 0)
         };
         _deactivateButton.Click += OnDeactivateClick;
         buttons.Children.Add(_deactivateButton);
@@ -145,9 +162,35 @@ public class LicenseInfoDialog : Window
                 TextWrapping = TextWrapping.Wrap
             });
             _deactivateButton.IsEnabled = false;
+            _enterKeyButton.Visibility = Visibility.Visible;
             return;
         }
 
+        if (state.Mode == LicenseMode.Trial)
+        {
+            AddRow("Режим", $"пробный период, {LicenseManager.TrialDays} дня");
+
+            if (!string.IsNullOrWhiteSpace(state.Email))
+                AddRow("Почта", state.Email);
+
+            AddRow("Начало", state.TrialStartedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"));
+            AddRow("Действует до", state.TrialExpiresAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"));
+
+            var trialLeft = LicenseManager.TrialDaysLeft;
+            AddRow("Осталось", trialLeft > 0 ? $"{trialLeft} дн." : "период закончился");
+
+            AddRow("Этот компьютер", ShortDevice(state.HardwareId));
+
+            // Отвязывать нечего: слот устройства занимает только купленный ключ.
+            _deactivateButton.IsEnabled = false;
+            _enterKeyButton.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _deactivateButton.IsEnabled = true;
+        _enterKeyButton.Visibility = Visibility.Collapsed;
+
+        AddRow("Режим", "постоянная лицензия, без срока действия");
         AddRow("Ключ", state.Key);
 
         if (!string.IsNullOrWhiteSpace(state.Email))
@@ -156,15 +199,16 @@ public class LicenseInfoDialog : Window
         AddRow("Активирована", state.ActivatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"));
         AddRow("Последняя проверка", state.LastValidatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"));
         AddRow("Устройств", $"{Math.Max(state.DevicesUsed, 1)} из {state.DeviceLimit}");
-        AddRow("Этот компьютер", state.HardwareId.Length > 8
-            ? state.HardwareId[..8] + "…"
-            : state.HardwareId);
+        AddRow("Этот компьютер", ShortDevice(state.HardwareId));
 
         var daysLeft = LicenseManager.OfflineDaysLeft;
         AddRow("Работа без интернета", daysLeft > 0
             ? $"осталось {daysLeft} дн. до следующей проверки"
             : "требуется проверка при следующем запуске");
     }
+
+    private static string ShortDevice(string hardwareId)
+        => hardwareId.Length > 8 ? hardwareId[..8] + "…" : hardwareId;
 
     private void AddRow(string label, string value)
     {
