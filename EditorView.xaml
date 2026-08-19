@@ -1,0 +1,357 @@
+﻿<UserControl x:Class="Whiteboard.Views.EditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rendering="clr-namespace:Whiteboard.Rendering"
+             Background="{DynamicResource AppBg}"
+             Focusable="True">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================= Верхняя панель ================= -->
+        <Grid Grid.Row="0" Height="50" Background="{DynamicResource AppBg}">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                <Button Content="⌂" FontSize="18" Style="{StaticResource IconButton}"
+                        Click="Home_Click" ToolTip="К списку досок"/>
+                <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="8,12"/>
+                <TextBlock x:Name="BoardTitle" Text="Доска"
+                           Foreground="{DynamicResource TextPrimary}"
+                           FontSize="15" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Margin="8,0"/>
+                <Button Content="✎" Style="{StaticResource IconButton}" Width="34"
+                        Click="Rename_Click" ToolTip="Переименовать доску"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                        VerticalAlignment="Center" Margin="0,0,10,0">
+                <TextBlock x:Name="SaveIndicator" Foreground="{DynamicResource TextSecondary}"
+                           FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <Button x:Name="TimerButton" Content="⏱" FontSize="17"
+                        Style="{StaticResource IconButton}"
+                        Click="TimerButton_Click" ToolTip="Таймер"/>
+                <Button x:Name="HelpButton" Content="?" FontSize="16" FontWeight="Bold"
+                        Style="{StaticResource IconButton}"
+                        Click="HelpButton_Click" ToolTip="Справка по действиям"/>
+                <Button Content="⤢" FontSize="16" Style="{StaticResource IconButton}"
+                        Click="FitToContent_Click" ToolTip="Показать всё содержимое"/>
+                <Button Content="💾" FontSize="15" Style="{StaticResource IconButton}"
+                        Click="ExportPng_Click" ToolTip="Экспорт в PNG"/>
+                <Button x:Name="BackgroundButton" Content="⚙" FontSize="17"
+                        Style="{StaticResource IconButton}"
+                        Click="BackgroundButton_Click" ToolTip="Форматирование фона"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ================= Рабочая область ================= -->
+        <Grid Grid.Row="1" ClipToBounds="True">
+
+            <rendering:BoardCanvas x:Name="Canvas"/>
+
+            <!-- Поле ввода текста поверх холста -->
+            <TextBox x:Name="TextEditor" Visibility="Collapsed"
+                     HorizontalAlignment="Left" VerticalAlignment="Top"
+                     AcceptsReturn="True" TextWrapping="Wrap"
+                     Background="{DynamicResource Surface}"
+                     Foreground="{DynamicResource TextPrimary}"
+                     BorderBrush="{DynamicResource Accent}" BorderThickness="2"
+                     Padding="6" FontSize="16" MinWidth="160"
+                     KeyDown="TextEditor_KeyDown"
+                     LostFocus="TextEditor_LostFocus"/>
+
+            <!-- ================= Панель выделенного объекта ================= -->
+            <Border x:Name="ObjectPanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Visibility="Collapsed" Padding="6,5">
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="ObjectFillButton" Style="{StaticResource IconButton}"
+                            Width="38" Click="ObjectFill_Click" ToolTip="Цвет заливки">
+                        <Border Width="20" Height="20" CornerRadius="5"
+                                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1">
+                            <Border x:Name="FillSwatch" CornerRadius="4" Background="Transparent"/>
+                        </Border>
+                    </Button>
+                    <Button x:Name="ObjectStrokeButton" Style="{StaticResource IconButton}"
+                            Width="38" Click="ObjectStroke_Click" ToolTip="Цвет границы">
+                        <Border Width="20" Height="20" CornerRadius="10"
+                                BorderThickness="3" x:Name="StrokeSwatch"
+                                BorderBrush="{DynamicResource Accent}"/>
+                    </Button>
+                    <Button Content="T" FontWeight="Bold" Style="{StaticResource IconButton}"
+                            Width="34" Click="ObjectText_Click" ToolTip="Текст внутри объекта"/>
+
+                    <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="6,5"/>
+
+                    <Button Content="⧉" Style="{StaticResource IconButton}" Width="34"
+                            Click="ObjectCopy_Click" ToolTip="Копировать (Ctrl+C)"/>
+                    <Button Content="🗑" Style="{StaticResource DangerIconButton}" Width="34"
+                            Click="ObjectDelete_Click" ToolTip="Удалить (Delete)"/>
+                    <Button Content="⋯" FontSize="18" Style="{StaticResource IconButton}"
+                            Width="34" Click="ObjectMore_Click" ToolTip="Ещё"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Всплывающая панель пера ================= -->
+            <Border x:Name="PenPanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="0,0,0,86" Visibility="Collapsed" Padding="16,14">
+                <StackPanel Width="290">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Толщина" Style="{StaticResource PanelLabel}" Width="72"/>
+                        <Slider x:Name="ThicknessSlider" Minimum="0" Maximum="5" Value="1"
+                                Width="150" VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                TickPlacement="BottomRight"
+                                ValueChanged="Thickness_Changed"/>
+                        <TextBlock x:Name="ThicknessValue" Text="3"
+                                   Style="{StaticResource PanelLabel}"
+                                   Width="34" TextAlignment="Right"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Прозрачн." Style="{StaticResource PanelLabel}" Width="72"/>
+                        <Slider x:Name="OpacitySlider" Minimum="0" Maximum="4" Value="4"
+                                Width="150" VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                TickPlacement="BottomRight"
+                                ValueChanged="Opacity_Changed"/>
+                        <TextBlock x:Name="OpacityValue" Text="100 %"
+                                   Style="{StaticResource PanelLabel}"
+                                   Width="34" TextAlignment="Right"/>
+                    </StackPanel>
+
+                    <Border Height="34" CornerRadius="8" Margin="0,2,0,10"
+                            Background="{DynamicResource AppBg3}">
+                        <Border x:Name="StrokePreview" Height="4" Width="200"
+                                CornerRadius="2" Background="White"/>
+                    </Border>
+
+                    <ContentControl x:Name="PenPaletteHost"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Панель фигур ================= -->
+            <Border x:Name="ShapePanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="0,0,0,86" Visibility="Collapsed" Padding="16,14">
+                <StackPanel Width="290">
+                    <UniformGrid x:Name="ShapeButtons" Columns="4" Margin="0,0,0,10"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Толщина" Style="{StaticResource PanelLabel}" Width="72"/>
+                        <Slider x:Name="ShapeThicknessSlider" Minimum="0" Maximum="5" Value="1"
+                                Width="150" VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                TickPlacement="BottomRight"
+                                ValueChanged="ShapeThickness_Changed"/>
+                        <TextBlock x:Name="ShapeThicknessValue" Text="3"
+                                   Style="{StaticResource PanelLabel}"
+                                   Width="34" TextAlignment="Right"/>
+                    </StackPanel>
+
+                    <ContentControl x:Name="ShapePaletteHost"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Панель ластика ================= -->
+            <Border x:Name="EraserPanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="0,0,0,86" Visibility="Collapsed" Padding="16,14">
+                <StackPanel Width="270">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Размер" Style="{StaticResource PanelLabel}" Width="62"/>
+                        <Slider x:Name="EraserSlider" Minimum="8" Maximum="120" Value="26"
+                                Width="150" VerticalAlignment="Center"
+                                ValueChanged="EraserSize_Changed"/>
+                        <TextBlock x:Name="EraserValue" Text="26"
+                                   Style="{StaticResource PanelLabel}"
+                                   Width="34" TextAlignment="Right"/>
+                    </StackPanel>
+                    <TextBlock Text="Круг стирания показан на холсте. При быстром движении он немного увеличивается."
+                               Foreground="{DynamicResource TextSecondary}" FontSize="11"
+                               TextWrapping="Wrap" Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Панель фона ================= -->
+            <Border x:Name="BackgroundPanelHost" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,12,12,0" Visibility="Collapsed" Padding="18,16">
+                <ContentControl x:Name="BackgroundContent"/>
+            </Border>
+
+            <!-- ================= Справка ================= -->
+            <Border x:Name="HelpPanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,12,12,0" Visibility="Collapsed" Padding="18,14" Width="380">
+                <StackPanel>
+                    <Grid Margin="0,0,0,8">
+                        <TextBlock Text="Справка по действиям"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   FontSize="15" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <Button Content="✕" Style="{StaticResource IconButton}"
+                                Width="28" Height="26" HorizontalAlignment="Right"
+                                Click="CloseHelp_Click"/>
+                    </Grid>
+                    <StackPanel x:Name="HelpContent"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Таймер ================= -->
+            <Border x:Name="TimerPanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,12,12,0" Visibility="Collapsed" Padding="18,16" Width="250">
+                <StackPanel>
+                    <Grid>
+                        <Ellipse Width="180" Height="180" StrokeThickness="10"
+                                 Stroke="{DynamicResource AppBg3}"
+                                 HorizontalAlignment="Center"/>
+                        <Path x:Name="TimerArc" StrokeThickness="10"
+                              Stroke="{DynamicResource Accent}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                            <TextBlock x:Name="TimerMinutes" Text="05" FontSize="44"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       Cursor="Hand" MouseLeftButtonUp="TimerMinutes_Click"/>
+                            <TextBlock Text=":" FontSize="44"
+                                       Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock x:Name="TimerSeconds" Text="00" FontSize="44"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       Cursor="Hand" MouseLeftButtonUp="TimerSeconds_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                Margin="0,14,0,0">
+                        <Button Content="◻" Style="{StaticResource IconButton}" Width="38"
+                                Click="TimerReset_Click" ToolTip="Сброс"/>
+                        <Button Content="−" FontSize="18" Style="{StaticResource IconButton}"
+                                Width="38" Click="TimerMinus_Click" ToolTip="−1 минута"/>
+                        <Button Content="+" FontSize="18" Style="{StaticResource IconButton}"
+                                Width="38" Click="TimerPlus_Click" ToolTip="+1 минута"/>
+                        <Button x:Name="TimerPlayButton" Content="▶"
+                                Style="{StaticResource AccentButton}"
+                                Padding="14,6" Margin="6,0,0,0"
+                                Click="TimerPlay_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Сообщение об окончании таймера ================= -->
+            <Border x:Name="TimerFinished" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Visibility="Collapsed" Padding="30,24">
+                <StackPanel>
+                    <TextBlock Text="⏱" FontSize="42" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource Accent}"/>
+                    <TextBlock Text="Время вышло" FontSize="20" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,8,0,0"
+                               Foreground="{DynamicResource TextPrimary}"/>
+                    <Button Content="Хорошо" Style="{StaticResource AccentButton}"
+                            HorizontalAlignment="Center" Margin="0,16,0,0"
+                            Click="TimerFinishedClose_Click"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Индикатор загрузки доски ================= -->
+            <Border x:Name="LoadingOverlay" Visibility="Collapsed"
+                    Background="#B0000000">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Canvas Width="54" Height="54" HorizontalAlignment="Center">
+                        <Ellipse Width="54" Height="54" StrokeThickness="5"
+                                 Stroke="#33FFFFFF"/>
+                        <Path x:Name="LoadingArc" StrokeThickness="5"
+                              Stroke="{DynamicResource Accent}"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Data="M 27,2 A 25,25 0 0 1 52,27"
+                              RenderTransformOrigin="0.5,0.5">
+                            <Path.RenderTransform>
+                                <RotateTransform x:Name="LoadingRotation" CenterX="27" CenterY="27"/>
+                            </Path.RenderTransform>
+                        </Path>
+                    </Canvas>
+                    <TextBlock Text="Загрузка доски…" Foreground="White"
+                               FontSize="13" HorizontalAlignment="Center"
+                               Margin="0,14,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Нижняя панель инструментов ================= -->
+            <Border Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="0,0,0,16" Padding="8,6">
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="UndoButton" Content="↶" Style="{StaticResource IconButton}"
+                            Click="Undo_Click" ToolTip="Отменить (Ctrl+Z)"/>
+                    <Button x:Name="RedoButton" Content="↷" Style="{StaticResource IconButton}"
+                            Click="Redo_Click" ToolTip="Повторить (Ctrl+Y)"/>
+
+                    <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="7,5"/>
+
+                    <ToggleButton x:Name="CursorTool" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Cursor"
+                                  ToolTip="Курсор — выбор и выделение, с пробелом — перемещение холста">
+                        <!-- Классическая стрелка курсора вместо абстрактного значка -->
+                        <Path Data="M 0,0 L 0,14 L 3.4,10.8 L 5.8,15.6 L 8,14.5 L 5.6,9.9 L 10,9.7 Z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                              Stretch="Uniform" Width="15" Height="17"/>
+                    </ToggleButton>
+
+                    <ToggleButton x:Name="HandTool" Content="✋" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Hand" ToolTip="Рука — перемещение холста"/>
+                    <ToggleButton x:Name="PenTool" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Pen" ToolTip="Перо">
+                        <Grid>
+                            <TextBlock Text="✏" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Ellipse x:Name="PenColorDot" Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                     Margin="0,0,3,3" Stroke="{DynamicResource BorderBrushColor}" StrokeThickness="0.8"/>
+                        </Grid>
+                    </ToggleButton>
+                    <ToggleButton x:Name="MarkerTool" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Marker" ToolTip="Маркер">
+                        <Grid>
+                            <TextBlock Text="🖍" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Ellipse x:Name="MarkerColorDot" Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                     Margin="0,0,3,3" Stroke="{DynamicResource BorderBrushColor}" StrokeThickness="0.8"/>
+                        </Grid>
+                    </ToggleButton>
+                    <ToggleButton x:Name="EraserTool" Content="🧽" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Eraser" ToolTip="Ластик"/>
+                    <ToggleButton x:Name="TextTool" Content="T" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Text" ToolTip="Текст"/>
+                    <ToggleButton x:Name="ShapeTool" Content="▭" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="Shape" ToolTip="Фигуры"/>
+                    <Button Content="🖼" Style="{StaticResource IconButton}"
+                            Click="InsertImage_Click" ToolTip="Вставить изображение"/>
+
+                    <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="7,5"/>
+
+                    <Button Content="✕" Style="{StaticResource DangerIconButton}"
+                            Click="ClearBoard_Click" ToolTip="Очистить доску"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Масштаб ================= -->
+            <Border Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,16,16" Padding="6,4">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="−" FontSize="17" Style="{StaticResource IconButton}"
+                            Width="32" Click="ZoomOut_Click"/>
+                    <TextBlock x:Name="ZoomLabel" Text="100 %" Width="58"
+                               Style="{StaticResource PanelLabel}"
+                               TextAlignment="Center" Cursor="Hand"
+                               MouseLeftButtonUp="ZoomLabel_Click"
+                               ToolTip="Нажмите, чтобы вернуть 100 %"/>
+                    <Button Content="+" FontSize="17" Style="{StaticResource IconButton}"
+                            Width="32" Click="ZoomIn_Click"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

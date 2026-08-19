@@ -1,0 +1,204 @@
+﻿<UserControl x:Class="Whiteboard.Views.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource AppBg}">
+
+    <Grid Margin="34,24,34,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============ Заголовок ============ -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock x:Name="TitleText" Text="Мои доски"
+                       Style="{StaticResource SectionTitle}"
+                       VerticalAlignment="Center"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="ArchiveToggleButton" Content="Архив"
+                        Style="{StaticResource TextButton}"
+                        HorizontalContentAlignment="Center"
+                        Click="ArchiveToggle_Click"/>
+                <Button Content="⚙" FontSize="17" Style="{StaticResource IconButton}"
+                        Click="Settings_Click" ToolTip="Настройки"/>
+                <Button Content="+  Новая доска"
+                        Style="{StaticResource AccentButton}"
+                        Click="NewBoard_Click" Margin="8,0,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ============ Поиск и сортировка ============ -->
+        <Grid Grid.Row="1" Margin="0,0,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Поле поиска -->
+            <Border Grid.Column="0" CornerRadius="10" Height="40"
+                    Background="{DynamicResource AppBg2}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="🔍" FontSize="14"
+                               VerticalAlignment="Center" Margin="12,0,8,0"
+                               Foreground="{DynamicResource TextSecondary}"/>
+
+                    <TextBox x:Name="SearchBox" Grid.Column="1"
+                             VerticalAlignment="Center"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource TextPrimary}"
+                             CaretBrush="{DynamicResource TextPrimary}"
+                             FontSize="13"
+                             TextChanged="Search_Changed"/>
+
+                    <TextBlock x:Name="SearchPlaceholder" Grid.Column="1"
+                               Text="Поиск по названию доски"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondary}"
+                               FontSize="13" IsHitTestVisible="False"/>
+
+                    <Button x:Name="ClearSearchButton" Grid.Column="2" Content="✕"
+                            Style="{StaticResource IconButton}"
+                            Width="32" Height="30" Margin="0,0,5,0"
+                            Visibility="Collapsed"
+                            Click="ClearSearch_Click" ToolTip="Очистить"/>
+                </Grid>
+            </Border>
+
+            <!-- Фильтр по дате -->
+            <ComboBox x:Name="DateFilter" Grid.Column="1" Width="180" Height="40"
+                      Margin="10,0,0,0" VerticalContentAlignment="Center"
+                      FontSize="13"
+                      SelectionChanged="DateFilter_Changed"/>
+
+            <!-- Направление сортировки -->
+            <Button x:Name="SortDirectionButton" Grid.Column="2"
+                    Style="{StaticResource TextButton}"
+                    Height="40" Margin="10,0,0,0" MinWidth="150"
+                    HorizontalContentAlignment="Center"
+                    Click="SortDirection_Click"
+                    ToolTip="Сменить порядок сортировки">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="SortArrow" Text="↓" FontSize="15"
+                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock x:Name="SortText" Text="Сначала новые"
+                               VerticalAlignment="Center" FontSize="12"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- ============ Шапка таблицы ============ -->
+        <Border Grid.Row="2" CornerRadius="10,10,0,0"
+                Background="{DynamicResource AppBg3}" Padding="20,9">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="46"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Название" FontWeight="SemiBold"
+                           FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBlock Grid.Column="1" Text="Создана" FontWeight="SemiBold"
+                           FontSize="12" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondary}"/>
+                <TextBlock Grid.Column="2" Text="Изменена" FontWeight="SemiBold"
+                           FontSize="12" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondary}"/>
+            </Grid>
+        </Border>
+
+        <!-- ============ Список досок ============ -->
+        <Border Grid.Row="3" CornerRadius="0,0,10,10"
+                Background="{DynamicResource AppBg2}" Padding="6">
+            <Grid>
+                <ItemsControl x:Name="BoardList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="RowBorder" CornerRadius="8" Margin="2,1"
+                                    Padding="14,11" Background="Transparent"
+                                    Cursor="Hand"
+                                    MouseLeftButtonUp="Row_Click">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="46"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="14" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding CreatedText}"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="12" VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"/>
+
+                                    <TextBlock Grid.Column="2" Text="{Binding ModifiedText}"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="12" VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"/>
+
+                                    <Button Grid.Column="3" Content="⋯" FontSize="18"
+                                            Width="34" Height="30"
+                                            Style="{StaticResource IconButton}"
+                                            Click="RowMenu_Click"
+                                            Tag="{Binding}"
+                                            ToolTip="Действия"/>
+                                </Grid>
+                            </Border>
+
+                            <DataTemplate.Triggers>
+                                <Trigger SourceName="RowBorder" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="RowBorder" Property="Background"
+                                            Value="{DynamicResource SurfaceHover}"/>
+                                </Trigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock x:Name="EmptyHint"
+                           Foreground="{DynamicResource TextSecondary}"
+                           FontSize="14"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           TextAlignment="Center" TextWrapping="Wrap"
+                           Visibility="Collapsed"/>
+            </Grid>
+        </Border>
+
+        <!-- ============ Пагинация ============ -->
+        <Grid Grid.Row="4" Margin="0,14,0,0">
+            <TextBlock x:Name="PageInfo" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+
+            <StackPanel x:Name="PagerPanel" Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button x:Name="FirstPageButton" Content="«" Style="{StaticResource IconButton}"
+                        Width="34" Height="32" Click="FirstPage_Click" ToolTip="В начало"/>
+                <Button x:Name="PrevPageButton" Content="‹" Style="{StaticResource IconButton}"
+                        Width="34" Height="32" Click="PrevPage_Click" ToolTip="Назад"/>
+                <StackPanel x:Name="PageButtons" Orientation="Horizontal"/>
+                <Button x:Name="NextPageButton" Content="›" Style="{StaticResource IconButton}"
+                        Width="34" Height="32" Click="NextPage_Click" ToolTip="Вперёд"/>
+                <Button x:Name="LastPageButton" Content="»" Style="{StaticResource IconButton}"
+                        Width="34" Height="32" Click="LastPage_Click" ToolTip="В конец"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>
