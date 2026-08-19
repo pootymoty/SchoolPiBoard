@@ -20,7 +20,7 @@ public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewP
 public sealed record CreateBoardRequest(string? Name);
 public sealed record AddMemberRequest(string? Email, string? Role);
 public sealed record ChangeRoleRequest(string? Role);
-public sealed record CreateInviteRequest(string? Role, int? LifetimeDays, int? EditDays);
+public sealed record CreateInviteRequest(string? Role, int? LifetimeDays);
 public sealed record CheckoutRequest(int PlanDays);
 public sealed record AutoRenewRequest(bool Enabled);
 
@@ -44,7 +44,7 @@ public sealed record BoardDto(
 
 public sealed record MemberDto(Guid UserId, string Email, string Name, string Role, bool ViaLink, DateTime? EditUntil, DateTime InvitedAt);
 
-public sealed record InviteDto(Guid Id, string Role, DateTime CreatedAt, DateTime ExpiresAt, int Uses, int? EditDays, string? Url);
+public sealed record InviteDto(Guid Id, string Role, DateTime CreatedAt, DateTime ExpiresAt, int Uses, string? Url);
 
 public static class Mapping
 {
@@ -101,7 +101,7 @@ public static class Mapping
             member.InvitedAt);
 
     public static InviteDto ToDto(this BoardInvite invite, string? url = null)
-        => new(invite.Id, invite.Role, invite.CreatedAt, invite.ExpiresAt, invite.Uses, invite.EditDays, url);
+        => new(invite.Id, invite.Role, invite.CreatedAt, invite.ExpiresAt, invite.Uses, url);
 }
 
 /// <summary>Единый формат ответов об ошибке: код для кода, message для человека.</summary>

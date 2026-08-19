@@ -199,7 +199,7 @@ public static class BoardEndpoints
                 return Results.Unauthorized();
 
             var result = await service.CreateInviteAsync(
-                boardId, userId.Value, request.Role, request.LifetimeDays, request.EditDays, cancellationToken);
+                boardId, userId.Value, request.Role, request.LifetimeDays, cancellationToken);
 
             return Answer(result, link => Results.Ok(link.Invite.ToDto(link.Url)));
         });

@@ -145,7 +145,6 @@ public class AppDbContext : DbContext
             entity.Property(x => x.ExpiresAt).HasColumnName("expires_at");
             entity.Property(x => x.RevokedAt).HasColumnName("revoked_at");
             entity.Property(x => x.Uses).HasColumnName("uses");
-            entity.Property(x => x.EditDays).HasColumnName("edit_days");
             entity.HasIndex(x => x.TokenHash);
         });
 

@@ -1,12 +1,16 @@
 :root {
-  --page-bg: #f4f5f8;
-  --card-bg: #ffffff;
-  --text: #1f2026;
-  --muted: #61636e;
-  --accent: #5b6cf7;
-  --accent-hover: #4a59e0;
-  --danger: #c62828;
-  --border: #e2e3ea;
+  /* Палитра взята с основного сайта school-pi.online, чтобы два проекта
+     читались как родственные, оставаясь при этом разными продуктами. */
+  --page-bg: #f6f2eb;
+  --card-bg: #fdf8e9;
+  --header-footer: #788176;
+  --text: #333333;
+  --text-light: #f6f2eb;
+  --muted: #6a6f68;
+  --accent: #788176;
+  --accent-hover: #626b60;
+  --danger: #d55a17;
+  --border: #e3ddd0;
   --radius: 12px;
   font-family: 'Segoe UI', Roboto, Arial, sans-serif;
 }
@@ -136,6 +140,15 @@ select:focus {
   background: transparent;
   border: 1px solid var(--border);
   font-weight: 500;
+}
+
+.site-header .button.ghost {
+  color: var(--text-light);
+  border-color: rgba(246, 242, 235, 0.5);
+}
+
+.site-header .button.ghost:hover:not(:disabled) {
+  background: rgba(246, 242, 235, 0.15);
 }
 
 .button.ghost:hover:not(:disabled) {
@@ -323,8 +336,8 @@ select:focus {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 24px;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border);
+  background: var(--header-footer);
+  color: var(--text-light);
 }
 
 .logo {
@@ -332,15 +345,15 @@ select:focus {
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: var(--text);
+  color: var(--text-light);
 }
 
 .logo-mark {
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--text-light);
+  color: var(--header-footer);
   font-size: 20px;
   font-weight: 700;
   display: inline-flex;
@@ -356,12 +369,12 @@ select:focus {
 
 .nav-link {
   text-decoration: none;
-  color: var(--text);
+  color: var(--text-light);
   font-size: 15px;
 }
 
 .nav-link:hover {
-  color: var(--accent);
+  text-decoration: underline;
 }
 
 .main {
@@ -377,14 +390,19 @@ select:focus {
 }
 
 .site-footer {
-  border-top: 1px solid var(--border);
   padding: 20px 24px 34px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
   text-align: center;
-  background: var(--card-bg);
+  background: var(--header-footer);
+  color: var(--text-light);
+}
+
+.site-footer a,
+.site-footer .muted {
+  color: var(--text-light);
 }
 
 .site-footer a {
@@ -407,7 +425,7 @@ select:focus {
 
 .landing .site-header,
 .landing .site-footer {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--header-footer);
 }
 
 /* Фон с полками. Пока статичный: анимация добавляется в BookshelfBackground

@@ -105,8 +105,9 @@ CREATE TABLE IF NOT EXISTS board_members (
     invited_at timestamptz NOT NULL,
     -- Пришёл по ссылке, а не по личному приглашению.
     via_link   boolean     NOT NULL DEFAULT false,
-    -- Когда право менять доску заканчивается. NULL — бессрочно.
-    -- После этой даты участник остаётся, но только смотрит.
+    -- Когда заканчивается право менять доску. NULL — бессрочно.
+    -- После этой даты участник остаётся в доске, но только смотрит;
+    -- продлить срок может только владелец, назначив роль заново.
     edit_until timestamptz NULL
 );
 
@@ -123,9 +124,7 @@ CREATE TABLE IF NOT EXISTS board_invites (
     created_at   timestamptz NOT NULL,
     expires_at   timestamptz NOT NULL,
     revoked_at   timestamptz NULL,
-    uses         integer     NOT NULL DEFAULT 0,
-    -- Сколько дней после входа участник может менять доску.
-    edit_days    integer     NULL
+    uses         integer     NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS ix_board_invites_token ON board_invites (token_hash);

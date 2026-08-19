@@ -44,12 +44,14 @@ public sealed record OnlineOptions
             Smtp = new SmtpOptions
             {
                 Host = configuration["Smtp:Host"] ?? string.Empty,
-                Port = Int(configuration["Smtp:Port"], 587),
+                Port = Int(configuration["Smtp:Port"], 465),
                 User = configuration["Smtp:User"] ?? string.Empty,
                 Password = First(configuration["Smtp:Password"], "SMTP_PASSWORD"),
                 FromEmail = configuration["Smtp:FromEmail"] ?? string.Empty,
                 FromName = configuration["Smtp:FromName"] ?? "SchoolPiBoard",
-                UseStartTls = Bool(configuration["Smtp:UseStartTls"], true)
+                // Яндекс 360 отдаёт SMTP на 465 через SSL; 587 со STARTTLS —
+                // второй поддерживаемый вариант, если 465 закрыт на сервере.
+                UseStartTls = Bool(configuration["Smtp:UseStartTls"], false)
             },
 
             Captcha = new CaptchaOptions
@@ -73,7 +75,7 @@ public sealed record OnlineOptions
             Invites = new InviteOptions
             {
                 LinkLifetimeDays = Int(configuration["Invites:LinkLifetimeDays"], 7),
-                EditDaysAfterJoin = Int(configuration["Invites:EditDaysAfterJoin"], 14)
+                MemberEditorDays = Int(configuration["Invites:MemberEditorDays"], 30)
             },
 
             Redis = new RedisOptions
@@ -92,14 +94,14 @@ public sealed record OnlineOptions
 
         if (!development)
         {
-            // В разработке письма пишутся в лог, капча не проверяется,
-            // присутствие держится в памяти одного процесса. В бою —
-            // ничего из этого не годится, поэтому сервис не стартует.
+            // В разработке письма пишутся в лог, а присутствие держится
+            // в памяти одного процесса — в бою ни то, ни другое не годится.
+            //
+            // Капчи в этом списке нет намеренно: Yandex SmartCaptcha пока
+            // недоступна для подключения, поэтому сервис поднимается и без
+            // неё, но пишет об этом предупреждение при старте.
             if (!options.Smtp.IsConfigured)
                 missing.Add("Smtp:Host / Smtp:FromEmail");
-
-            if (options.Captcha.Provider == "disabled")
-                missing.Add("Captcha:Provider");
 
             if (string.IsNullOrWhiteSpace(options.Redis.ConnectionString))
                 missing.Add("REDIS_CONNECTION_STRING");
@@ -193,15 +195,19 @@ public sealed record PaymentOptions
 
 public sealed record InviteOptions
 {
-    /// <summary>Сколько дней живёт сама ссылка-приглашение.</summary>
+    /// <summary>
+    /// Сколько дней по ссылке можно войти на доску. Потом ссылка перестаёт
+    /// работать, но у тех, кто успел войти, доступ остаётся.
+    /// </summary>
     public required int LinkLifetimeDays { get; init; }
 
     /// <summary>
-    /// Сколько дней вошедший по ссылке может менять доску. Дальше доска
-    /// у него остаётся, но только для просмотра — так расползание ссылки
-    /// не превращается в вечный доступ на редактирование.
+    /// Сколько дней приглашённый участник может менять доску. Дальше он
+    /// становится наблюдателем, и вернуть ему право правки может только
+    /// владелец — так ни разошедшаяся ссылка, ни забытое приглашение
+    /// не дают вечного доступа на редактирование.
     /// </summary>
-    public required int EditDaysAfterJoin { get; init; }
+    public required int MemberEditorDays { get; init; }
 }
 
 public sealed record RedisOptions

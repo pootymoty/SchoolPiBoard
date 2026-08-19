@@ -146,7 +146,11 @@ if (!options.Smtp.IsConfigured)
     app.Logger.LogWarning("SMTP не настроен: письма пишутся в лог вместо отправки.");
 
 if (options.Captcha.Provider != "yandex")
-    app.Logger.LogWarning("Капча выключена: регистрация ничем не защищена от роботов.");
+{
+    app.Logger.LogWarning(
+        "Капча выключена: регистрация ничем не защищена от роботов. " +
+        "Включается одним значением Captcha:Provider=yandex, когда появится ключ SmartCaptcha.");
+}
 
 if (!options.Payments.IsConfigured)
     app.Logger.LogWarning("Робокасса не настроена: оплата подписки вернёт 503.");

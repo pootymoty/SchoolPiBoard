@@ -62,7 +62,6 @@ export interface Invite {
   createdAt: string;
   expiresAt: string;
   uses: number;
-  editDays: number | null;
   /** Приходит только при создании: в базе лежит хеш, восстановить ссылку нельзя. */
   url: string | null;
 }

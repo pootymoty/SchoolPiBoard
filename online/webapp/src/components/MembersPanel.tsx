@@ -80,10 +80,12 @@ export function MembersPanel({ boardId, canManage, currentUserId }: Props): Reac
                 {member.userId === currentUserId ? <span className="muted small"> — это вы</span> : null}
               </div>
               <div className="muted small">{member.email}</div>
-              {member.viaLink ? (
+              {member.viaLink || member.editUntil ? (
                 <div className="muted small">
-                  по ссылке
-                  {member.editUntil ? ` · правки до ${new Date(member.editUntil).toLocaleDateString('ru-RU')}` : ''}
+                  {member.viaLink ? 'по ссылке' : 'по приглашению'}
+                  {member.editUntil
+                    ? ` · правки до ${new Date(member.editUntil).toLocaleDateString('ru-RU')}`
+                    : ''}
                 </div>
               ) : null}
             </div>
@@ -120,7 +122,11 @@ export function MembersPanel({ boardId, canManage, currentUserId }: Props): Reac
               <button className="button" type="submit" disabled={busy}>Пригласить</button>
             </div>
 
-            <p className="muted small">По почте можно пригласить того, кто уже зарегистрирован.</p>
+            <p className="muted small">
+              По почте можно пригласить того, кто уже зарегистрирован.
+              Право редактора действует 30 дней — продлить его можно,
+              назначив роль заново.
+            </p>
           </form>
 
           <InvitePanel boardId={boardId} />

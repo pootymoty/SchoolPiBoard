@@ -81,9 +81,10 @@ public class BoardMember
     public bool ViaLink { get; set; }
 
     /// <summary>
-    /// До какого момента участник может менять доску. NULL — бессрочно.
-    /// Так ограничивается расползание ссылки: доска у человека остаётся,
-    /// но через оговорённый срок он может только смотреть.
+    /// До какого момента участник может менять доску. NULL — бессрочно
+    /// (так у владельца и у наблюдателей, которым и менять нечего).
+    /// Срок общий для всех приглашённых; продлить его может только владелец,
+    /// заново назначив роль.
     /// </summary>
     public DateTime? EditUntil { get; set; }
 
@@ -126,9 +127,6 @@ public class BoardInvite
     public DateTime? RevokedAt { get; set; }
 
     public int Uses { get; set; }
-
-    /// <summary>Сколько дней вошедший по ссылке может менять доску. NULL — без ограничения.</summary>
-    public int? EditDays { get; set; }
 
     public bool IsUsable(DateTime now) => RevokedAt is null && now < ExpiresAt;
 }

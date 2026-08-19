@@ -205,15 +205,18 @@ public sealed class BoardService
         var existing = await _db.BoardMembers
             .FirstOrDefaultAsync(x => x.BoardId == boardId && x.UserId == user.Id, cancellationToken);
 
+        var now = DateTime.UtcNow;
+
         if (existing is not null)
         {
             if (BoardRoles.TryParse(existing.Role, out var current) && current == BoardRole.Owner)
                 return new BoardResult<BoardMember>(BoardOutcome.BadRequest, Message: "Это владелец доски.");
 
-            // Личное приглашение сильнее ссылки: снимаем срок правок.
+            // Повторное приглашение — это назначение роли заново, а значит
+            // и новый отсчёт срока правок.
             existing.Role = BoardRoles.ToName(role);
             existing.ViaLink = false;
-            existing.EditUntil = null;
+            existing.EditUntil = EditUntilFor(role, now);
             await _db.SaveChangesAsync(cancellationToken);
 
             existing.User = user;
@@ -225,7 +228,8 @@ public sealed class BoardService
             BoardId = boardId,
             UserId = user.Id,
             Role = BoardRoles.ToName(role),
-            InvitedAt = DateTime.UtcNow
+            InvitedAt = now,
+            EditUntil = EditUntilFor(role, now)
         };
 
         _db.BoardMembers.Add(member);
@@ -255,10 +259,11 @@ public sealed class BoardService
         if (BoardRoles.TryParse(member.Role, out var currentRole) && currentRole == BoardRole.Owner)
             return new BoardResult<BoardMember>(BoardOutcome.BadRequest, Message: "Роль владельца изменить нельзя.");
 
+        // Назначая роль заново, владелец продлевает и срок правок:
+        // это единственный способ вернуть редактора после того,
+        // как срок истёк.
         member.Role = BoardRoles.ToName(role);
-
-        // Владелец решил вручную — значит, срок из ссылки больше не важен.
-        member.EditUntil = null;
+        member.EditUntil = EditUntilFor(role, DateTime.UtcNow);
         await _db.SaveChangesAsync(cancellationToken);
 
         return new BoardResult<BoardMember>(BoardOutcome.Ok, member);
@@ -308,13 +313,12 @@ public sealed class BoardService
     }
 
     /// <summary>
-    /// Новая ссылка-приглашение. Ссылка живёт ограниченное время, а тот, кто
-    /// по ней вошёл, может править доску только оговорённый срок — дальше
-    /// остаётся наблюдателем. Так разошедшаяся по чатам ссылка не превращается
-    /// в вечный доступ на редактирование.
+    /// Новая ссылка-приглашение. По ссылке можно войти ограниченное время;
+    /// вошедшие сохраняют доступ и после того, как ссылка перестала работать.
+    /// Право менять доску у них ограничено общим сроком для приглашённых.
     /// </summary>
     public async Task<BoardResult<InviteLink>> CreateInviteAsync(
-        Guid boardId, Guid actorId, string? roleName, int? lifetimeDays, int? editDays, CancellationToken cancellationToken)
+        Guid boardId, Guid actorId, string? roleName, int? lifetimeDays, CancellationToken cancellationToken)
     {
         var check = await RequireOwnerAsync(boardId, actorId, cancellationToken);
         if (check is not null)
@@ -324,14 +328,6 @@ public sealed class BoardService
             return new BoardResult<InviteLink>(BoardOutcome.BadRequest, Message: "Роль должна быть editor или viewer.");
 
         var lifetime = lifetimeDays is > 0 and <= 365 ? lifetimeDays.Value : _options.Invites.LinkLifetimeDays;
-
-        // 0 — «без ограничения»: владелец может так решить осознанно.
-        var edit = editDays switch
-        {
-            null => role == BoardRole.Editor ? _options.Invites.EditDaysAfterJoin : (int?)null,
-            <= 0 => null,
-            _ => editDays.Value
-        };
 
         var token = SecurityTokens.Create();
         var now = DateTime.UtcNow;
@@ -343,8 +339,7 @@ public sealed class BoardService
             TokenHash = SecurityTokens.HashOf(token),
             Role = BoardRoles.ToName(role),
             CreatedAt = now,
-            ExpiresAt = now.AddDays(lifetime),
-            EditDays = edit
+            ExpiresAt = now.AddDays(lifetime)
         };
 
         _db.BoardInvites.Add(invite);
@@ -410,18 +405,14 @@ public sealed class BoardService
                 Role = BoardRoles.ToName(role),
                 InvitedAt = now,
                 ViaLink = true,
-                EditUntil = invite.EditDays is null ? null : now.AddDays(invite.EditDays.Value)
+                EditUntil = EditUntilFor(role, now)
             });
 
             invite.Uses += 1;
         }
-        else if (member.ViaLink && member.EditUntil is not null && member.EditUntil <= now && invite.EditDays is not null)
-        {
-            // Человек вернулся по свежей ссылке — продлеваем ему право правки,
-            // а не заводим вторую запись.
-            member.EditUntil = now.AddDays(invite.EditDays.Value);
-            invite.Uses += 1;
-        }
+
+        // Если участник уже есть, повторный переход по ссылке ничего не меняет:
+        // вернуть право правки после истечения срока может только владелец.
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -437,6 +428,13 @@ public sealed class BoardService
         board.ModifiedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// До какого момента приглашённый может менять доску. У наблюдателя
+    /// ограничивать нечего, поэтому срок только у редактора.
+    /// </summary>
+    private DateTime? EditUntilFor(BoardRole role, DateTime now)
+        => role == BoardRole.Editor ? now.AddDays(_options.Invites.MemberEditorDays) : null;
 
     private async Task<BoardInvite?> FindInviteAsync(string token, CancellationToken cancellationToken)
     {

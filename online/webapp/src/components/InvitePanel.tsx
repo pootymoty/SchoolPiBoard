@@ -98,9 +98,8 @@ export function InvitePanel({ boardId }: { boardId: string }): ReactElement {
           {invites.map((invite) => (
             <li key={invite.id} className="member-row">
               <div className="muted small">
-                {invite.role === 'editor' ? 'редактор' : 'просмотр'} · до{' '}
+                {invite.role === 'editor' ? 'редактор' : 'просмотр'} · вход до{' '}
                 {new Date(invite.expiresAt).toLocaleDateString('ru-RU')} · переходов: {invite.uses}
-                {invite.editDays ? ` · правки ${invite.editDays} дн.` : ''}
               </div>
               <button className="button ghost danger" type="button" onClick={() => void revoke(invite)}>
                 Отозвать
@@ -111,8 +110,10 @@ export function InvitePanel({ boardId }: { boardId: string }): ReactElement {
       ) : null}
 
       <p className="muted small">
-        По ссылке войдёт любой, у кого она есть. Право менять доску действует
-        ограниченное время — дальше участник остаётся только наблюдателем.
+        По ссылке войдёт любой, у кого она есть. Через 7 дней ссылка перестанет
+        работать, но у тех, кто успел войти, доступ останется. Право менять
+        доску у приглашённых действует 30 дней — потом они становятся
+        наблюдателями, и вернуть им роль можете только вы.
       </p>
 
       {error ? <p className="error">{error}</p> : null}
