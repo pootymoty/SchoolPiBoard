@@ -15,7 +15,7 @@ public class Payment
 
     public decimal Amount { get; set; }
 
-    /// <summary>«robokassa», «stripe» — на случай второй платёжной системы.</summary>
+    /// <summary>Платёжная система: сейчас всегда «robokassa».</summary>
     public string Provider { get; set; } = string.Empty;
 
     public string Status { get; set; } = StatusPending;

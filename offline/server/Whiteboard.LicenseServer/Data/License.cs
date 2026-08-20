@@ -14,8 +14,11 @@ public class License
 
     public bool Revoked { get; set; }
 
-    /// <summary>SHA-256 от Stripe payment intent id — только для распознавания повторов.</summary>
-    public string? StripePaymentHash { get; set; }
+    /// <summary>
+    /// SHA-256 от идентификатора платежа — только для распознавания повторных
+    /// уведомлений. Сам идентификатор и тем более платёжные данные не хранятся.
+    /// </summary>
+    public string? PaymentIdHash { get; set; }
 
     /// <summary>Когда ушло письмо с ключом. NULL — ещё не ушло.</summary>
     public DateTime? EmailSentAt { get; set; }

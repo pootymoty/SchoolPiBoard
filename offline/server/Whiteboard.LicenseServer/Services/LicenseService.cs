@@ -174,7 +174,7 @@ public sealed class LicenseService
     public async Task<License> IssueForPaymentAsync(string email, string paymentHash, CancellationToken cancellationToken)
     {
         var existing = await _db.Licenses
-            .FirstOrDefaultAsync(x => x.StripePaymentHash == paymentHash, cancellationToken);
+            .FirstOrDefaultAsync(x => x.PaymentIdHash == paymentHash, cancellationToken);
 
         if (existing is not null)
             return existing;
@@ -184,7 +184,7 @@ public sealed class LicenseService
             Key = await GenerateUniqueKeyAsync(cancellationToken),
             Email = email,
             CreatedAt = DateTime.UtcNow,
-            StripePaymentHash = paymentHash
+            PaymentIdHash = paymentHash
         };
 
         _db.Licenses.Add(license);
@@ -200,7 +200,7 @@ public sealed class LicenseService
             _db.Entry(license).State = EntityState.Detached;
 
             var created = await _db.Licenses
-                .FirstOrDefaultAsync(x => x.StripePaymentHash == paymentHash, cancellationToken);
+                .FirstOrDefaultAsync(x => x.PaymentIdHash == paymentHash, cancellationToken);
 
             if (created is null)
                 throw;

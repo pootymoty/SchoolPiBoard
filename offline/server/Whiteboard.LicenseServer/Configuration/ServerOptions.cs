@@ -10,7 +10,6 @@ public sealed class ServerOptions
 {
     public required string ConnectionString { get; init; }
     public required LicenseOptions License { get; init; }
-    public required StripeOptions Stripe { get; init; }
     public required SmtpOptions Smtp { get; init; }
     public required RobokassaOptions Robokassa { get; init; }
     public required TrialOptions Trial { get; init; }
@@ -38,11 +37,6 @@ public sealed class ServerOptions
                     : 2,
                 DownloadUrl = configuration["License:DownloadUrl"] ?? string.Empty,
                 SupportEmail = configuration["License:SupportEmail"] ?? string.Empty
-            },
-
-            Stripe = new StripeOptions
-            {
-                WebhookSecret = First(configuration["Stripe:WebhookSecret"], "STRIPE_WEBHOOK_SECRET")
             },
 
             Smtp = new SmtpOptions
@@ -98,9 +92,6 @@ public sealed class ServerOptions
         if (!development)
         {
             // В разработке письма пишутся в лог — в бою так работать нельзя.
-            //
-            // Stripe в этом списке нет: продажи идут через Робокассу, а его
-            // вебхук без секрета просто выключен (см. StripeWebhookEndpoints).
             if (!options.Smtp.IsConfigured)
                 missing.Add("Smtp:Host / Smtp:FromEmail");
         }
@@ -150,13 +141,6 @@ public sealed class LicenseOptions
 
     /// <summary>Адрес поддержки для письма.</summary>
     public required string SupportEmail { get; init; }
-}
-
-public sealed class StripeOptions
-{
-    public required string WebhookSecret { get; init; }
-
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(WebhookSecret);
 }
 
 /// <summary>Почта, с которой уходит письмо с ключом.</summary>

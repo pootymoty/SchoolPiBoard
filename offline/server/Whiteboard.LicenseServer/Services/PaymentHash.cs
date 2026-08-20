@@ -15,6 +15,4 @@ public static class PaymentHash
 
     /// <summary>Номер счёта Робокассы в том виде, в каком он попадает в базу.</summary>
     public static string ForRobokassa(long invoiceId) => Of($"robokassa:{invoiceId}");
-
-    public static string ForStripe(string paymentIntentId) => Of($"stripe:{paymentIntentId}");
 }

@@ -28,11 +28,11 @@ public class LicenseDbContext : DbContext
             entity.Property(x => x.Email).HasColumnName("email").IsRequired();
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             entity.Property(x => x.Revoked).HasColumnName("revoked");
-            entity.Property(x => x.StripePaymentHash).HasColumnName("stripe_payment_hash");
+            entity.Property(x => x.PaymentIdHash).HasColumnName("payment_hash");
             entity.Property(x => x.EmailSentAt).HasColumnName("email_sent_at");
 
             entity.HasIndex(x => x.Key).IsUnique();
-            entity.HasIndex(x => x.StripePaymentHash).IsUnique();
+            entity.HasIndex(x => x.PaymentIdHash).IsUnique();
 
             entity.HasMany(x => x.Activations)
                   .WithOne(x => x.License!)
