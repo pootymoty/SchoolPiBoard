@@ -111,6 +111,8 @@ Delete — удалить · Esc — курсор · Shift — прямая ли
 в начале `Views/EditorView.xaml.cs` и поменяйте `Maximum="4"` на `Maximum="3"`
 у `OpacitySlider` в `Views/EditorView.xaml`.
 
+> Подробная настройка всех частей продукта — в `SETUP.md`.
+
 ## Лицензирование (2.2)
 
 Поверх приложения добавлен слой активации. Логика доски — `BoardCanvas`,
