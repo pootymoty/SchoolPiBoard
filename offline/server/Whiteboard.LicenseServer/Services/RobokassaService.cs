@@ -105,7 +105,7 @@ public sealed class RobokassaService
                     quantity = 1,
                     sum = _options.Amount,
                     payment_method = "full_payment",
-                    payment_object = "service",
+                    payment_object = _options.PaymentObject,
                     tax = _options.Tax
                 }
             }

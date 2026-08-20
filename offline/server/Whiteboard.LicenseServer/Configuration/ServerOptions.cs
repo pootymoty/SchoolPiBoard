@@ -65,7 +65,8 @@ public sealed class ServerOptions
                 IsTest = ReadBool(configuration["Robokassa:IsTest"], false),
                 SendReceipt = ReadBool(configuration["Robokassa:SendReceipt"], false),
                 TaxSystem = configuration["Robokassa:TaxSystem"] ?? "npd",
-                Tax = configuration["Robokassa:Tax"] ?? "none"
+                Tax = configuration["Robokassa:Tax"] ?? "none",
+                PaymentObject = configuration["Robokassa:PaymentObject"] ?? "intellectual_activity"
             },
 
             Trial = new TrialOptions
@@ -193,6 +194,14 @@ public sealed class RobokassaOptions
 
     /// <summary>Ставка НДС в чеке (для самозанятого — none).</summary>
     public required string Tax { get; init; }
+
+    /// <summary>
+    /// Признак предмета расчёта. Мы продаём не услугу, а право использования
+    /// программы, поэтому по умолчанию intellectual_activity — «предоставление
+    /// результатов интеллектуальной деятельности». Это должно совпадать
+    /// с предметом оферты (docs/legal/offer-desktop.md).
+    /// </summary>
+    public required string PaymentObject { get; init; }
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(MerchantLogin) &&

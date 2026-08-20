@@ -165,13 +165,20 @@ curl -sS --resolve keys.school-pi.online:443:IP_СЕРВЕРА https://keys.scho
 | SuccessURL | страница вашего сайта «спасибо, ключ отправлен» |
 | FailURL | страница «оплата не прошла» |
 
+Третий пароль (для JWT) относится к отдельному JWT-API Робокассы и этому
+сервису не нужен — мы работаем по классическому протоколу с подписью MD5.
+В `LICENSE_TOKEN_SECRET` его класть нельзя: это наш собственный секрет.
+
+Если метод для SuccessURL и FailURL тоже POST, маршруты на сайте должны
+принимать POST, иначе покупатель после оплаты увидит 405.
+
 Затем на сервере:
 
 ```bash
 cat >> /etc/schoolpiboardoff.env <<'EOF'
 Robokassa__MerchantLogin=логин_магазина
-ROBOKASSA_PASSWORD1=пароль_1
-ROBOKASSA_PASSWORD2=пароль_2
+ROBOKASSA_PASSWORD1=тестовый_пароль_1
+ROBOKASSA_PASSWORD2=тестовый_пароль_2
 Robokassa__IsTest=true
 EOF
 
