@@ -1,0 +1,47 @@
+# Сборка сервера ключей на стороне GitHub.
+#
+# Сервер, на котором сервис будет работать, слабый, и ставить на него SDK
+# ради сборки не нужно. Здесь собирается готовый архив, который на сервере
+# останется только распаковать.
+name: license-server
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'offline/server/**'
+      - '.github/workflows/license-server.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish
+        run: >
+          dotnet publish offline/server/Whiteboard.LicenseServer/Whiteboard.LicenseServer.csproj
+          -c Release -o publish
+
+      - name: Pack
+        run: tar -czf license-server.tar.gz -C publish .
+
+      # Готовый архив кладём в релиз: по такой ссылке его можно забрать
+      # обычным curl, без токенов и без установки чего-либо на сервер.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete license-server-latest --yes --cleanup-tag || true
+          gh release create license-server-latest license-server.tar.gz \
+            --title "Сервер ключей — последняя сборка" \
+            --notes "Собрано из ${{ github.sha }}. Распаковывается в /var/www/schoolpiboardoff/api." \
+            --prerelease
