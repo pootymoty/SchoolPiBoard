@@ -72,6 +72,11 @@ ConnectionStrings__Postgres=Host=localhost;Database=schoolpiboard_licenses;Usern
 LICENSE_TOKEN_SECRET=ТО_ЧТО_СГЕНЕРИРОВАЛИ
 License__DownloadUrl=https://school-pi.online/download/WhiteboardSetup.exe
 License__SupportEmail=info@school-pi.online
+Smtp__Host=smtp.yandex.ru
+Smtp__Port=465
+Smtp__User=info@school-pi.online
+Smtp__FromEmail=info@school-pi.online
+SMTP_PASSWORD=ПАРОЛЬ_ПРИЛОЖЕНИЯ_ЯНДЕКС
 Robokassa__MerchantLogin=ЛОГИН_МАГАЗИНА
 ROBOKASSA_PASSWORD1=ПАРОЛЬ1
 ROBOKASSA_PASSWORD2=ПАРОЛЬ2
@@ -84,10 +89,9 @@ sudo chmod 600 /etc/schoolpiboardoff.env
 sudo chown root:root /etc/schoolpiboardoff.env
 ```
 
-> **Письма с ключами пока не уйдут.** Этот сервис писался под SendGrid,
-> а у вас Яндекс 360. Пока переменные SendGrid не заданы, ключ выпускается
-> и пишется в лог, но покупателю не отправляется. Надо переключить сервис
-> на тот же SMTP, что и у онлайн-доски — работы немного.
+> `SMTP_PASSWORD` — это **пароль приложения** из Яндекс ID, а не пароль
+> от почтового ящика: обычный пароль SMTP не примет. Создаётся в Яндекс ID
+> для ящика `info@school-pi.online`, раздел паролей приложений, тип «Почта».
 
 ### Шаг 1.6. Служба `[СЕРВЕР]`
 
@@ -385,13 +389,11 @@ curl https://school-pi-board.online/api/health
 
 ## Что нужно решить до реальных продаж
 
-1. **Письма с ключами десктопной версии** — переключить сервер лицензий
-   с SendGrid на SMTP Яндекс 360 (шаг 1.5).
-2. **Чеки** — уточнить в Робокассе схему для самозанятого
+1. **Чеки** — уточнить в Робокассе схему для самозанятого
    (`docs/payment-legal-notes.md`).
-3. **Правовые тексты** — заглушки в `offline\installer\LICENSE.txt`,
+2. **Правовые тексты** — заглушки в `offline\installer\LICENSE.txt`,
    `offline\web\index.html` и на страницах `/legal/*` онлайн-доски.
-4. **Капча** — включится, когда появится доступ к Yandex SmartCaptcha.
-5. **Первая сборка** — ни один из серверов ещё не компилировался: в этом
+3. **Капча** — включится, когда появится доступ к Yandex SmartCaptcha.
+4. **Первая сборка** — ни один из серверов ещё не компилировался: в этом
    окружении нет .NET SDK. Первый `dotnet publish` может выявить опечатки;
    пришлите вывод, поправлю.

@@ -11,7 +11,7 @@ public sealed class ServerOptions
     public required string ConnectionString { get; init; }
     public required LicenseOptions License { get; init; }
     public required StripeOptions Stripe { get; init; }
-    public required EmailOptions Email { get; init; }
+    public required SmtpOptions Smtp { get; init; }
     public required RobokassaOptions Robokassa { get; init; }
     public required TrialOptions Trial { get; init; }
     public required WebOptions Web { get; init; }
@@ -45,12 +45,18 @@ public sealed class ServerOptions
                 WebhookSecret = First(configuration["Stripe:WebhookSecret"], "STRIPE_WEBHOOK_SECRET")
             },
 
-            Email = new EmailOptions
+            Smtp = new SmtpOptions
             {
-                ApiKey = First(configuration["SendGrid:ApiKey"], "SENDGRID_API_KEY"),
-                FromEmail = configuration["SendGrid:FromEmail"] ?? string.Empty,
-                FromName = configuration["SendGrid:FromName"] ?? "Whiteboard",
-                Subject = configuration["SendGrid:Subject"] ?? "Ваш ключ Whiteboard"
+                Host = configuration["Smtp:Host"] ?? string.Empty,
+                Port = ReadInt(configuration["Smtp:Port"], 465),
+                User = configuration["Smtp:User"] ?? string.Empty,
+                Password = First(configuration["Smtp:Password"], "SMTP_PASSWORD"),
+                FromEmail = configuration["Smtp:FromEmail"] ?? string.Empty,
+                FromName = configuration["Smtp:FromName"] ?? "Whiteboard",
+                Subject = configuration["Smtp:Subject"] ?? "Ваш ключ Whiteboard",
+                // Яндекс 360 отдаёт SMTP на 465 через SSL; 587 со STARTTLS —
+                // второй рабочий вариант, если 465 закрыт на сервере.
+                UseStartTls = ReadBool(configuration["Smtp:UseStartTls"], false)
             },
 
             Robokassa = new RobokassaOptions
@@ -91,16 +97,12 @@ public sealed class ServerOptions
 
         if (!development)
         {
-            // В разработке без этих значений сервис поднимается: письма пишутся
-            // в лог, а вебхук принимается без проверки подписи.
-            if (string.IsNullOrWhiteSpace(options.Stripe.WebhookSecret))
-                missing.Add("STRIPE_WEBHOOK_SECRET");
-
-            if (string.IsNullOrWhiteSpace(options.Email.ApiKey))
-                missing.Add("SENDGRID_API_KEY");
-
-            if (string.IsNullOrWhiteSpace(options.Email.FromEmail))
-                missing.Add("SendGrid:FromEmail");
+            // В разработке письма пишутся в лог — в бою так работать нельзя.
+            //
+            // Stripe в этом списке нет: продажи идут через Робокассу, а его
+            // вебхук без секрета просто выключен (см. StripeWebhookEndpoints).
+            if (!options.Smtp.IsConfigured)
+                missing.Add("Smtp:Host / Smtp:FromEmail");
         }
 
         if (missing.Count > 0)
@@ -157,14 +159,21 @@ public sealed class StripeOptions
     public bool IsConfigured => !string.IsNullOrWhiteSpace(WebhookSecret);
 }
 
-public sealed class EmailOptions
+/// <summary>Почта, с которой уходит письмо с ключом.</summary>
+public sealed class SmtpOptions
 {
-    public required string ApiKey { get; init; }
+    public required string Host { get; init; }
+    public required int Port { get; init; }
+    public required string User { get; init; }
+    public required string Password { get; init; }
     public required string FromEmail { get; init; }
     public required string FromName { get; init; }
     public required string Subject { get; init; }
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(FromEmail);
+    /// <summary>false — SSL сразу (порт 465), true — STARTTLS (порт 587).</summary>
+    public required bool UseStartTls { get; init; }
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(FromEmail);
 }
 
 /// <summary>

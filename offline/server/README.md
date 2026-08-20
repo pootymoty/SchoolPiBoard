@@ -23,9 +23,7 @@ cd server/Whiteboard.LicenseServer
 
 export ConnectionStrings__Postgres="Host=localhost;Database=whiteboard_licenses;Username=postgres;Password=postgres"
 export LICENSE_TOKEN_SECRET="$(openssl rand -hex 32)"
-export STRIPE_WEBHOOK_SECRET="whsec_..."
-export SENDGRID_API_KEY="SG...."
-export SendGrid__FromEmail="noreply@ваш-домен"
+export SMTP_PASSWORD="пароль_приложения_Яндекс_ID"
 export License__DownloadUrl="https://ваш-домен/download/Whiteboard.exe"
 
 dotnet run
@@ -40,9 +38,9 @@ dotnet run
 |---|---|---|
 | `ConnectionStrings__Postgres` | да | подключение к PostgreSQL |
 | `LICENSE_TOKEN_SECRET` | да | секрет подписи токенов активации (HMAC-SHA256) |
-| `STRIPE_WEBHOOK_SECRET` | в Production | проверка подписи вебхука Stripe |
-| `SENDGRID_API_KEY` | в Production | отправка письма с ключом |
-| `SendGrid__FromEmail` | в Production | адрес отправителя, подтверждённый в SendGrid |
+| `Smtp__Host`, `Smtp__FromEmail` | в Production | почта для письма с ключом |
+| `Smtp__User`, `SMTP_PASSWORD` | в Production | вход в ящик (пароль приложения) |
+| `STRIPE_WEBHOOK_SECRET` | нет | Stripe не используется, без секрета вебхук выключен |
 | `License__DownloadUrl` | нет | ссылка на EXE в письме |
 | `License__SupportEmail` | нет | адрес поддержки в письме |
 | `License__DeviceLimit` | нет | сколько устройств на ключ (по умолчанию 2) |
@@ -57,9 +55,14 @@ dotnet run
 | `Web__SiteUrl` | нет | адрес страницы покупки — в сообщениях об ошибке |
 | `Web__AllowedOrigins__0` | нет | домен сайта для CORS (нужен только для JSON-запросов) |
 
-В режиме Development сервис поднимается и без Stripe/SendGrid: подпись вебхука
-не проверяется, а письмо пишется в лог. В Production отсутствие любого из
-секретов — ошибка старта, чтобы сервис не работал «наполовину».
+В режиме Development сервис поднимается и без почты: письмо целиком пишется
+в лог. В Production без настроенного SMTP сервис не стартует — молча
+не отправлять покупателю ключ хуже, чем не запуститься.
+
+Почта — Яндекс 360: `smtp.yandex.ru:465` по SSL, отправитель
+`info@school-pi.online`. В `SMTP_PASSWORD` нужен **пароль приложения**
+из Яндекс ID, а не пароль от ящика. Если 465 закрыт — `Smtp__Port=587`
+и `Smtp__UseStartTls=true`.
 
 ## Эндпоинты
 
@@ -100,8 +103,12 @@ dotnet run
 
 ### `POST /webhook/stripe`
 
-Принимает `checkout.session.completed` и `payment_intent.succeeded`, выпускает
-ключ и синхронно отправляет письмо через SendGrid.
+Сейчас **выключен**: продажи идут через Робокассу, а без
+`STRIPE_WEBHOOK_SECRET` обработчик отвечает 503 и ничего не делает.
+Принимать неподписанные уведомления нельзя — любой запрос выпускал бы ключ.
+
+Если секрет задан, принимает `checkout.session.completed`
+и `payment_intent.succeeded`, выпускает ключ и синхронно отправляет письмо.
 
 - Подпись проверяется по схеме Stripe (`t=…,v1=…`, HMAC-SHA256, окно 5 минут).
 - В базе хранится **только SHA-256 от payment intent id** — ни идентификатора

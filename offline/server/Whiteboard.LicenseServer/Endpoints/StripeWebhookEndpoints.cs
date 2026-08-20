@@ -23,19 +23,22 @@ public static class StripeWebhookEndpoints
             using (var reader = new StreamReader(httpRequest.Body, Encoding.UTF8))
                 payload = await reader.ReadToEndAsync(cancellationToken);
 
-            if (stripe.IsConfigured)
+            // Без секрета проверить подпись нечем, а принимать неподписанные
+            // уведомления нельзя: любой запрос выпускал бы ключ и слал его
+            // на указанную почту. Не настроен — значит выключен.
+            if (!stripe.IsConfigured)
             {
-                var signature = httpRequest.Headers["Stripe-Signature"].ToString();
-                if (!StripeSignatureVerifier.Verify(payload, signature, stripe.WebhookSecret, DateTimeOffset.UtcNow))
-                {
-                    logger.LogWarning("Вебхук отклонён: подпись не сходится.");
-                    return Results.Json(new { error = "invalid_signature" },
-                        statusCode: StatusCodes.Status400BadRequest);
-                }
+                logger.LogWarning("Вебхук Stripe вызван, но выключен: не задан STRIPE_WEBHOOK_SECRET.");
+                return Results.Json(new { error = "stripe_disabled" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
             }
-            else
+
+            var signature = httpRequest.Headers["Stripe-Signature"].ToString();
+            if (!StripeSignatureVerifier.Verify(payload, signature, stripe.WebhookSecret, DateTimeOffset.UtcNow))
             {
-                logger.LogWarning("Подпись вебхука не проверяется: не задан STRIPE_WEBHOOK_SECRET.");
+                logger.LogWarning("Вебхук отклонён: подпись не сходится.");
+                return Results.Json(new { error = "invalid_signature" },
+                    statusCode: StatusCodes.Status400BadRequest);
             }
 
             if (!StripeEvent.TryParse(payload, out var stripeEvent) || stripeEvent is null)

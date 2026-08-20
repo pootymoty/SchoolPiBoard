@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+    <!-- Отправка писем. SmtpClient из BCL объявлен устаревшим для нового кода. -->
+    <PackageReference Include="MailKit" Version="4.7.1.1" />
   </ItemGroup>
 
   <ItemGroup>

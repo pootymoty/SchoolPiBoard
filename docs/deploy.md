@@ -156,7 +156,8 @@ server {
 
 systemd — такой же unit с другим портом (например, 5080), своей базой
 `schoolpiboard_licenses` и своими переменными (`LICENSE_TOKEN_SECRET`,
-`SENDGRID_API_KEY` или SMTP, `ROBOKASSA_PASSWORD1/2`). Redis ему не нужен.
+`Smtp__*` с `SMTP_PASSWORD`, `ROBOKASSA_PASSWORD1/2`). Redis ему не нужен.
+Почта у обоих сервисов одна и та же — Яндекс 360, ящик `info@school-pi.online`.
 
 nginx проксирует его на том домене, который прописан в десктопном
 приложении (`LicenseOptions.DefaultServerUrl`) — этот адрес должен

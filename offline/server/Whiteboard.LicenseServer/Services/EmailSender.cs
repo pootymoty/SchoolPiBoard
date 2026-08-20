@@ -1,6 +1,6 @@
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
 using Whiteboard.LicenseServer.Configuration;
 
 namespace Whiteboard.LicenseServer.Services;
@@ -12,65 +12,60 @@ public interface IEmailSender
 }
 
 /// <summary>
-/// Отправка через SendGrid v3. Обращаемся к HTTP API напрямую: нужен ровно
-/// один запрос, отдельная зависимость ради него не окупается.
+/// Отправка через обычный SMTP — почта своего домена, без внешних сервисов
+/// рассылки. Для одного письма на покупку этого достаточно, а работает
+/// это везде и без оговорок.
 /// </summary>
-public sealed class SendGridEmailSender : IEmailSender
+public sealed class SmtpEmailSender : IEmailSender
 {
-    private const string Endpoint = "https://api.sendgrid.com/v3/mail/send";
-
-    private readonly HttpClient _http;
-    private readonly EmailOptions _email;
+    private readonly SmtpOptions _smtp;
     private readonly LicenseOptions _license;
-    private readonly ILogger<SendGridEmailSender> _logger;
+    private readonly ILogger<SmtpEmailSender> _logger;
 
-    public SendGridEmailSender(
-        HttpClient http,
-        EmailOptions email,
-        LicenseOptions license,
-        ILogger<SendGridEmailSender> logger)
+    public SmtpEmailSender(SmtpOptions smtp, LicenseOptions license, ILogger<SmtpEmailSender> logger)
     {
-        _http = http;
-        _email = email;
+        _smtp = smtp;
         _license = license;
         _logger = logger;
-
-        _http.Timeout = TimeSpan.FromSeconds(20);
     }
 
     public async Task<bool> SendLicenseKeyAsync(string email, string key, CancellationToken cancellationToken)
     {
-        var body = new
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(_smtp.FromName, _smtp.FromEmail));
+        message.To.Add(MailboxAddress.Parse(email));
+        message.Subject = _smtp.Subject;
+
+        message.Body = new BodyBuilder
         {
-            personalizations = new[]
-            {
-                new { to = new[] { new { email } } }
-            },
-            from = new { email = _email.FromEmail, name = _email.FromName },
-            subject = _email.Subject,
-            content = new[]
-            {
-                new { type = "text/plain", value = EmailTemplate.BuildPlainText(key, _license) },
-                new { type = "text/html", value = EmailTemplate.Build(key, _license) }
-            }
-        };
+            HtmlBody = EmailTemplate.Build(key, _license),
+            TextBody = EmailTemplate.BuildPlainText(key, _license)
+        }.ToMessageBody();
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _email.ApiKey);
-            request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            using var client = new SmtpClient();
 
-            using var response = await _http.SendAsync(request, cancellationToken);
-            if (response.IsSuccessStatusCode)
-                return true;
+            // 465 — SSL сразу при подключении, 587 — обычное соединение
+            // с переходом на TLS. Яндекс 360 поддерживает оба.
+            var security = _smtp.UseStartTls
+                ? SecureSocketOptions.StartTls
+                : SecureSocketOptions.SslOnConnect;
 
-            var details = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("SendGrid отказал: {Status} {Details}", (int)response.StatusCode, details);
-            return false;
+            await client.ConnectAsync(_smtp.Host, _smtp.Port, security, cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(_smtp.User))
+                await client.AuthenticateAsync(_smtp.User, _smtp.Password, cancellationToken);
+
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+
+            return true;
         }
         catch (Exception ex)
         {
+            // Ключ покупателя в лог не пишем: письмо не ушло, но сам ключ
+            // уже в базе, и повтор доставки его оттуда возьмёт.
             _logger.LogError(ex, "Не удалось отправить письмо с ключом.");
             return false;
         }
@@ -79,7 +74,7 @@ public sealed class SendGridEmailSender : IEmailSender
 
 /// <summary>
 /// Заглушка для локальной разработки: письмо не уходит никуда, ключ пишется
-/// в лог. В боевом режиме сервис без SENDGRID_API_KEY просто не стартует.
+/// в лог. В боевом режиме сервис без настроенного SMTP не стартует.
 /// </summary>
 public sealed class LoggingEmailSender : IEmailSender
 {
@@ -92,7 +87,7 @@ public sealed class LoggingEmailSender : IEmailSender
 
     public Task<bool> SendLicenseKeyAsync(string email, string key, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("SendGrid не настроен. Письмо не отправлено: {Email} получил бы ключ {Key}.", email, key);
+        _logger.LogWarning("SMTP не настроен. Письмо не отправлено: {Email} получил бы ключ {Key}.", email, key);
         return Task.FromResult(true);
     }
 }

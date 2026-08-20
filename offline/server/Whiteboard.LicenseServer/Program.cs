@@ -15,7 +15,7 @@ var options = ServerOptions.Load(builder.Configuration, builder.Environment.IsDe
 builder.Services.AddSingleton(options);
 builder.Services.AddSingleton(options.License);
 builder.Services.AddSingleton(options.Stripe);
-builder.Services.AddSingleton(options.Email);
+builder.Services.AddSingleton(options.Smtp);
 builder.Services.AddSingleton(options.Robokassa);
 builder.Services.AddSingleton(options.Trial);
 builder.Services.AddSingleton(options.Web);
@@ -30,8 +30,8 @@ builder.Services.AddScoped<LicenseService>();
 builder.Services.AddScoped<TrialService>();
 builder.Services.AddScoped<PurchaseService>();
 
-if (options.Email.IsConfigured)
-    builder.Services.AddHttpClient<IEmailSender, SendGridEmailSender>();
+if (options.Smtp.IsConfigured)
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 else
     builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
 
@@ -88,6 +88,12 @@ app.MapPurchaseEndpoints();
 app.MapStripeWebhook();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+if (!options.Smtp.IsConfigured)
+    app.Logger.LogWarning("SMTP не настроен: письма с ключами пишутся в лог вместо отправки.");
+
+if (!options.Stripe.IsConfigured)
+    app.Logger.LogInformation("Вебхук Stripe выключен: секрет не задан. Продажи идут через Робокассу.");
 
 if (!options.Robokassa.IsConfigured)
     app.Logger.LogWarning("Робокасса не настроена: покупка недоступна, /purchase/start вернёт 503.");
