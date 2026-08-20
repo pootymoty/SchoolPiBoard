@@ -2,9 +2,9 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Whiteboard.Services;
+using SchoolPiBoard.Services;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>Модальный ввод строки — в WPF нет штатного InputBox.</summary>
 public static class PromptDialog

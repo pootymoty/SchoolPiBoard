@@ -46,8 +46,8 @@ public sealed class ServerOptions
                 User = configuration["Smtp:User"] ?? string.Empty,
                 Password = First(configuration["Smtp:Password"], "SMTP_PASSWORD"),
                 FromEmail = configuration["Smtp:FromEmail"] ?? string.Empty,
-                FromName = configuration["Smtp:FromName"] ?? "Whiteboard",
-                Subject = configuration["Smtp:Subject"] ?? "Ваш ключ Whiteboard",
+                FromName = configuration["Smtp:FromName"] ?? "SchoolPiBoard",
+                Subject = configuration["Smtp:Subject"] ?? "Ваш ключ SchoolPiBoard",
                 // Яндекс 360 отдаёт SMTP на 465 через SSL; 587 со STARTTLS —
                 // второй рабочий вариант, если 465 закрыт на сервере.
                 UseStartTls = ReadBool(configuration["Smtp:UseStartTls"], false)
@@ -59,7 +59,7 @@ public sealed class ServerOptions
                 Password1 = First(configuration["Robokassa:Password1"], "ROBOKASSA_PASSWORD1"),
                 Password2 = First(configuration["Robokassa:Password2"], "ROBOKASSA_PASSWORD2"),
                 Amount = ReadDecimal(configuration["Robokassa:Amount"], 15000m),
-                Description = configuration["Robokassa:Description"] ?? "Лицензия Whiteboard (бессрочная)",
+                Description = configuration["Robokassa:Description"] ?? "Лицензия SchoolPiBoard (бессрочная)",
                 PaymentUrl = configuration["Robokassa:PaymentUrl"]
                              ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
                 IsTest = ReadBool(configuration["Robokassa:IsTest"], false),

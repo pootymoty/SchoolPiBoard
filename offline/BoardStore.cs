@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Whiteboard.Models;
+using SchoolPiBoard.Models;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 public class BoardStore
 {

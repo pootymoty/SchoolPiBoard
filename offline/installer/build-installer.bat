@@ -2,11 +2,11 @@
 setlocal
 
 echo ============================================
-echo   Building Whiteboard installer
+echo   Building SchoolPiBoard installer
 echo ============================================
 echo.
 echo This script only BUILDS the installer.
-echo The file you give to customers is dist\WhiteboardSetup.exe
+echo The file you give to customers is dist\SchoolPiBoardSetup.exe
 echo.
 
 pushd "%~dp0.."
@@ -45,13 +45,13 @@ if not exist "%ISCC%" (
     exit /b 1
 )
 
-"%ISCC%" "%~dp0Whiteboard.iss"
+"%ISCC%" "%~dp0SchoolPiBoard.iss"
 if errorlevel 1 goto fail
 
 echo.
 echo ============================================
 echo   DONE
-echo   Installer: dist\WhiteboardSetup.exe
+echo   Installer: dist\SchoolPiBoardSetup.exe
 echo   This is the file to publish for download.
 echo ============================================
 echo.

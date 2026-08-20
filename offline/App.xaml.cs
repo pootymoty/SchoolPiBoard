@@ -1,16 +1,16 @@
 ﻿using System.IO;
 using System.Text;
 using System.Windows;
-using Whiteboard.Services;
-using Whiteboard.Views;
+using SchoolPiBoard.Services;
+using SchoolPiBoard.Views;
 
-namespace Whiteboard;
+namespace SchoolPiBoard;
 
 public partial class App : Application
 {
     private static readonly string LogPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "WhiteboardApp", "crash.log");
+        "SchoolPiBoard", "crash.log");
 
     public App()
     {
@@ -106,7 +106,7 @@ public partial class App : Application
     {
         const string title = "Лицензия больше не действует";
         const string message =
-            "Сервер сообщил, что этот ключ отозван, поэтому Whiteboard закроется.\n\n" +
+            "Сервер сообщил, что этот ключ отозван, поэтому SchoolPiBoard закроется.\n\n" +
             "Доски и настройки остаются на компьютере — они снова откроются, " +
             "как только будет введён действующий ключ.";
 
@@ -175,7 +175,7 @@ public partial class App : Application
                 $"Ошибка при работе приложения.\n\n" +
                 $"ПЕРВОПРИЧИНА:\n{root.GetType().Name}\n{root.Message}\n\n" +
                 $"Подробности: {LogPath}",
-                "Whiteboard — ошибка",
+                "SchoolPiBoard — ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }

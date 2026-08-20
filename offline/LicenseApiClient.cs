@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>Чем закончился разговор с сервером лицензий.</summary>
 public enum LicenseCallStatus

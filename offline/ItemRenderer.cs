@@ -2,9 +2,9 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Whiteboard.Models;
+using SchoolPiBoard.Models;
 
-namespace Whiteboard.Rendering;
+namespace SchoolPiBoard.Rendering;
 
 /// <summary>
 /// Построение геометрии, отрисовка и проверка попадания для объектов доски.

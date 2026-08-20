@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>Что делать на старте приложения.</summary>
 public enum LicenseGateResult

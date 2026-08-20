@@ -3,7 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 public partial class EditorView
 {

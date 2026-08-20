@@ -1,4 +1,4 @@
-# Whiteboard — десктопная доска
+# SchoolPiBoard — десктопная доска
 
 Приложение для рисования на доске под Windows: работает полностью офлайн,
 доски хранятся на компьютере пользователя. Продаётся по бессрочному ключу
@@ -96,10 +96,10 @@ public static readonly TimeSpan ValidationInterval = TimeSpan.FromDays(1);
 Единственное, что делает фоновая проверка, — узнаёт об отозванном ключе,
 и только тогда, когда интернет и так есть.
 
-Версия продукта — в `Whiteboard.csproj`:
+Версия продукта — в `SchoolPiBoard.csproj`:
 
 ```xml
-<Version>2.2.0</Version>
+<Version>2.2.1</Version>
 ```
 
 Текст соглашения внутри приложения — `Eula.cs`. Он показывается
@@ -115,38 +115,38 @@ cd offline
 build.bat
 ```
 
-Результат — `offline\publish\Whiteboard.exe`. Запускается прямо оттуда,
+Результат — `offline\publish\SchoolPiBoard.exe`. Запускается прямо оттуда,
 установщик для проверки не нужен.
 
 Если сервер ключей ещё не поднят, а посмотреть приложение хочется, укажите
 временный адрес переменной окружения — пересобирать не придётся:
 
 ```
-set WHITEBOARD_LICENSE_URL=http://localhost:5000
-publish\Whiteboard.exe
+set SCHOOLPIBOARD_LICENSE_URL=http://localhost:5000
+publish\SchoolPiBoard.exe
 ```
 
 ## Где приложение хранит данные
 
 | Что | Где |
 |---|---|
-| доски | `%APPDATA%\WhiteboardApp\boards.json` |
-| настройки | `%APPDATA%\WhiteboardApp\settings.json` |
-| лицензия | `%APPDATA%\WhiteboardApp\license.dat` (зашифрован) |
-| метка пробного периода | `HKCU\Software\WhiteboardApp` и `%ProgramData%\WhiteboardApp` |
-| журнал ошибок | `%APPDATA%\WhiteboardApp\crash.log` |
+| доски | `%APPDATA%\SchoolPiBoard\boards.json` |
+| настройки | `%APPDATA%\SchoolPiBoard\settings.json` |
+| лицензия | `%APPDATA%\SchoolPiBoard\license.dat` (зашифрован) |
+| метка пробного периода | `HKCU\Software\SchoolPiBoard` и `%ProgramData%\SchoolPiBoard` |
+| журнал ошибок | `%APPDATA%\SchoolPiBoard\crash.log` |
 
 `settings.json` можно править вручную — например, задать другой адрес
 сервера, не пересобирая приложение:
 
 ```json
 {
-  "DataFolder": "C:\\Users\\Имя\\AppData\\Roaming\\WhiteboardApp",
+  "DataFolder": "C:\\Users\\Имя\\AppData\\Roaming\\SchoolPiBoard",
   "LicenseServerUrl": "https://keys.school-pi.online"
 }
 ```
 
-Приоритет такой: переменная окружения `WHITEBOARD_LICENSE_URL` →
+Приоритет такой: переменная окружения `SCHOOLPIBOARD_LICENSE_URL` →
 `LicenseServerUrl` из `settings.json` → зашитое значение.
 
 ## Как сбросить состояние при проверке
@@ -154,15 +154,15 @@ publish\Whiteboard.exe
 Чтобы приложение снова показало экран активации:
 
 ```
-del "%APPDATA%\WhiteboardApp\license.dat"
+del "%APPDATA%\SchoolPiBoard\license.dat"
 ```
 
 Чтобы снова стал доступен пробный период (он даётся один раз на компьютер),
 этого мало — метки лежат отдельно:
 
 ```
-reg delete "HKCU\Software\WhiteboardApp" /f
-rmdir /s /q "%ProgramData%\WhiteboardApp"
+reg delete "HKCU\Software\SchoolPiBoard" /f
+rmdir /s /q "%ProgramData%\SchoolPiBoard"
 ```
 
 И даже это не поможет: сервер помнит выданный пробный период по отпечатку
@@ -184,7 +184,7 @@ Delete — удалить · Esc — курсор · Shift — прямая ли
 
 | Файл | Зачем |
 |---|---|
-| `Whiteboard.iss` | описание установщика для Inno Setup |
+| `SchoolPiBoard.iss` | описание установщика для Inno Setup |
 | `LICENSE.txt` | соглашение, отдельная страница мастера |
 | `BEFORE.txt` | страница «о чём стоит знать перед установкой» |
 | `build-installer.bat` | сборка одной командой |
@@ -196,28 +196,28 @@ Delete — удалить · Esc — курсор · Shift — прямая ли
 
 ## Что настраивается
 
-Начало `Whiteboard.iss`:
+Начало `SchoolPiBoard.iss`:
 
 ```
-#define AppName "Whiteboard"
-#define AppVersion "2.2.0"
+#define AppName "SchoolPiBoard"
+#define AppVersion "2.2.1"
 #define AppPublisher "ЗАГЛУШКА: ФИО самозанятого"     <- заменить
-#define AppUrl "https://school-pi.online/whiteboard"
+#define AppUrl "https://school-pi.online"
 #define AppSupportEmail "info@school-pi.online"
 ```
 
-`AppVersion` нужно поднимать вместе с `<Version>` в `Whiteboard.csproj` —
+`AppVersion` нужно поднимать вместе с `<Version>` в `SchoolPiBoard.csproj` —
 это два разных места, и они не связаны автоматически.
 
 Ниже полезно знать про несколько строк:
 
 | Строка | Что делает |
 |---|---|
-| `DefaultDirName={autopf}\Whiteboard` | папка по умолчанию |
+| `DefaultDirName={autopf}\SchoolPiBoard` | папка по умолчанию |
 | `PrivilegesRequired=lowest` | можно ставить без прав администратора |
 | `PrivilegesRequiredOverridesAllowed=dialog` | мастер спросит «для всех / только для меня» |
 | `DisableWelcomePage=no` | показывать страницу приветствия |
-| `OutputBaseFilename=WhiteboardSetup` | имя файла без версии — ссылка на сайте не меняется |
+| `OutputBaseFilename=SchoolPiBoardSetup` | имя файла без версии — ссылка на сайте не меняется |
 | `ArchitecturesAllowed=x64` | только 64-разрядная Windows |
 
 ## Как собрать
@@ -232,10 +232,10 @@ installer\build-installer.bat
 ```
 
 Способ второй, без командной строки: сначала `build.bat` (соберёт
-приложение), потом откройте `installer\Whiteboard.iss` в Inno Setup
+приложение), потом откройте `installer\SchoolPiBoard.iss` в Inno Setup
 Compiler и нажмите **Build → Compile**.
 
-Результат в обоих случаях — `offline\dist\WhiteboardSetup.exe`.
+Результат в обоих случаях — `offline\dist\SchoolPiBoardSetup.exe`.
 **Это единственный файл, который получает покупатель.**
 
 Файл `.bat` — скрипт сборки, он нужен только вам.
@@ -244,7 +244,7 @@ Compiler и нажмите **Build → Compile**.
 
 Приветствие → соглашение → пояснения → выбор папки → выбор папки
 в меню Пуск → галочка «ярлык на рабочем столе» → установка → последняя
-страница с галочкой «Запустить Whiteboard и ввести ключ регистрации».
+страница с галочкой «Запустить SchoolPiBoard и ввести ключ регистрации».
 
 Если галочку снять — ключ спросится при первом запуске. Оба сценария
 рабочие, приложение без ключа просто не пускает дальше экрана активации.
@@ -253,8 +253,8 @@ Compiler и нажмите **Build → Compile**.
 
 При удалении программы остаются:
 
-- `%APPDATA%\WhiteboardApp` — доски и настройки пользователя;
-- `HKCU\Software\WhiteboardApp` и `%ProgramData%\WhiteboardApp` — метки
+- `%APPDATA%\SchoolPiBoard` — доски и настройки пользователя;
+- `HKCU\Software\SchoolPiBoard` и `%ProgramData%\SchoolPiBoard` — метки
   пробного периода.
 
 Первое — чтобы переустановка не стирала работу. Второе — чтобы «удалить
@@ -274,7 +274,7 @@ Compiler и нажмите **Build → Compile**.
 на чистой Windows 10/11 и без интернета. Цена — около 200 МБ размера.
 
 Если когда-нибудь понадобится обратный вариант (маленький установщик, который
-докачивает .NET 8 Desktop Runtime), меняется два места: в `Whiteboard.csproj`
+докачивает .NET 8 Desktop Runtime), меняется два места: в `SchoolPiBoard.csproj`
 убирается `SelfContained`, а в `[Code]` скрипта добавляется проверка наличия
 рантайма (ключ реестра `HKLM\SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App`)
 и загрузка установщика рантайма. Пока такой сценарий не нужен, кода в скрипте нет.
@@ -285,14 +285,14 @@ Compiler и нажмите **Build → Compile**.
 поставит программу себе.
 
 **Последняя страница мастера** предлагает запустить программу с ключом
-регистрации (`Whiteboard.exe --activate`). Галочку можно снять — тогда ключ
+регистрации (`SchoolPiBoard.exe --activate`). Галочку можно снять — тогда ключ
 спросится при первом запуске. Оба сценария из технического задания
 («ввести сразу» и «ввести позже») это и есть.
 
 **Деинсталлятор не трогает три вещи:**
 
-- `%APPDATA%\WhiteboardApp` — доски и настройки пользователя;
-- `HKCU\Software\WhiteboardApp` и `%ProgramData%\WhiteboardApp` — метки
+- `%APPDATA%\SchoolPiBoard` — доски и настройки пользователя;
+- `HKCU\Software\SchoolPiBoard` и `%ProgramData%\SchoolPiBoard` — метки
   пробного периода. Иначе «удалить и поставить заново» давало бы новые
   три дня бесплатно.
 
@@ -312,7 +312,7 @@ Compiler и нажмите **Build → Compile**.
 - **EV-сертификат** — дороже и требует аппаратный ключ, зато доверие
   выдаётся сразу.
 
-Когда сертификат появится, подпись добавляется в `Whiteboard.iss` парой
+Когда сертификат появится, подпись добавляется в `SchoolPiBoard.iss` парой
 строк (`SignTool`), пересборка — обычная. До тех пор имеет смысл написать
 на странице скачивания, что предупреждение ожидаемо.
 
@@ -610,12 +610,12 @@ JWT-API Робокассы, а мы работаем по классическо
 ### Проверка связки с клиентом
 
 Адрес сервера в десктопном приложении берётся из переменной окружения
-`WHITEBOARD_LICENSE_URL` (перекрывает всё), иначе из `LicenseServerUrl`
-в `%APPDATA%\WhiteboardApp\settings.json`.
+`SCHOOLPIBOARD_LICENSE_URL` (перекрывает всё), иначе из `LicenseServerUrl`
+в `%APPDATA%\SchoolPiBoard\settings.json`.
 
 ```powershell
-$env:WHITEBOARD_LICENSE_URL = "http://localhost:5000"
-.\Whiteboard.exe
+$env:SCHOOLPIBOARD_LICENSE_URL = "http://localhost:5000"
+.\SchoolPiBoard.exe
 ```
 
 ### Чего здесь намеренно нет
@@ -649,11 +649,11 @@ Flask принял бы за подстановку. Можно положить
    раздел условий. И отдельно на сервере: `Robokassa__Amount`.
 
 Уже подставлено: адрес сервера ключей в форме, ссылка на установщик
-(`/download/WhiteboardSetup.exe`), почта поддержки.
+(`/download/SchoolPiBoardSetup.exe`), почта поддержки.
 
 ## Куда положить установщик
 
-Ссылка со страницы ведёт на `/download/WhiteboardSetup.exe`. Положите файл
+Ссылка со страницы ведёт на `/download/SchoolPiBoardSetup.exe`. Положите файл
 так, чтобы этот адрес работал, и укажите тот же адрес в переменной
 `License__DownloadUrl` на сервере — он попадает в письмо с ключом.
 
@@ -673,9 +673,9 @@ Flask принял бы за подстановку. Можно положить
 Поэтому его можно положить в `templates/` как есть:
 
 ```python
-@app.get("/whiteboard")
-def whiteboard_page():
-    return render_template("whiteboard.html")
+@app.get("/board")
+def board_page():
+    return render_template("board.html")
 ```
 
 Если страница статическая — она одинаково хорошо работает и из `static/`.
@@ -687,7 +687,7 @@ def whiteboard_page():
 2. **Тестовый ключ** — вставить строку в `licenses` (часть 3 выше).
 3. **Приложение** — проверить `DefaultServerUrl` в `LicenseState.cs`,
    собрать `build.bat`, запустить, активировать тестовым ключом.
-4. **Заглушки** — ФИО и ИНН в `installer/Whiteboard.iss`,
+4. **Заглушки** — ФИО и ИНН в `installer/SchoolPiBoard.iss`,
    `installer/LICENSE.txt`, `web/index.html`.
 5. **Установщик** — собрать, поставить на чистой машине, пройти все
    проверки из раздела «Проверка перед выпуском».
@@ -703,7 +703,7 @@ def whiteboard_page():
 
 **Приложение говорит «нет связи с сервером».**
 Проверьте `DefaultServerUrl` в собранной версии и что `/health` отвечает
-снаружи. Быстрая проверка без пересборки: `set WHITEBOARD_LICENSE_URL=...`.
+снаружи. Быстрая проверка без пересборки: `set SCHOOLPIBOARD_LICENSE_URL=...`.
 
 **Ключ не принимается, хотя он есть в базе.**
 Ключ сравнивается в каноническом виде `XXXX-XXXX-XXXX-XXXX`, регистр
@@ -734,6 +734,31 @@ def whiteboard_page():
 может выявить опечатки — пришлите вывод `dotnet build`, поправлю.
 
 # История версий
+
+## Версия 2.2.1 — переименование в SchoolPiBoard
+
+Продукт называется SchoolPiBoard. Переименованы название приложения
+и установщика, сборка (`SchoolPiBoard.exe`), пространства имён, иконка,
+папка данных, ветка реестра и переменная окружения с адресом сервера.
+
+Что это ломает у тех, кто ставил предыдущую сборку:
+
+| Что | Было | Стало |
+|---|---|---|
+| Файл установщика | `WhiteboardSetup.exe` | `SchoolPiBoardSetup.exe` |
+| Папка данных | `%APPDATA%\WhiteboardApp` | `%APPDATA%\SchoolPiBoard` |
+| Ветка реестра | `HKCU\Software\WhiteboardApp` | `HKCU\Software\SchoolPiBoard` |
+| Переменная адреса сервера | `WHITEBOARD_LICENSE_URL` | `SCHOOLPIBOARD_LICENSE_URL` |
+
+Доски и лицензия из старой папки автоматически не переезжают: старая
+сборка ставится и удаляется отдельно от новой. Доски переносятся
+копированием `boards.json` в новую папку, ключ вводится заново.
+
+Отдельно: изменились строки-соли в `HardwareId` и `LocalCrypto`, поэтому
+отпечаток компьютера стал другим. Прежние активации на сервере указывают
+на несуществующие устройства и занимают слоты — их нужно удалить из
+таблицы `license_activations`. Пока покупателей нет, это безболезненно;
+после запуска продаж такую правку делать уже нельзя.
 
 Что в приложении появилось на каждом шаге. Раздел справочный: он объясняет,
 почему некоторые вещи сделаны именно так.
@@ -778,14 +803,14 @@ def whiteboard_page():
   отрисовке — так поворот не накапливает искажения.
 - **Экспорт PNG** сохраняет всё содержимое доски, а не видимую область.
 - При ошибке запуска подробности пишутся в
-  `%APPDATA%\WhiteboardApp\crash.log` и показываются с первопричиной.
+  `%APPDATA%\SchoolPiBoard\crash.log` и показываются с первопричиной.
 
 ## Версия 2.1 — окно, ползунки, список досок
 
 | № | Пункт | Реализация |
 |---|---|---|
 | 1 | Кнопки окна | Параметры окна заданы явно: `WindowStyle=SingleBorderWindow`, `ResizeMode=CanResize`, `AllowsTransparency=False`. Последнее критично — при `True` Windows убирает системные кнопки и рамку |
-| 2 | Иконка | `whiteboard.ico` — доска с клеткой и красной кривой, 7 размеров от 16 до 256 px. Подключена и к EXE, и к окнам |
+| 2 | Иконка | `schoolpiboard.ico` — доска с клеткой и красной кривой, 7 размеров от 16 до 256 px. Подключена и к EXE, и к окнам |
 | 3 | Дискретные ползунки | Толщина: 1, 5, 10, 15, 20, 30. Прозрачность: 20, 40, 50, 70, 100 %. Ползунок защёлкивается только на этих значениях, деления видны под шкалой |
 | 4 | Клетка мельче | Шаг сетки уменьшен с 32 до 20 точек |
 | 5 | Линия и стрелка | Теперь хранят собственные концы, поэтому смотрят в любую сторону. Раньше строились по диагонали габаритов и всегда шли из левого верхнего угла в правый нижний. Shift привязывает к шагу 45° |

@@ -1,10 +1,10 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
-using Whiteboard.Models;
-using Whiteboard.Services;
+using SchoolPiBoard.Models;
+using SchoolPiBoard.Services;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 public partial class MainWindow : Window
 {

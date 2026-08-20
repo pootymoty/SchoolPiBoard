@@ -2,9 +2,9 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Whiteboard.Models;
+using SchoolPiBoard.Models;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 public partial class HomeView : UserControl
 {

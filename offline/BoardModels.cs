@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Windows;
 
-namespace Whiteboard.Models;
+namespace SchoolPiBoard.Models;
 
 public enum ItemKind
 {

@@ -2,7 +2,7 @@ using System.IO;
 using System.Text.Json;
 using Microsoft.Win32;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Локальные следы пробного периода: реестр пользователя и папка ProgramData.
@@ -20,12 +20,12 @@ public static class TrialGuard
     private const string Purpose = "TrialMark";
 
     // Названия нарочно неприметные: искать «trial» в реестре будут в первую очередь.
-    private const string RegistryPath = @"Software\WhiteboardApp";
+    private const string RegistryPath = @"Software\SchoolPiBoard";
     private const string RegistryValue = "AppState";
 
     private static readonly string DataFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "WhiteboardApp");
+        "SchoolPiBoard");
 
     private static string DataFile => Path.Combine(DataFolder, "state.bin");
 

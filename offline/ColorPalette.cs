@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>
 /// Палитра цветов: готовые образцы плюс ползунки оттенка и яркости.

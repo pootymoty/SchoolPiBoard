@@ -3,9 +3,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Win32;
-using Whiteboard.Services;
+using SchoolPiBoard.Services;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>
 /// Настройки приложения: папка, в которой хранятся доски,

@@ -1,4 +1,4 @@
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Текст лицензионного соглашения для экрана «О программе». Заглушка —

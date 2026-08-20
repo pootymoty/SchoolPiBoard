@@ -1,8 +1,8 @@
 ﻿using System.Windows;
 using System.Windows.Media;
-using Whiteboard.Models;
+using SchoolPiBoard.Models;
 
-namespace Whiteboard.Rendering;
+namespace SchoolPiBoard.Rendering;
 
 /// <summary>Рисует фоновую сетку доски прямо в мировых координатах.</summary>
 public static class GridPainter

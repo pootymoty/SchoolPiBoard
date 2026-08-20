@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>На каком основании приложение работает.</summary>
 public enum LicenseMode
@@ -17,7 +17,7 @@ public enum LicenseMode
 
 /// <summary>
 /// То, что приложение помнит о лицензии между запусками.
-/// Сохраняется в %APPDATA%\WhiteboardApp\license.dat (см. <see cref="LicenseStorage"/>).
+/// Сохраняется в %APPDATA%\SchoolPiBoard\license.dat (см. <see cref="LicenseStorage"/>).
 /// </summary>
 public class LicenseState
 {
@@ -67,11 +67,11 @@ public static class LicenseOptions
     /// Адрес сервера ключей. Значение зашивается в exe при сборке, поэтому
     /// менять его нужно до выпуска установщика. Для отладки и для переезда
     /// на другой адрес без пересборки есть переменная окружения
-    /// WHITEBOARD_LICENSE_URL и поле LicenseServerUrl в settings.json.
+    /// SCHOOLPIBOARD_LICENSE_URL и поле LicenseServerUrl в settings.json.
     /// </summary>
     public const string DefaultServerUrl = "https://keys.school-pi.online";
 
-    public const string ServerUrlEnvironmentVariable = "WHITEBOARD_LICENSE_URL";
+    public const string ServerUrlEnvironmentVariable = "SCHOOLPIBOARD_LICENSE_URL";
 
     /// <summary>Максимум устройств на один ключ (окончательное слово всё равно за сервером).</summary>
     public const int DefaultDeviceLimit = 2;

@@ -1,16 +1,16 @@
-﻿; Установщик Whiteboard (Inno Setup 6).
+﻿; Установщик SchoolPiBoard (Inno Setup 6).
 ;
 ; Приложение публикуется self-contained: рантайм .NET лежит внутри exe,
 ; поэтому установщику нечего докачивать и он работает без интернета.
 ; Если когда-нибудь перейдём на framework-dependent сборку, сюда добавится
 ; проверка наличия .NET Desktop Runtime — как это сделать, описано в README.
 
-#define AppName "Whiteboard"
-#define AppVersion "2.2.0"
+#define AppName "SchoolPiBoard"
+#define AppVersion "2.2.1"
 #define AppPublisher "ЗАГЛУШКА: ФИО самозанятого"
-#define AppUrl "https://school-pi.online/whiteboard"
+#define AppUrl "https://school-pi.online"
 #define AppSupportEmail "info@school-pi.online"
-#define AppExe "Whiteboard.exe"
+#define AppExe "SchoolPiBoard.exe"
 
 ; Папка с результатом `dotnet publish` (см. build-installer.bat).
 #define SourceDir "..\publish"
@@ -66,8 +66,8 @@ InfoBeforeFile=BEFORE.txt
 OutputDir=..\dist
 ; Имя без версии: ссылка на скачивание на сайте остаётся одной и той же
 ; от выпуска к выпуску. Версия видна в свойствах файла и в мастере.
-OutputBaseFilename=WhiteboardSetup
-SetupIconFile=..\whiteboard.ico
+OutputBaseFilename=SchoolPiBoardSetup
+SetupIconFile=..\schoolpiboard.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -97,10 +97,10 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Filename: "{app}\{#AppExe}"; Parameters: "--activate"; Description: "Запустить {#AppName} и ввести ключ регистрации"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; Доски пользователя (%APPDATA%\WhiteboardApp) намеренно не удаляются:
+; Доски пользователя (%APPDATA%\SchoolPiBoard) намеренно не удаляются:
 ; переустановка программы не должна стирать работу.
 ;
-; Метки пробного периода (HKCU\Software\WhiteboardApp и
-; %ProgramData%\WhiteboardApp) тоже остаются — иначе «удалить и поставить
+; Метки пробного периода (HKCU\Software\SchoolPiBoard и
+; %ProgramData%\SchoolPiBoard) тоже остаются — иначе «удалить и поставить
 ; заново» превращалось бы в бесконечный бесплатный период.
 Type: dirifempty; Name: "{app}"

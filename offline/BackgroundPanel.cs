@@ -3,10 +3,10 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using Whiteboard.Models;
-using Whiteboard.Rendering;
+using SchoolPiBoard.Models;
+using SchoolPiBoard.Rendering;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>
 /// Всплывающая панель «Форматирование фона»: цвет доски и стиль сетки,

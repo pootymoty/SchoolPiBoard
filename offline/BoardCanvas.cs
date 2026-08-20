@@ -2,9 +2,9 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Whiteboard.Models;
+using SchoolPiBoard.Models;
 
-namespace Whiteboard.Rendering;
+namespace SchoolPiBoard.Rendering;
 
 public enum BoardTool
 {

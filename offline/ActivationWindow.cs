@@ -4,9 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Whiteboard.Services;
+using SchoolPiBoard.Services;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>Зачем открыт экран активации.</summary>
 public enum ActivationMode
@@ -54,7 +54,7 @@ public class ActivationWindow : Window
     {
         _mode = mode;
 
-        Title = "Whiteboard — активация";
+        Title = "SchoolPiBoard — активация";
         Width = 560;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -65,7 +65,7 @@ public class ActivationWindow : Window
 
         try
         {
-            Icon = new BitmapImage(new Uri("pack://application:,,,/whiteboard.ico"));
+            Icon = new BitmapImage(new Uri("pack://application:,,,/schoolpiboard.ico"));
         }
         catch
         {
@@ -231,7 +231,7 @@ public class ActivationWindow : Window
         {
             ActivationMode.TrialExpired => "Пробный период закончился",
             ActivationMode.ManualEntry => "Ввод ключа",
-            _ => "Активация Whiteboard"
+            _ => "Активация SchoolPiBoard"
         };
 
         _description.Text = _mode switch

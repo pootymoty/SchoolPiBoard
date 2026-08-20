@@ -80,9 +80,9 @@ Smtp__Port=465
 Smtp__User=info@school-pi.online
 Smtp__FromEmail=info@school-pi.online
 SMTP_PASSWORD=$SMTPPASS
-License__DownloadUrl=https://school-pi.online/download/WhiteboardSetup.exe
+License__DownloadUrl=https://school-pi.online/download/SchoolPiBoardSetup.exe
 License__SupportEmail=info@school-pi.online
-Web__SiteUrl=https://school-pi.online/whiteboard
+Web__SiteUrl=https://school-pi.online
 EOF
 
 chmod 600 /etc/schoolpiboardoff.env
@@ -246,7 +246,7 @@ systemctl start schoolpiboardoff
 
 Ищите слово `ЗАГЛУШКА`:
 
-- `offline\installer\Whiteboard.iss` → `AppPublisher` (ФИО)
+- `offline\installer\SchoolPiBoard.iss` → `AppPublisher` (ФИО)
 - `offline\installer\LICENSE.txt` → реквизиты правообладателя
 - `offline\web\index.html` → реквизиты в подвале (ФИО, ИНН) и текст
   раздела «Возврат»
@@ -265,10 +265,10 @@ cd SchoolPiBoard\offline
 installer\build-installer.bat
 ```
 
-Результат: `offline\dist\WhiteboardSetup.exe`.
+Результат: `offline\dist\SchoolPiBoardSetup.exe`.
 
 Если нужно просто проверить приложение без установщика — `build.bat`,
-результат в `offline\publish\Whiteboard.exe`.
+результат в `offline\publish\SchoolPiBoard.exe`.
 
 ### Шаг 2.5. Установить и проверить `[ПК]`
 
@@ -284,7 +284,7 @@ installer\build-installer.bat
 
 ### Шаг 2.6. Выложить установщик `[ПК → сервер]`
 
-Положите `WhiteboardSetup.exe` туда, куда ведёт ссылка со страницы
+Положите `SchoolPiBoardSetup.exe` туда, куда ведёт ссылка со страницы
 покупки (`License__DownloadUrl` из шага 1.5).
 
 ### Шаг 2.7. Страница покупки `[сайт]`

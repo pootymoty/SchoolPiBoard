@@ -1,6 +1,6 @@
 export const API_URL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:5000';
 
-const TOKEN_KEY = 'whiteboard.token';
+const TOKEN_KEY = 'schoolpiboard.token';
 
 export function readToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);

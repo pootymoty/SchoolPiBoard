@@ -1,11 +1,11 @@
 using System.IO;
 using System.Text.Json;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Хранит состояние лицензии (или пробного периода) в
-/// %APPDATA%\WhiteboardApp\license.dat. Файл зашифрован — см. <see cref="LocalCrypto"/>.
+/// %APPDATA%\SchoolPiBoard\license.dat. Файл зашифрован — см. <see cref="LocalCrypto"/>.
 /// </summary>
 public static class LicenseStorage
 {
@@ -13,7 +13,7 @@ public static class LicenseStorage
 
     private static readonly string Folder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "WhiteboardApp");
+        "SchoolPiBoard");
 
     public static string FilePath => Path.Combine(Folder, "license.dat");
 

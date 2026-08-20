@@ -16,8 +16,8 @@ docs/      памятки: развёртывание, платежи, эта и
 
 | Что | Где собирается | Почему так |
 |---|---|---|
-| Приложение Whiteboard (.exe) | **только на вашем ПК с Windows** | это WPF, он собирается под Windows |
-| Установщик (WhiteboardSetup.exe) | **только на вашем ПК с Windows** | Inno Setup — программа для Windows |
+| Приложение SchoolPiBoard (.exe) | **только на вашем ПК с Windows** | это WPF, он собирается под Windows |
+| Установщик (SchoolPiBoardSetup.exe) | **только на вашем ПК с Windows** | Inno Setup — программа для Windows |
 | Сервер лицензий | на ПК или на сервере | обычное приложение .NET, работает и там, и там |
 | Сервер онлайн-доски | на ПК или на сервере | то же самое |
 | Веб-приложение (сайт) | на ПК или на сервере | нужен Node.js |
@@ -61,7 +61,7 @@ cd SchoolPiBoard\offline
 build.bat
 ```
 
-Результат: `offline\publish\Whiteboard.exe` — можно запускать прямо оттуда.
+Результат: `offline\publish\SchoolPiBoard.exe` — можно запускать прямо оттуда.
 
 Установщик для раздачи покупателям:
 
@@ -69,11 +69,11 @@ build.bat
 installer\build-installer.bat
 ```
 
-Результат: `offline\dist\WhiteboardSetup.exe`. **Это единственный файл,
+Результат: `offline\dist\SchoolPiBoardSetup.exe`. **Это единственный файл,
 который получает покупатель.** Его нужно положить туда, куда ведёт кнопка
 «Скачать» на странице покупки.
 
-> Перед первой сборкой установщика поправьте в `offline\installer\Whiteboard.iss`
+> Перед первой сборкой установщика поправьте в `offline\installer\SchoolPiBoard.iss`
 > строку `AppPublisher` (там заглушка с ФИО) и тексты в `LICENSE.txt`.
 > И в `offline\LicenseState.cs` — `DefaultServerUrl`: приложение должно знать
 > настоящий адрес сервера лицензий, иначе установленные копии никуда
@@ -179,8 +179,8 @@ PostgreSQL с базой `schoolpiboard_online` — строка подключ�
 
 ## Как выкладывать обновления
 
-**Десктопное приложение.** Поднять `<Version>` в `offline\Whiteboard.csproj`
-и `AppVersion` в `installer\Whiteboard.iss`, собрать установщик, заменить
+**Десктопное приложение.** Поднять `<Version>` в `offline\SchoolPiBoard.csproj`
+и `AppVersion` в `installer\SchoolPiBoard.iss`, собрать установщик, заменить
 файл на сайте. У пользователей ничего не сломается: установщик ставится
 поверх, доски и лицензия лежат отдельно и не трогаются.
 

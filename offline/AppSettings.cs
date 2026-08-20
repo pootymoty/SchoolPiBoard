@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using System.Text.Json;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Настройки приложения. Хранятся отдельно от досок и всегда в профиле
@@ -12,7 +12,7 @@ public class AppSettings
 {
     private static readonly string ConfigDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "WhiteboardApp");
+        "SchoolPiBoard");
 
     private static readonly string ConfigFile = Path.Combine(ConfigDirectory, "settings.json");
 

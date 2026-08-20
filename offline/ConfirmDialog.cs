@@ -1,9 +1,9 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Whiteboard.Services;
+using SchoolPiBoard.Services;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>
 /// Подтверждение действия в оформлении приложения — системный MessageBox

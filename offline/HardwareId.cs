@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Win32;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Отпечаток компьютера, к которому привязывается лицензия.
@@ -37,7 +37,11 @@ public static class HardwareId
         if (parts.Count == 0)
             parts.Add("host:" + Environment.MachineName);
 
-        var raw = "Whiteboard.HardwareId.v1|" + string.Join("|", parts);
+        // Строка-соль входит в хеш, поэтому её правка меняет отпечатки всех
+        // компьютеров разом: активированные устройства станут для сервера
+        // новыми и займут дополнительные слоты. Менять только вместе
+        // с очисткой таблицы активаций и только пока нет покупателей.
+        var raw = "SchoolPiBoard.HardwareId.v1|" + string.Join("|", parts);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(hash)[..32];
     }

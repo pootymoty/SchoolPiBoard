@@ -6,10 +6,10 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using Whiteboard.Models;
-using Whiteboard.Rendering;
+using SchoolPiBoard.Models;
+using SchoolPiBoard.Rendering;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 public partial class EditorView : UserControl
 {

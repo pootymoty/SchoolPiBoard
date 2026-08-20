@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Whiteboard.Services;
+namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Лёгкое шифрование локальных файлов лицензии и пробного периода.
@@ -70,7 +70,7 @@ internal static class LocalCrypto
         aes.Mode = CipherMode.CBC;
         aes.Padding = PaddingMode.PKCS7;
         aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"Whiteboard.{purpose}.v1|{HardwareId.Current}"));
+            $"SchoolPiBoard.{purpose}.v1|{HardwareId.Current}"));
         return aes;
     }
 }

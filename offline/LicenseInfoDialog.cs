@@ -2,9 +2,9 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Whiteboard.Services;
+using SchoolPiBoard.Services;
 
-namespace Whiteboard.Views;
+namespace SchoolPiBoard.Views;
 
 /// <summary>
 /// «О программе и лицензии»: состояние ключа, сколько устройств занято
@@ -36,7 +36,7 @@ public class LicenseInfoDialog : Window
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         root.Children.Add(new TextBlock
         {
-            Text = version is null ? "Whiteboard" : $"Whiteboard {version.ToString(3)}",
+            Text = version is null ? "SchoolPiBoard" : $"SchoolPiBoard {version.ToString(3)}",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 19,
             FontWeight = FontWeights.SemiBold
@@ -243,7 +243,7 @@ public class LicenseInfoDialog : Window
         var confirmed = ConfirmDialog.Show(this,
             "Отвязать этот компьютер",
             "Ключ освободится, и его можно будет активировать на другом компьютере. " +
-            "Доски и настройки останутся на месте, но Whiteboard закроется и при " +
+            "Доски и настройки останутся на месте, но SchoolPiBoard закроется и при " +
             "следующем запуске снова попросит ключ.",
             "Отвязать", danger: true);
 
@@ -259,7 +259,7 @@ public class LicenseInfoDialog : Window
         {
             ConfirmDialog.Info(this,
                 "Компьютер отвязан",
-                "Ключ снова свободен. Whiteboard сейчас закроется.");
+                "Ключ снова свободен. SchoolPiBoard сейчас закроется.");
             Application.Current.Shutdown();
             return;
         }
