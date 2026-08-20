@@ -403,4 +403,4 @@ https://school-pi.online
 | Контактный e-mail | info@school-pi.online |
 | Сайт | https://school-pi.online |
 
-Дата публикации редакции: ЗАГЛУШКА
+Дата публикации редакции: 20 августа 2026 года
