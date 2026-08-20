@@ -69,7 +69,7 @@ build.bat
 installer\build-installer.bat
 ```
 
-Результат: `offline\dist\WhiteboardSetup-2.2.0.exe`. **Это единственный файл,
+Результат: `offline\dist\WhiteboardSetup.exe`. **Это единственный файл,
 который получает покупатель.** Его нужно положить туда, куда ведёт кнопка
 «Скачать» на странице покупки.
 

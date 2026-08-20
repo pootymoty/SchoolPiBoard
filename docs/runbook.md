@@ -166,25 +166,23 @@ VALUES (gen_random_uuid(), 'ABCD-EFGH-JKMN-PQRS', 'вы@почта', now(), fals
 
 ## Продукт 2. Офлайн-доска (exe на ПК)
 
-### Шаг 2.1. Прописать адрес сервера `[ПК]`
+### Шаг 2.1. Проверить адрес сервера `[ПК]`
 
-`offline\LicenseState.cs`, строка с `DefaultServerUrl`:
+`offline\LicenseState.cs` → `DefaultServerUrl` уже стоит
+`https://keys.school-pi.online`. Если домен из шага 1.1 другой — поправьте
+здесь: этот адрес зашивается в exe при сборке, и установленные копии будут
+обращаться именно по нему.
 
-```csharp
-public const string DefaultServerUrl = "https://keys.school-pi.online";
-```
-
-Без этого установленные копии будут стучаться в заглушку и не активируются.
-
-### Шаг 2.2. Заменить остальные заглушки `[ПК]`
+### Шаг 2.2. Заменить оставшиеся заглушки `[ПК]`
 
 Ищите слово `ЗАГЛУШКА`:
 
-- `offline\installer\Whiteboard.iss` → `AppPublisher` (ФИО), `AppUrl`
-- `offline\installer\LICENSE.txt` → реквизиты и контакт поддержки
-- `offline\web\index.html` → адрес сервера в форме покупки
-  (`https://keys.school-pi.online/purchase/start`), ссылка на установщик,
-  реквизиты в подвале
+- `offline\installer\Whiteboard.iss` → `AppPublisher` (ФИО)
+- `offline\installer\LICENSE.txt` → реквизиты правообладателя
+- `offline\web\index.html` → реквизиты в подвале (ФИО, ИНН) и текст
+  раздела «Возврат»
+
+Адрес сервера, ссылка на установщик и почта поддержки уже подставлены.
 
 ### Шаг 2.3. Поставить инструменты `[ПК]`
 
@@ -198,7 +196,7 @@ cd SchoolPiBoard\offline
 installer\build-installer.bat
 ```
 
-Результат: `offline\dist\WhiteboardSetup-2.2.0.exe`.
+Результат: `offline\dist\WhiteboardSetup.exe`.
 
 Если нужно просто проверить приложение без установщика — `build.bat`,
 результат в `offline\publish\Whiteboard.exe`.
@@ -217,7 +215,7 @@ installer\build-installer.bat
 
 ### Шаг 2.6. Выложить установщик `[ПК → сервер]`
 
-Положите `WhiteboardSetup-2.2.0.exe` туда, куда ведёт ссылка со страницы
+Положите `WhiteboardSetup.exe` туда, куда ведёт ссылка со страницы
 покупки (`License__DownloadUrl` из шага 1.5).
 
 ### Шаг 2.7. Страница покупки `[сайт]`

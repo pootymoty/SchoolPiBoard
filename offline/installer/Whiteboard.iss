@@ -8,7 +8,8 @@
 #define AppName "Whiteboard"
 #define AppVersion "2.2.0"
 #define AppPublisher "ЗАГЛУШКА: ФИО самозанятого"
-#define AppUrl "https://example.com/whiteboard"
+#define AppUrl "https://school-pi.online/whiteboard"
+#define AppSupportEmail "info@school-pi.online"
 #define AppExe "Whiteboard.exe"
 
 ; Папка с результатом `dotnet publish` (см. build-installer.bat).
@@ -22,18 +23,33 @@ AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
 AppSupportURL={#AppUrl}
 AppUpdatesURL={#AppUrl}
+AppContact={#AppSupportEmail}
+AppCopyright={#AppPublisher}
+
+; Сведения, которые Windows показывает в свойствах файла установщика.
 VersionInfoVersion={#AppVersion}
+VersionInfoCompany={#AppPublisher}
+VersionInfoDescription=Установка {#AppName}
+VersionInfoProductName={#AppName}
 
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}
 
-; Пользователь выбирает папку и ярлыки сам — это обычный мастер, а не
-; «тихая» установка.
+; Обычный мастер: приветствие, соглашение, пояснения, выбор папки, ярлыки.
+; Inno 6 по умолчанию пропускает страницу приветствия — возвращаем её,
+; без неё установщик выглядит непривычно урезанным.
+DisableWelcomePage=no
 DisableDirPage=no
 DisableProgramGroupPage=no
+DisableReadyPage=no
 AllowNoIcons=yes
+
+; Если приложение запущено, установщик предложит закрыть его сам,
+; а не упрётся в занятый файл.
+CloseApplications=yes
+RestartApplications=yes
 
 ; Установка «для всех» требует прав администратора, «только для меня» — нет.
 ; Учителю без админских прав так тоже есть куда поставить программу.
@@ -48,7 +64,9 @@ LicenseFile=LICENSE.txt
 InfoBeforeFile=BEFORE.txt
 
 OutputDir=..\dist
-OutputBaseFilename=WhiteboardSetup-{#AppVersion}
+; Имя без версии: ссылка на скачивание на сайте остаётся одной и той же
+; от выпуска к выпуску. Версия видна в свойствах файла и в мастере.
+OutputBaseFilename=WhiteboardSetup
 SetupIconFile=..\whiteboard.ico
 Compression=lzma2/max
 SolidCompression=yes

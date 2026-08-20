@@ -64,11 +64,12 @@ public class LicenseState
 public static class LicenseOptions
 {
     /// <summary>
-    /// Адрес сервера лицензий по умолчанию. Перед выпуском заменяется на боевой;
-    /// для отладки перекрывается переменной окружения WHITEBOARD_LICENSE_URL
-    /// или полем licenseServerUrl в settings.json.
+    /// Адрес сервера ключей. Значение зашивается в exe при сборке, поэтому
+    /// менять его нужно до выпуска установщика. Для отладки и для переезда
+    /// на другой адрес без пересборки есть переменная окружения
+    /// WHITEBOARD_LICENSE_URL и поле LicenseServerUrl в settings.json.
     /// </summary>
-    public const string DefaultServerUrl = "https://api.whiteboard.example.com";
+    public const string DefaultServerUrl = "https://keys.school-pi.online";
 
     public const string ServerUrlEnvironmentVariable = "WHITEBOARD_LICENSE_URL";
 

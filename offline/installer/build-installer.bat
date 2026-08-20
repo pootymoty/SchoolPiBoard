@@ -5,6 +5,9 @@ echo ============================================
 echo   Building Whiteboard installer
 echo ============================================
 echo.
+echo This script only BUILDS the installer.
+echo The file you give to customers is dist\WhiteboardSetup.exe
+echo.
 
 pushd "%~dp0.."
 
@@ -48,7 +51,8 @@ if errorlevel 1 goto fail
 echo.
 echo ============================================
 echo   DONE
-echo   Output: dist\WhiteboardSetup-*.exe
+echo   Installer: dist\WhiteboardSetup.exe
+echo   This is the file to publish for download.
 echo ============================================
 echo.
 pause
