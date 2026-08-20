@@ -1,0 +1,30 @@
+# Проверка сборки десктопного приложения.
+#
+# Собрать WPF можно только под Windows, а установщик собирается на машине
+# владельца вручную. Здесь проверяется одно: что приложение компилируется.
+# Это дешёвая страховка от опечаток в пространствах имён и ссылках XAML,
+# которые иначе всплывают только на этапе сборки установщика.
+name: desktop-build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'offline/**.cs'
+      - 'offline/**.xaml'
+      - 'offline/SchoolPiBoard.csproj'
+      - '.github/workflows/desktop-build.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        run: dotnet build offline/SchoolPiBoard.csproj -c Release
