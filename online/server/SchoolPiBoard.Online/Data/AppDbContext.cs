@@ -20,11 +20,16 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        // Идентификаторы задаются в коде, а не базой. Без ValueGeneratedNever
+        // EF считает Guid-ключи генерируемыми при вставке и, увидев у новой
+        // записи непустой ключ, принимает её за уже существующую: вместо
+        // INSERT уходит UPDATE, который не находит строку.
+
         model.Entity<User>(entity =>
         {
             entity.ToTable("users");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.Email).HasColumnName("email").IsRequired();
             entity.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
             entity.Property(x => x.LastName).HasColumnName("last_name").IsRequired();
@@ -39,7 +44,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("pending_registrations");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.Email).HasColumnName("email").IsRequired();
             entity.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
             entity.Property(x => x.LastName).HasColumnName("last_name").IsRequired();
@@ -56,7 +61,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("email_actions");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.UserId).HasColumnName("user_id");
             entity.Property(x => x.Kind).HasColumnName("kind").IsRequired();
             entity.Property(x => x.TokenHash).HasColumnName("token_hash").IsRequired();
@@ -70,7 +75,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("subscriptions");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.UserId).HasColumnName("user_id");
             entity.Property(x => x.Kind).HasColumnName("kind").IsRequired();
             entity.Property(x => x.PlanDays).HasColumnName("plan_days");
@@ -89,7 +94,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("payments");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.UserId).HasColumnName("user_id");
             entity.Property(x => x.InvoiceId).HasColumnName("invoice_id");
             entity.Property(x => x.PlanDays).HasColumnName("plan_days");
@@ -105,7 +110,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("boards");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.OwnerId).HasColumnName("owner_id");
             entity.Property(x => x.Name).HasColumnName("name").IsRequired();
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -121,7 +126,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("board_members");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.BoardId).HasColumnName("board_id");
             entity.Property(x => x.UserId).HasColumnName("user_id");
             entity.Property(x => x.Role).HasColumnName("role").IsRequired();
@@ -136,7 +141,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("board_invites");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.BoardId).HasColumnName("board_id");
             entity.Property(x => x.CreatedBy).HasColumnName("created_by");
             entity.Property(x => x.TokenHash).HasColumnName("token_hash").IsRequired();
@@ -152,7 +157,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("board_items");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.BoardId).HasColumnName("board_id");
             entity.Property(x => x.Kind).HasColumnName("kind").IsRequired();
             entity.Property(x => x.X).HasColumnName("x");

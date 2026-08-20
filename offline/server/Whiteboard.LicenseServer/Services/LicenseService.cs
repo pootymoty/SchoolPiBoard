@@ -94,6 +94,10 @@ public sealed class LicenseService
                 ActivatedAt = now,
                 LastValidatedAt = now
             };
+            // Добавляем и в набор, и в коллекцию: первое однозначно помечает
+            // запись как новую, второе — чтобы посчитать занятые слоты
+            // без повторного запроса.
+            _db.Activations.Add(activation);
             license.Activations.Add(activation);
         }
         else

@@ -18,12 +18,17 @@ public class LicenseDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Идентификаторы задаются в коде, а не базой. Без ValueGeneratedNever
+        // EF считает Guid-ключи генерируемыми при вставке и, увидев у новой
+        // записи непустой ключ, принимает её за уже существующую: вместо
+        // INSERT уходит UPDATE, который не находит строку.
+
         modelBuilder.Entity<License>(entity =>
         {
             entity.ToTable("licenses");
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.Key).HasColumnName("key").IsRequired();
             entity.Property(x => x.Email).HasColumnName("email").IsRequired();
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -45,7 +50,7 @@ public class LicenseDbContext : DbContext
             entity.ToTable("license_activations");
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.LicenseId).HasColumnName("license_id");
             entity.Property(x => x.HardwareId).HasColumnName("hardware_id").IsRequired();
             entity.Property(x => x.ActivatedAt).HasColumnName("activated_at");
@@ -59,7 +64,7 @@ public class LicenseDbContext : DbContext
             entity.ToTable("trial_activations");
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.HardwareId).HasColumnName("hardware_id").IsRequired();
             entity.Property(x => x.Email).HasColumnName("email").IsRequired();
             entity.Property(x => x.StartedAt).HasColumnName("started_at");
@@ -73,7 +78,7 @@ public class LicenseDbContext : DbContext
             entity.ToTable("payments");
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.InvoiceId).HasColumnName("invoice_id");
             entity.Property(x => x.Email).HasColumnName("email").IsRequired();
             entity.Property(x => x.Amount).HasColumnName("amount").HasPrecision(12, 2);
