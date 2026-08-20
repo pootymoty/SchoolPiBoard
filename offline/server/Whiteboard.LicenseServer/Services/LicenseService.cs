@@ -94,11 +94,11 @@ public sealed class LicenseService
                 ActivatedAt = now,
                 LastValidatedAt = now
             };
-            // Добавляем и в набор, и в коллекцию: первое однозначно помечает
-            // запись как новую, второе — чтобы посчитать занятые слоты
-            // без повторного запроса.
+            // Добавляем в набор, а не в коллекцию лицензии: так состояние
+            // «новая запись» назначается однозначно. В коллекцию EF подставит
+            // её сам, поэтому вручную этого делать не нужно — иначе она
+            // окажется там дважды.
             _db.Activations.Add(activation);
-            license.Activations.Add(activation);
         }
         else
         {
@@ -110,8 +110,13 @@ public sealed class LicenseService
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
+        // Считаем занятые слоты запросом, а не по коллекции в памяти: это
+        // то число, которое увидит пользователь, и ошибаться в нём нельзя.
+        var devicesUsed = await _db.Activations
+            .CountAsync(x => x.LicenseId == license.Id, cancellationToken);
+
         return new ActivationResult(
-            ActivationOutcome.Activated, license, activation, license.Activations.Count, DeviceLimit);
+            ActivationOutcome.Activated, license, activation, devicesUsed, DeviceLimit);
     }
 
     public async Task<ValidationResult> ValidateAsync(string? key, string? hardwareId, CancellationToken cancellationToken)
