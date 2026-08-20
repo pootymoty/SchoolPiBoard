@@ -12,94 +12,90 @@
 
 ## Продукт 1. Сервер ключей офлайн-доски
 
+**Пройдено на живом сервере** 20 августа 2026 года — ниже то, что реально
+работает, а не предполагаемый порядок.
+
 Живёт в `/var/www/schoolpiboardoff`. Нужен PostgreSQL, Redis не нужен.
 
-### Шаг 1.1. Выбрать домен `[решение]`
+### Откуда берётся собранный сервис
 
-Сервер должен быть доступен из интернета — к нему обращаются установленные
-приложения. Например `keys.school-pi.online`. Заведите A-запись на сервер.
+Ничего не собирается ни на сервере, ни на вашем ПК: при каждом изменении
+в `offline/server/**` GitHub Actions публикует готовый архив
+(`.github/workflows/license-server.yml`). Постоянная ссылка:
 
-Этот адрес понадобится в шаге 2.1 — приложение зашивает его внутрь себя.
+```
+https://github.com/pootymoty/SchoolPiBoard/releases/download/license-server-latest/license-server.tar.gz
+```
 
-### Шаг 1.2. Подготовить сервер `[СЕРВЕР]`
+Серверу нужен только рантайм — ни SDK, ни исходников, ни Node.js.
+
+### 1.1. Домен
+
+Поддомен основного домена, отдельный покупать не нужно. Заведите A-запись
+`keys` → IP сервера. Этот адрес зашит в приложении
+(`offline/LicenseState.cs`, `DefaultServerUrl`), и они должны совпадать.
+
+### 1.2. Пакеты и база
 
 ```bash
-# runtime .NET (SDK не нужен)
-sudo apt update
-sudo apt install -y aspnetcore-runtime-8.0
+apt update
+apt install -y aspnetcore-runtime-8.0 postgresql
 
-# база
-sudo -u postgres psql
-CREATE USER schoolpi WITH PASSWORD 'ПРИДУМАЙТЕ_ПАРОЛЬ';
-CREATE DATABASE schoolpiboard_licenses OWNER schoolpi;
-\q
-
-sudo mkdir -p /var/www/schoolpiboardoff/api
-sudo chown -R www-data:www-data /var/www/schoolpiboardoff
+cd /tmp
+DBPASS=$(openssl rand -hex 16)
+echo "$DBPASS" > /root/.spb-db-pass && chmod 600 /root/.spb-db-pass
+sudo -u postgres psql -c "CREATE USER schoolpi WITH PASSWORD '$DBPASS';"
+sudo -u postgres psql -c "CREATE DATABASE schoolpiboard_licenses OWNER schoolpi;"
 ```
 
-### Шаг 1.3. Собрать `[ПК]`
+Команды с `sudo -u postgres` выполняйте из `/tmp`: из `/root` этот
+пользователь получит `Permission denied` и настоящий вывод потеряется
+среди предупреждений.
 
-```
-cd SchoolPiBoard\offline\server\Whiteboard.LicenseServer
-dotnet publish -c Release -o publish
-```
-
-### Шаг 1.4. Отправить на сервер `[ПК]`
-
-```
-scp -r publish\* user@server:/tmp/lic/
-```
+### 1.3. Сервис
 
 ```bash
-# [СЕРВЕР]
-sudo cp -r /tmp/lic/* /var/www/schoolpiboardoff/api/
-sudo chown -R www-data:www-data /var/www/schoolpiboardoff
+mkdir -p /var/www/schoolpiboardoff/api
+cd /tmp
+curl -sL -o ls.tar.gz https://github.com/pootymoty/SchoolPiBoard/releases/download/license-server-latest/license-server.tar.gz
+tar -xzf ls.tar.gz -C /var/www/schoolpiboardoff/api
+chown -R www-data:www-data /var/www/schoolpiboardoff
 ```
 
-### Шаг 1.5. Секреты `[СЕРВЕР]`
+### 1.4. Настройки
+
+Пароль приложения для почты берётся в Яндекс ID (Безопасность → Пароли
+приложений → Почта). Пароль от самого ящика SMTP не примет.
 
 ```bash
-openssl rand -hex 32          # запишите — это LICENSE_TOKEN_SECRET
+SMTPPASS='пароль_приложения'
 
-sudo nano /etc/schoolpiboardoff.env
-```
-
-```ini
+cat > /etc/schoolpiboardoff.env <<EOF
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://127.0.0.1:5080
-ConnectionStrings__Postgres=Host=localhost;Database=schoolpiboard_licenses;Username=schoolpi;Password=ПАРОЛЬ_БАЗЫ
-LICENSE_TOKEN_SECRET=ТО_ЧТО_СГЕНЕРИРОВАЛИ
-License__DownloadUrl=https://school-pi.online/download/WhiteboardSetup.exe
-License__SupportEmail=info@school-pi.online
+ConnectionStrings__Postgres=Host=localhost;Database=schoolpiboard_licenses;Username=schoolpi;Password=$(cat /root/.spb-db-pass)
+LICENSE_TOKEN_SECRET=$(openssl rand -hex 32)
 Smtp__Host=smtp.yandex.ru
 Smtp__Port=465
 Smtp__User=info@school-pi.online
 Smtp__FromEmail=info@school-pi.online
-SMTP_PASSWORD=ПАРОЛЬ_ПРИЛОЖЕНИЯ_ЯНДЕКС
-Robokassa__MerchantLogin=ЛОГИН_МАГАЗИНА
-ROBOKASSA_PASSWORD1=ПАРОЛЬ1
-ROBOKASSA_PASSWORD2=ПАРОЛЬ2
-Robokassa__IsTest=true
+SMTP_PASSWORD=$SMTPPASS
+License__DownloadUrl=https://school-pi.online/download/WhiteboardSetup.exe
+License__SupportEmail=info@school-pi.online
 Web__SiteUrl=https://school-pi.online/whiteboard
+EOF
+
+chmod 600 /etc/schoolpiboardoff.env
+chown root:root /etc/schoolpiboardoff.env
 ```
+
+Настройки Робокассы добавляются сюда же — см. раздел 1.7. Без них сервис
+работает, только `/purchase/start` отвечает 503.
+
+### 1.5. Служба
 
 ```bash
-sudo chmod 600 /etc/schoolpiboardoff.env
-sudo chown root:root /etc/schoolpiboardoff.env
-```
-
-> `SMTP_PASSWORD` — это **пароль приложения** из Яндекс ID, а не пароль
-> от почтового ящика: обычный пароль SMTP не примет. Создаётся в Яндекс ID
-> для ящика `info@school-pi.online`, раздел паролей приложений, тип «Почта».
-
-### Шаг 1.6. Служба `[СЕРВЕР]`
-
-```bash
-sudo nano /etc/systemd/system/schoolpiboardoff.service
-```
-
-```ini
+cat > /etc/systemd/system/schoolpiboardoff.service <<'EOF'
 [Unit]
 Description=SchoolPiBoard license server
 After=network.target postgresql.service
@@ -114,25 +110,23 @@ User=www-data
 
 [Install]
 WantedBy=multi-user.target
-```
+EOF
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now schoolpiboardoff
-sudo journalctl -u schoolpiboardoff -f      # тут видно, поднялся ли он
+systemctl daemon-reload
+systemctl enable --now schoolpiboardoff
+systemctl is-active schoolpiboardoff
+curl -s http://127.0.0.1:5080/health; echo
 ```
 
 Схему базы сервис создаёт сам при первом запуске.
 
-### Шаг 1.7. nginx и сертификат `[СЕРВЕР]`
+### 1.6. nginx и сертификат
 
-```nginx
+```bash
+cat > /etc/nginx/sites-available/keys.school-pi.online <<'EOF'
 server {
-    listen 443 ssl http2;
+    listen 80;
     server_name keys.school-pi.online;
-
-    ssl_certificate     /etc/letsencrypt/live/keys.school-pi.online/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/keys.school-pi.online/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:5080;
@@ -142,31 +136,95 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+EOF
+
+ln -s /etc/nginx/sites-available/keys.school-pi.online /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d keys.school-pi.online --redirect -n
 ```
+
+Проверка снаружи: `curl -s https://keys.school-pi.online/health`.
+
+Если сам сервер отвечает `Could not resolve host`, а браузер телефона
+страницу открывает — это кеш резолвера на сервере, на работу не влияет.
+Проверить в обход:
 
 ```bash
-sudo certbot --nginx -d keys.school-pi.online
-sudo nginx -t && sudo systemctl reload nginx
-
-curl https://keys.school-pi.online/health     # ждём {"status":"ok"}
+curl -sS --resolve keys.school-pi.online:443:IP_СЕРВЕРА https://keys.school-pi.online/health
 ```
 
-### Шаг 1.8. ResultURL в кабинете Робокассы `[решение]`
+### 1.7. Робокасса
 
-`https://keys.school-pi.online/webhook/robokassa` — адрес, по которому
-приходит уведомление об оплате десктопной лицензии.
+В кабинете магазина:
 
-### Шаг 1.9. Тестовый ключ `[СЕРВЕР]`
+| Настройка | Значение |
+|---|---|
+| ResultURL | `https://keys.school-pi.online/payment/robokassa/result` |
+| Метод ResultURL | POST |
+| Алгоритм подписи | MD5 |
+| SuccessURL | страница вашего сайта «спасибо, ключ отправлен» |
+| FailURL | страница «оплата не прошла» |
 
-Чтобы проверить активацию, не проводя оплату:
+Затем на сервере:
 
-```sql
-sudo -u postgres psql schoolpiboard_licenses
-INSERT INTO licenses (id, key, email, created_at, revoked)
-VALUES (gen_random_uuid(), 'ABCD-EFGH-JKMN-PQRS', 'вы@почта', now(), false);
+```bash
+cat >> /etc/schoolpiboardoff.env <<'EOF'
+Robokassa__MerchantLogin=логин_магазина
+ROBOKASSA_PASSWORD1=пароль_1
+ROBOKASSA_PASSWORD2=пароль_2
+Robokassa__IsTest=true
+EOF
+
+systemctl restart schoolpiboardoff
 ```
 
----
+**Про тестовый режим.** При `IsTest=true` подпись считается тестовой парой
+паролей, при `false` — боевой. Это разные пароли: переключая режим, меняйте
+и их, иначе Робокасса ответит «неверная подпись».
+
+### 1.8. Проверка
+
+Тестовый ключ без оплаты:
+
+```bash
+cd /tmp
+sudo -u postgres psql schoolpiboard_licenses -c "INSERT INTO licenses (id, key, email, created_at, revoked) VALUES (gen_random_uuid(), 'ABCD-EFGH-JKMN-PQRS', 'вы@почта', now(), false);"
+```
+
+Активация, лимит устройств и отказ третьему:
+
+```bash
+for d in TESTDEVICE0001 TESTDEVICE0002 TESTDEVICE0003; do
+  printf "%s: " "$d"
+  curl -sS -X POST https://keys.school-pi.online/license/activate \
+    -H 'Content-Type: application/json' \
+    -d "{\"key\":\"ABCD-EFGH-JKMN-PQRS\",\"hardwareId\":\"$d\"}" \
+    | grep -o '"devicesUsed":[0-9]*\|"error":"[a-z_]*"' | tr '\n' ' '
+  echo
+done
+```
+
+Ожидается `1`, `2` и `device_limit`. После проверки освободите слоты, иначе
+настоящее приложение упрётся в лимит:
+
+```bash
+sudo -u postgres psql schoolpiboard_licenses -c "DELETE FROM license_activations WHERE hardware_id LIKE 'TESTDEVICE%';"
+```
+
+### 1.9. Обновление сервиса
+
+```bash
+systemctl stop schoolpiboardoff
+cd /tmp && rm -f ls.tar.gz
+curl -sL -o ls.tar.gz https://github.com/pootymoty/SchoolPiBoard/releases/download/license-server-latest/license-server.tar.gz
+rm -rf /var/www/schoolpiboardoff/api/*
+tar -xzf ls.tar.gz -C /var/www/schoolpiboardoff/api
+chown -R www-data:www-data /var/www/schoolpiboardoff
+systemctl start schoolpiboardoff
+```
+
+База при этом не трогается, новые скрипты схемы применяются сами.
+Журнал: `journalctl -u schoolpiboardoff -f`.
 
 ## Продукт 2. Офлайн-доска (exe на ПК)
 

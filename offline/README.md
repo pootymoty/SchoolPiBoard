@@ -452,7 +452,7 @@ SELECT invoice_id, email, amount, status, created_at, paid_at
 
 ## Что настроить в кабинете Робокассы
 
-ResultURL: `https://keys.school-pi.online/webhook/robokassa`
+ResultURL: `https://keys.school-pi.online/payment/robokassa/result`, метод POST
 
 SuccessURL и FailURL — страницы вашего сайта («спасибо, ключ отправлен»
 и «оплата не прошла»); сервер ключей в них не участвует.
@@ -571,7 +571,13 @@ Fixed window по IP-адресу: `/license/activate`, `/license/deactivate`,
 4. Пока идёт проверка — `Robokassa__IsTest=true`: деньги не списываются,
    а весь путь до выдачи ключа работает по-настоящему.
 
-#### Про чек
+#### Тестовый режим
+
+При `Robokassa__IsTest=true` подпись считается **тестовой** парой паролей,
+при `false` — боевой. Это разные пароли: переключая режим, меняйте и их,
+иначе Робокасса ответит «неверная подпись».
+
+### Про чек
 
 `Robokassa__SendReceipt` по умолчанию **выключен**. Для самозанятого чек, как
 правило, формирует сама Робокасса, и передавать состав чека параметром
