@@ -7,7 +7,7 @@
 
 #define AppName "SchoolPiBoard"
 #define AppVersion "2.2.1"
-#define AppPublisher "ЗАГЛУШКА: ФИО самозанятого"
+#define AppPublisher "Урвачев Роман Сергеевич"
 #define AppUrl "https://school-pi.online"
 #define AppSupportEmail "info@school-pi.online"
 #define AppExe "SchoolPiBoard.exe"
