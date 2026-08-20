@@ -73,13 +73,14 @@ public static class LicenseOptions
 
     public const string ServerUrlEnvironmentVariable = "WHITEBOARD_LICENSE_URL";
 
-    /// <summary>Сколько дней приложение работает без связи с сервером.</summary>
-    public const int GraceDays = 14;
-
     /// <summary>Максимум устройств на один ключ (окончательное слово всё равно за сервером).</summary>
     public const int DefaultDeviceLimit = 2;
 
-    /// <summary>Как часто дёргается фоновая проверка.</summary>
+    /// <summary>
+    /// Не чаще одного раза в сутки приложение молча спрашивает сервер,
+    /// не отозван ли ключ. Ничего не требует и ничего не блокирует при
+    /// отсутствии связи — см. <see cref="LicenseManager.StartBackgroundCheck"/>.
+    /// </summary>
     public static readonly TimeSpan ValidationInterval = TimeSpan.FromDays(1);
 
     /// <summary>

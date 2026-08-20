@@ -14,9 +14,6 @@ public enum ActivationMode
     /// <summary>Первый запуск: ключа нет.</summary>
     FirstRun,
 
-    /// <summary>Ключ есть, но офлайн-период закончился.</summary>
-    Revalidation,
-
     /// <summary>Пробный период истёк.</summary>
     TrialExpired,
 
@@ -232,7 +229,6 @@ public class ActivationWindow : Window
 
         _title.Text = _mode switch
         {
-            ActivationMode.Revalidation => "Нужно проверить лицензию",
             ActivationMode.TrialExpired => "Пробный период закончился",
             ActivationMode.ManualEntry => "Ввод ключа",
             _ => "Активация Whiteboard"
@@ -240,10 +236,6 @@ public class ActivationWindow : Window
 
         _description.Text = _mode switch
         {
-            ActivationMode.Revalidation =>
-                $"Приложение больше {LicenseManager.GraceDays} дней работало без связи с сервером. " +
-                "Подключитесь к интернету и нажмите «Проверить» — после этого можно снова работать офлайн.",
-
             ActivationMode.TrialExpired =>
                 $"Бесплатные {LicenseManager.TrialDays} дня истекли. Доски и настройки никуда не делись — " +
                 "они откроются сразу, как только вы введёте купленный ключ.",
@@ -255,7 +247,7 @@ public class ActivationWindow : Window
                  "Первая активация требует интернета, дальше приложение работает офлайн."
         };
 
-        _primaryButton.Content = _mode == ActivationMode.Revalidation ? "Проверить" : "Активировать";
+        _primaryButton.Content = "Активировать";
         _exitButton.Content = _mode == ActivationMode.ManualEntry ? "Отмена" : "Выйти";
 
         // Пробный период предлагаем только тому, кто его ещё не брал.
@@ -342,7 +334,7 @@ public class ActivationWindow : Window
     private async Task ActivateAsync()
     {
         SetBusy(true);
-        ShowStatus(_mode == ActivationMode.Revalidation ? "Проверяем лицензию…" : "Проверяем ключ…", danger: false);
+        ShowStatus("Проверяем ключ…", danger: false);
 
         var result = await LicenseManager.ActivateAsync(_keyBox.Text);
 
@@ -409,10 +401,9 @@ public class ActivationWindow : Window
             "Освободите место: на ненужном компьютере откройте Настройки → «О программе и лицензии» → " +
             "«Отвязать этот компьютер». После этого ключ снова можно активировать здесь.",
 
-        LicenseCallStatus.Offline => _mode == ActivationMode.Revalidation
-            ? $"Связи с сервером нет, а офлайн-период ({LicenseManager.GraceDays} дней) уже закончился. " +
-              "Подключитесь к интернету и нажмите «Проверить» — доски и настройки при этом никуда не денутся."
-            : "Нет связи с сервером. Активация возможна только с интернетом — подключитесь и попробуйте снова.",
+        LicenseCallStatus.Offline =>
+            "Нет связи с сервером. Ключ проверяется один раз, при активации, — " +
+            "подключитесь к интернету и попробуйте снова. Дальше интернет приложению не нужен.",
 
         _ => string.IsNullOrWhiteSpace(result.Message)
             ? "Сервер лицензий сейчас недоступен. Попробуйте позже."

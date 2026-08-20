@@ -12,9 +12,6 @@ public enum LicenseGateResult
     /// <summary>Оснований работать нет — нужен экран активации (требуется интернет).</summary>
     NeedsActivation,
 
-    /// <summary>Ключ есть, но офлайн-период вышел — нужна проверка на сервере.</summary>
-    NeedsRevalidation,
-
     /// <summary>Пробный период закончился — дальше только по ключу.</summary>
     TrialExpired
 }
@@ -25,9 +22,6 @@ public enum LicenseGateResult
 /// </summary>
 public static class LicenseManager
 {
-    /// <summary>Сколько дней приложение работает без связи с сервером.</summary>
-    public const int GraceDays = LicenseOptions.GraceDays;
-
     /// <summary>Длительность пробного периода (для текстов; срок назначает сервер).</summary>
     public const int TrialDays = LicenseOptions.TrialDays;
 
@@ -115,22 +109,14 @@ public static class LicenseManager
                 : LicenseGateResult.Allowed;
         }
 
-        if (string.IsNullOrWhiteSpace(state.Key))
-            return LicenseGateResult.NeedsActivation;
-
-        // Тот же приём с часами, но для офлайн-периода лицензии.
-        // Сутки допуска на смену часового пояса и правку времени.
-        if (now < state.LastValidatedAt.AddDays(-1))
-            return LicenseGateResult.NeedsRevalidation;
-
-        if (now - state.LastValidatedAt > TimeSpan.FromDays(GraceDays))
-            return LicenseGateResult.NeedsRevalidation;
-
-        return LicenseGateResult.Allowed;
+        // Купленный ключ бессрочный, и приложение офлайновое: требовать
+        // выхода в сеть «раз в N дней» не за что. Отозванный ключ
+        // отлавливает фоновая проверка — но только тогда, когда связь
+        // и так есть, и не мешая работать, когда её нет.
+        return string.IsNullOrWhiteSpace(state.Key)
+            ? LicenseGateResult.NeedsActivation
+            : LicenseGateResult.Allowed;
     }
-
-    /// <summary>Сколько дней офлайн-периода осталось (0, если он уже вышел).</summary>
-    public static int OfflineDaysLeft => DaysLeft(State?.LastValidatedAt.AddDays(GraceDays));
 
     /// <summary>Сколько дней пробного периода осталось.</summary>
     public static int TrialDaysLeft => IsTrial ? DaysLeft(State?.TrialExpiresAt) : 0;
@@ -255,9 +241,11 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Фоновая проверка раз в сутки. UI не блокирует и молчит при любых
-    /// проблемах со связью: заблокировать приложение может только внятный
-    /// ответ сервера о том, что ключ больше не действует.
+    /// Фоновая проверка. Нужна ровно для одного: узнать, что ключ отозван —
+    /// например, после возврата денег. Ничего не требует от пользователя:
+    /// если связи нет, приложение просто продолжает работать, и так может
+    /// продолжаться сколько угодно. Заблокировать может только внятный ответ
+    /// сервера о том, что ключ больше не действует.
     /// </summary>
     public static void StartBackgroundCheck(Action onRevoked)
     {

@@ -92,12 +92,9 @@ public partial class App : Application
             return true;
         }
 
-        var mode = verdict switch
-        {
-            LicenseGateResult.NeedsRevalidation => ActivationMode.Revalidation,
-            LicenseGateResult.TrialExpired => ActivationMode.TrialExpired,
-            _ => ActivationMode.FirstRun
-        };
+        var mode = verdict == LicenseGateResult.TrialExpired
+            ? ActivationMode.TrialExpired
+            : ActivationMode.FirstRun;
 
         var activation = new ActivationWindow(mode);
         activation.ShowDialog();

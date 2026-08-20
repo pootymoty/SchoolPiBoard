@@ -201,10 +201,7 @@ public class LicenseInfoDialog : Window
         AddRow("Устройств", $"{Math.Max(state.DevicesUsed, 1)} из {state.DeviceLimit}");
         AddRow("Этот компьютер", ShortDevice(state.HardwareId));
 
-        var daysLeft = LicenseManager.OfflineDaysLeft;
-        AddRow("Работа без интернета", daysLeft > 0
-            ? $"осталось {daysLeft} дн. до следующей проверки"
-            : "требуется проверка при следующем запуске");
+        AddRow("Интернет", "нужен только при активации ключа");
     }
 
     private static string ShortDevice(string hardwareId)
