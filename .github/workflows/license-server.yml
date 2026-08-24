@@ -28,7 +28,7 @@ jobs:
 
       - name: Publish
         run: >
-          dotnet publish offline/server/Whiteboard.LicenseServer/Whiteboard.LicenseServer.csproj
+          dotnet publish offline/server/SchoolPiBoard.LicenseServer/SchoolPiBoard.LicenseServer.csproj
           -c Release -o publish
 
       - name: Pack

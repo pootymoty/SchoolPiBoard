@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Whiteboard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Configuration;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>
 /// Выдаёт клиенту подписанный токен активации: JWT (HS256) без срока
@@ -12,7 +12,7 @@ namespace Whiteboard.LicenseServer.Services;
 /// </summary>
 public sealed class TokenService
 {
-    private const string Issuer = "whiteboard-license";
+    private const string Issuer = "schoolpiboard-license";
 
     private readonly byte[] _secret;
 

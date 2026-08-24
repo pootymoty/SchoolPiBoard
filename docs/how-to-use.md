@@ -84,7 +84,7 @@ installer\build-installer.bat
 Собрать на ПК:
 
 ```
-cd SchoolPiBoard\offline\server\Whiteboard.LicenseServer
+cd SchoolPiBoard\offline\server\SchoolPiBoard.LicenseServer
 dotnet publish -c Release -o publish
 ```
 

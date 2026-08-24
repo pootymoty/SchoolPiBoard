@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Whiteboard.LicenseServer.Services;
+using SchoolPiBoard.LicenseServer.Services;
 
-namespace Whiteboard.LicenseServer.Endpoints;
+namespace SchoolPiBoard.LicenseServer.Endpoints;
 
 /// <summary>Запрос пробного периода от приложения.</summary>
 public sealed record TrialRequest(string? HardwareId, string? Email);

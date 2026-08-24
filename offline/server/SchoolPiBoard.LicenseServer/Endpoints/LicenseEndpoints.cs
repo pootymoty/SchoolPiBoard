@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Whiteboard.LicenseServer.Services;
+using SchoolPiBoard.LicenseServer.Services;
 
-namespace Whiteboard.LicenseServer.Endpoints;
+namespace SchoolPiBoard.LicenseServer.Endpoints;
 
 /// <summary>Тело запросов от десктопного клиента.</summary>
 public sealed record LicenseRequest(string? Key, string? HardwareId);

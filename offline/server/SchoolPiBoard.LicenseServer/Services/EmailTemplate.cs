@@ -1,7 +1,7 @@
 using System.Net;
-using Whiteboard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Configuration;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>Письмо с ключом. Простой HTML без картинок и внешних ресурсов.</summary>
 public static class EmailTemplate

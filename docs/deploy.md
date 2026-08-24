@@ -151,7 +151,7 @@ server {
 
 ```
 /var/www/schoolpiboardoff/
-  api/   <- dotnet publish -c Release из offline/server/Whiteboard.LicenseServer
+  api/   <- dotnet publish -c Release из offline/server/SchoolPiBoard.LicenseServer
 ```
 
 systemd — такой же unit с другим портом (например, 5080), своей базой

@@ -1,4 +1,4 @@
-namespace Whiteboard.LicenseServer.Data;
+namespace SchoolPiBoard.LicenseServer.Data;
 
 /// <summary>Счёт на оплату лицензии. Создаётся до перехода на форму оплаты.</summary>
 public class Payment

@@ -1,4 +1,4 @@
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>Проверка отпечатка устройства, присланного клиентом.</summary>
 public static class DeviceId

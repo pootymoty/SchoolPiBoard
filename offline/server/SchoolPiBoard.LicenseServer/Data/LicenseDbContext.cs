@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Whiteboard.LicenseServer.Data;
+namespace SchoolPiBoard.LicenseServer.Data;
 
 public class LicenseDbContext : DbContext
 {

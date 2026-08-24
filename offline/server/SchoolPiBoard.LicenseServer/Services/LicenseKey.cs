@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>
 /// Генерация и нормализация ключей. Алфавит без символов, которые

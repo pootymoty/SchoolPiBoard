@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Whiteboard.LicenseServer.Configuration;
-using Whiteboard.LicenseServer.Data;
-using Whiteboard.LicenseServer.Services;
+using SchoolPiBoard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Data;
+using SchoolPiBoard.LicenseServer.Services;
 
-namespace Whiteboard.LicenseServer.Endpoints;
+namespace SchoolPiBoard.LicenseServer.Endpoints;
 
 public sealed record PurchaseRequest(string? Email);
 

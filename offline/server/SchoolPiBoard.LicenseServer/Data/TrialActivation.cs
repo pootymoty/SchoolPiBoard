@@ -1,4 +1,4 @@
-namespace Whiteboard.LicenseServer.Data;
+namespace SchoolPiBoard.LicenseServer.Data;
 
 /// <summary>
 /// Выданный пробный период. Хранится вечно — именно эта запись не даёт

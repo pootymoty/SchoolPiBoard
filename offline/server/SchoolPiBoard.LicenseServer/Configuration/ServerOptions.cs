@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Whiteboard.LicenseServer.Configuration;
+namespace SchoolPiBoard.LicenseServer.Configuration;
 
 /// <summary>
 /// Настройки сервиса. Всё, что является секретом, приходит из переменных

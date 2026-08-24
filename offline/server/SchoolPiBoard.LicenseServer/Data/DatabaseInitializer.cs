@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Whiteboard.LicenseServer.Data;
+namespace SchoolPiBoard.LicenseServer.Data;
 
 /// <summary>
 /// Применяет схему при старте: все скрипты из папки sql по порядку имён.

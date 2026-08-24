@@ -1,10 +1,10 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Whiteboard.LicenseServer.Configuration;
-using Whiteboard.LicenseServer.Data;
-using Whiteboard.LicenseServer.Endpoints;
-using Whiteboard.LicenseServer.Services;
+using SchoolPiBoard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Data;
+using SchoolPiBoard.LicenseServer.Endpoints;
+using SchoolPiBoard.LicenseServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

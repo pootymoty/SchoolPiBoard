@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Whiteboard.LicenseServer.Configuration;
-using Whiteboard.LicenseServer.Data;
+using SchoolPiBoard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Data;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 public enum TrialOutcome
 {

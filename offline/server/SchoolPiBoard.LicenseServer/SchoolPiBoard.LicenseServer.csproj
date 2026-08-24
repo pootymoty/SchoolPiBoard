@@ -4,8 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>Whiteboard.LicenseServer</RootNamespace>
-    <AssemblyName>Whiteboard.LicenseServer</AssemblyName>
+    <RootNamespace>SchoolPiBoard.LicenseServer</RootNamespace>
+    <AssemblyName>SchoolPiBoard.LicenseServer</AssemblyName>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 

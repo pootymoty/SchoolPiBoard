@@ -1,4 +1,4 @@
-namespace Whiteboard.LicenseServer.Data;
+namespace SchoolPiBoard.LicenseServer.Data;
 
 /// <summary>Лицензия — результат одной оплаты. Живёт вечно, пока не отозвана.</summary>
 public class License

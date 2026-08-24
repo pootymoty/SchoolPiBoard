@@ -1,4 +1,4 @@
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>
 /// Минимальная проверка почты. Полная валидация по RFC бессмысленна:

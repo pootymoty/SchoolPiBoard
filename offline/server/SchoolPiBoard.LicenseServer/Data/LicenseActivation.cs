@@ -1,4 +1,4 @@
-namespace Whiteboard.LicenseServer.Data;
+namespace SchoolPiBoard.LicenseServer.Data;
 
 /// <summary>Занятый слот устройства. На одну лицензию их не больше двух.</summary>
 public class LicenseActivation

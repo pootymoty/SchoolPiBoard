@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Whiteboard.LicenseServer.Data;
+using SchoolPiBoard.LicenseServer.Data;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>Счета на оплату: выставление и отметка об оплате.</summary>
 public sealed class PurchaseService

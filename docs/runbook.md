@@ -102,7 +102,7 @@ After=network.target postgresql.service
 
 [Service]
 WorkingDirectory=/var/www/schoolpiboardoff/api
-ExecStart=/usr/bin/dotnet /var/www/schoolpiboardoff/api/Whiteboard.LicenseServer.dll
+ExecStart=/usr/bin/dotnet /var/www/schoolpiboardoff/api/SchoolPiBoard.LicenseServer.dll
 EnvironmentFile=/etc/schoolpiboardoff.env
 Restart=always
 RestartSec=5
@@ -232,6 +232,20 @@ systemctl start schoolpiboardoff
 
 База при этом не трогается, новые скрипты схемы применяются сами.
 Журнал: `journalctl -u schoolpiboardoff -f`.
+
+#### Разовая правка: имя сборки
+
+До версии 2.2.1 сборка называлась `Whiteboard.LicenseServer.dll`. После
+переименования проекта имя файла другое, поэтому при первом обновлении
+нужно поправить и юнит — иначе systemd будет искать несуществующий файл:
+
+```bash
+sed -i 's/Whiteboard.LicenseServer.dll/SchoolPiBoard.LicenseServer.dll/' \
+  /etc/systemd/system/schoolpiboardoff.service
+systemctl daemon-reload
+```
+
+Делается один раз, между распаковкой архива и запуском сервиса.
 
 ## Продукт 2. Офлайн-доска (exe на ПК)
 

@@ -2,9 +2,9 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Whiteboard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Configuration;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 /// <summary>
 /// Ссылка на оплату и проверка ответа Робокассы.

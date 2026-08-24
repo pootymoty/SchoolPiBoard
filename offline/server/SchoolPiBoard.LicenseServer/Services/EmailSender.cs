@@ -1,9 +1,9 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
-using Whiteboard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Configuration;
 
-namespace Whiteboard.LicenseServer.Services;
+namespace SchoolPiBoard.LicenseServer.Services;
 
 public interface IEmailSender
 {
