@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -47,6 +47,19 @@ public class BackgroundPanel : UserControl
 
         root.Children.Add(Caption("Сетка"));
         root.Children.Add(BuildGridChooser());
+
+        root.Children.Add(Caption("Цвет разлиновки"));
+        var bg = (Color)ColorConverter.ConvertFromString(_board.BackgroundColor)!;
+        var currentGridColor = string.IsNullOrWhiteSpace(_board.GridColor)
+            ? GridPainter.LineColor(bg)
+            : (Color)ColorConverter.ConvertFromString(_board.GridColor)!;
+        var palette = new ColorPalette(currentGridColor);
+        palette.ColorPicked += color =>
+        {
+            _board.GridColor = color.ToString();
+            _changed();
+        };
+        root.Children.Add(palette);
 
         Content = new ScrollViewer
         {

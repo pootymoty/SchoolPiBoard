@@ -11,6 +11,14 @@ public enum ItemKind
     Image
 }
 
+public enum LineStyle
+{
+    Solid,
+    Dash,
+    DashDot,
+    Dot
+}
+
 public enum ShapeKind
 {
     Line,
@@ -47,6 +55,9 @@ public class BoardItem
     public ItemKind Kind { get; set; }
     public ShapeKind Shape { get; set; } = ShapeKind.Rectangle;
 
+    /// <summary>Тип линии для прямых, стрелок и контуров фигур.</summary>
+    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+
     /// <summary>Габариты объекта в мировых координатах (без учёта поворота).</summary>
     public double X { get; set; }
     public double Y { get; set; }
@@ -70,8 +81,21 @@ public class BoardItem
     /// <summary>Маркер рисуется полупрозрачным и с плоским пером.</summary>
     public bool Marker { get; set; }
 
+    /// <summary>Источник рукописного штриха: Pen, Pen2 или Marker.</summary>
+    public string StrokeSource { get; set; } = "Pen";
+
+    /// <summary>Для штриха пера/маркера: true, если он был выпрямлен через Shift или удержанием.</summary>
+    public bool IsStraightStroke { get; set; }
+
     /// <summary>Точки рукописного штриха: плоский список x0,y0,x1,y1,…</summary>
     public List<double> Points { get; set; } = new();
+
+    /// <summary>
+    /// Составные сегменты одного рукописного штриха. Несколько раздельных
+    /// касаний пера/маркера могут храниться внутри одного BoardItem.
+    /// Пустой список означает старый формат, где используется Points.
+    /// </summary>
+    public List<List<double>> StrokeSegments { get; set; } = new();
 
     /// <summary>
     /// Области, вырезанные ластиком из геометрической фигуры.
@@ -96,18 +120,49 @@ public class BoardItem
     {
         var copy = (BoardItem)MemberwiseClone();
         copy.Points = new List<double>(Points);
+        copy.StrokeSegments = StrokeSegments.Select(segment => new List<double>(segment)).ToList();
         copy.ErasePoints = new List<double>(ErasePoints);
         return copy;
     }
 
     public IEnumerable<Point> EnumeratePoints()
     {
+        if (StrokeSegments.Count > 0)
+        {
+            foreach (var segment in StrokeSegments)
+                for (var i = 0; i + 1 < segment.Count; i += 2)
+                    yield return new Point(segment[i], segment[i + 1]);
+            yield break;
+        }
+
         for (var i = 0; i + 1 < Points.Count; i += 2)
             yield return new Point(Points[i], Points[i + 1]);
     }
 
+    public IEnumerable<List<Point>> EnumerateStrokeSegments()
+    {
+        if (StrokeSegments.Count > 0)
+        {
+            foreach (var segment in StrokeSegments)
+                yield return ToPoints(segment);
+            yield break;
+        }
+
+        if (Points.Count >= 2)
+            yield return ToPoints(Points);
+    }
+
+    private static List<Point> ToPoints(IReadOnlyList<double> values)
+    {
+        var result = new List<Point>(values.Count / 2);
+        for (var i = 0; i + 1 < values.Count; i += 2)
+            result.Add(new Point(values[i], values[i + 1]));
+        return result;
+    }
+
     public void SetPoints(IEnumerable<Point> points)
     {
+        StrokeSegments.Clear();
         Points.Clear();
         foreach (var p in points)
         {
@@ -117,9 +172,66 @@ public class BoardItem
         RecalculateBoundsFromPoints();
     }
 
+    public void SetStrokeSegments(IEnumerable<IEnumerable<Point>> segments)
+    {
+        StrokeSegments = segments
+            .Select(segment => segment.SelectMany(p => new[] { p.X, p.Y }).ToList())
+            .Where(segment => segment.Count >= 4)
+            .ToList();
+        Points.Clear();
+        RecalculateBoundsFromSegments();
+    }
+
+    public void AddStrokeSegment(IEnumerable<Point> points)
+    {
+        var segment = points.SelectMany(p => new[] { p.X, p.Y }).ToList();
+        if (segment.Count < 4)
+            return;
+
+        if (StrokeSegments.Count == 0 && Points.Count >= 2)
+        {
+            StrokeSegments.Add(new List<double>(Points));
+            Points.Clear();
+        }
+
+        StrokeSegments.Add(segment);
+        RecalculateBoundsFromSegments();
+    }
+
+    /// <summary>Пересчитывает габариты по всем сегментам составного штриха.</summary>
+    public void RecalculateBoundsFromSegments()
+    {
+        var all = StrokeSegments.SelectMany(s => s);
+        var values = all.ToList();
+        if (values.Count < 4)
+            return;
+
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+
+        for (var i = 0; i + 1 < values.Count; i += 2)
+        {
+            minX = Math.Min(minX, values[i]);
+            maxX = Math.Max(maxX, values[i]);
+            minY = Math.Min(minY, values[i + 1]);
+            maxY = Math.Max(maxY, values[i + 1]);
+        }
+
+        X = minX;
+        Y = minY;
+        W = Math.Max(0.01, maxX - minX);
+        H = Math.Max(0.01, maxY - minY);
+    }
+
     /// <summary>Пересчитывает габариты штриха по его точкам.</summary>
     public void RecalculateBoundsFromPoints()
     {
+        if (StrokeSegments.Count > 0)
+        {
+            RecalculateBoundsFromSegments();
+            return;
+        }
+
         if (Points.Count < 2)
             return;
 
@@ -152,6 +264,9 @@ public class Board
 
     public GridStyle Grid { get; set; } = GridStyle.Square;
     public string BackgroundColor { get; set; } = "#FF1B1B1F";
+
+    /// <summary>Цвет оформления фоновой разлиновки.</summary>
+    public string GridColor { get; set; } = "";
 
     public List<BoardItem> Items { get; set; } = new();
 

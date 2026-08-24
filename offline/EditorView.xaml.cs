@@ -22,12 +22,14 @@ public partial class EditorView : UserControl
     private BoardItem? _editingItem;
     private bool _objectPanelAbove;
     private Popup? _activeObjectPalettePopup;
+    private readonly HashSet<BoardTool> _toolInitialized = new();
 
     public EditorView()
     {
         InitializeComponent();
         UpdateToolColorDots();
 
+        BuildChoiceOptions();
         BuildShapeButtons();
         BuildHelpContent();
         InitializeTimer();
@@ -77,6 +79,7 @@ public partial class EditorView : UserControl
                 SaveIndicator.Text = "";
 
                 CloseTransientPanels();
+                _toolInitialized.Clear();
                 SelectTool(BoardTool.Cursor);
 
                 BackgroundContent.Content = new BackgroundPanel(board, () =>
@@ -168,15 +171,14 @@ public partial class EditorView : UserControl
     // =====================================================================
     private void Tool_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleButton { Tag: string tag })
-            return;
-
+        if (sender is not ToggleButton { Tag: string tag }) return;
         var tool = Enum.Parse<BoardTool>(tag);
 
-        // Повторный клик по активному инструменту закрывает его панель.
-        if (Canvas.Tool == tool && IsToolPanelOpen())
+        if (Canvas.Tool == tool)
         {
-            CloseToolPanels();
+            // Второй клик по уже выбранному инструменту — явное открытие настроек.
+            if (IsToolPanelOpen()) CloseToolPanels();
+            else OpenToolPanel(tool);
             SyncToolButtons();
             return;
         }
@@ -189,29 +191,35 @@ public partial class EditorView : UserControl
         Canvas.Tool = tool;
         CloseToolPanels();
 
-        switch (tool)
+        // При переключении инструментов панель не всплывает автоматически.
+        // Исключение — первый выбор этого инструмента после открытия доски.
+        if (!_toolInitialized.Contains(tool))
         {
-            case BoardTool.Pen:
-            case BoardTool.Marker:
-                ShowPenPanel(tool);
-                break;
-
-            case BoardTool.Shape:
-                ShapePanel.Visibility = Visibility.Visible;
-                RefreshShapePalette();
-                break;
-
-            case BoardTool.Eraser:
-                EraserPanel.Visibility = Visibility.Visible;
-                break;
+            _toolInitialized.Add(tool);
+            OpenToolPanel(tool);
         }
 
-        if (tool != BoardTool.Cursor)
-            Canvas.ClearSelection();
-
+        if (tool != BoardTool.Cursor) Canvas.ClearSelection();
         SyncToolButtons();
         Canvas.UpdateCursor();
         Canvas.InvalidateVisual();
+    }
+
+    private void OpenToolPanel(BoardTool tool)
+    {
+        CloseToolPanels();
+        switch (tool)
+        {
+            case BoardTool.Pen:
+            case BoardTool.Pen2:
+            case BoardTool.Marker:
+                ShowPenPanel(tool); break;
+            case BoardTool.Shape:
+                ShapePanel.Visibility = Visibility.Visible;
+                RefreshShapePalette(); break;
+            case BoardTool.Eraser:
+                EraserPanel.Visibility = Visibility.Visible; break;
+        }
     }
 
     private void SyncToolButtons()
@@ -219,6 +227,7 @@ public partial class EditorView : UserControl
         CursorTool.IsChecked = Canvas.Tool == BoardTool.Cursor;
         HandTool.IsChecked = Canvas.Tool == BoardTool.Hand;
         PenTool.IsChecked = Canvas.Tool == BoardTool.Pen;
+        Pen2Tool.IsChecked = Canvas.Tool == BoardTool.Pen2;
         MarkerTool.IsChecked = Canvas.Tool == BoardTool.Marker;
         EraserTool.IsChecked = Canvas.Tool == BoardTool.Eraser;
         TextTool.IsChecked = Canvas.Tool == BoardTool.Text;
@@ -249,7 +258,7 @@ public partial class EditorView : UserControl
     {
         CloseTransientPanels();
 
-        if (Canvas.Tool is BoardTool.Pen or BoardTool.Marker or
+        if (Canvas.Tool is BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker or
             BoardTool.Eraser or BoardTool.Shape)
         {
             CloseToolPanels();
@@ -272,53 +281,164 @@ public partial class EditorView : UserControl
     private void ShowPenPanel(BoardTool tool)
     {
         PenPanel.Visibility = Visibility.Visible;
-
         var isMarker = tool == BoardTool.Marker;
+        var isPen2 = tool == BoardTool.Pen2;
+        var thickness = isMarker ? Canvas.MarkerThickness : isPen2 ? Canvas.Pen2Thickness : Canvas.PenThickness;
+        var opacity = isMarker ? Canvas.MarkerOpacity : isPen2 ? Canvas.Pen2Opacity : Canvas.PenOpacity;
+        var color = isMarker ? Canvas.MarkerColor : isPen2 ? Canvas.Pen2Color : Canvas.PenColor;
+        SetChoice(ThicknessOptions, ThicknessSteps, thickness);
+        SetChoice(OpacityOptions, OpacitySteps, opacity * 100);
 
-        // Ползунки работают по индексам шагов, поэтому переводим
-        // сохранённое значение в ближайший шаг.
-        ThicknessSlider.Value = NearestStep(ThicknessSteps,
-            isMarker ? Canvas.MarkerThickness : Canvas.PenThickness);
-
-        OpacitySlider.Value = NearestStep(OpacitySteps,
-            (isMarker ? Canvas.MarkerOpacity : Canvas.PenOpacity) * 100);
-
-        var palette = new ColorPalette(isMarker ? Canvas.MarkerColor : Canvas.PenColor);
-        palette.ColorPicked += color =>
+        var palette = new ColorPalette(color);
+        palette.ColorPicked += picked =>
         {
-            if (Canvas.Tool == BoardTool.Marker)
-                Canvas.MarkerColor = color;
-            else
-                Canvas.PenColor = color;
-
+            if (Canvas.Tool == BoardTool.Marker) Canvas.MarkerColor = picked;
+            else if (Canvas.Tool == BoardTool.Pen2) Canvas.Pen2Color = picked;
+            else Canvas.PenColor = picked;
             UpdateStrokePreview();
             UpdateToolColorDots();
         };
         PenPaletteHost.Content = palette;
-
         UpdateStrokePreview();
+    }
+
+    private void BuildChoiceOptions()
+    {
+        BuildChoiceGroup(ThicknessOptions, ThicknessSteps, (i, value) =>
+        {
+            if (Canvas.Tool == BoardTool.Marker) Canvas.MarkerThickness = value;
+            else if (Canvas.Tool == BoardTool.Pen2) Canvas.Pen2Thickness = value;
+            else if (Canvas.Tool == BoardTool.Shape) Canvas.ShapeThickness = value;
+            else Canvas.PenThickness = value;
+            UpdateStrokePreview();
+            if (Canvas.Tool == BoardTool.Shape) HighlightShapeButtons();
+        }, true);
+        BuildChoiceGroup(OpacityOptions, OpacitySteps, (i, value) =>
+        {
+            var v = value / 100.0;
+            if (Canvas.Tool == BoardTool.Marker) Canvas.MarkerOpacity = v;
+            else if (Canvas.Tool == BoardTool.Pen2) Canvas.Pen2Opacity = v;
+            else Canvas.PenOpacity = v;
+            UpdateStrokePreview();
+        }, false);
+        BuildChoiceGroup(ShapeThicknessOptions, ThicknessSteps, (_, value) => Canvas.ShapeThickness = value, true);
+        BuildEraserSizeOptions();
+    }
+
+    private static readonly double[] EraserSizeSteps = { 8, 16, 26, 60, 120 };
+
+    private void BuildEraserSizeOptions()
+    {
+        EraserSizeOptions.Children.Clear();
+        for (var i = 0; i < EraserSizeSteps.Length; i++)
+        {
+            var index = i;
+            var toggle = new ToggleButton
+            {
+                Content = new Border
+                {
+                    Width = 34, Height = 34, Background = Brushes.Transparent,
+                    Child = new Ellipse
+                    {
+                        Width = new[] { 5.0, 7.5, 12.0, 20.0, 30.0 }[i],
+                        Height = new[] { 5.0, 7.5, 12.0, 20.0, 30.0 }[i],
+                        Fill = Brushes.White,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                },
+                Style = (Style)FindResource("ChoiceButton"),
+                Margin = new Thickness(2),
+                Height = 42
+            };
+            toggle.Checked += (_, _) =>
+            {
+                foreach (var other in EraserSizeOptions.Children.OfType<ToggleButton>())
+                    if (!ReferenceEquals(other, toggle)) other.IsChecked = false;
+                Canvas.EraserSize = EraserSizeSteps[index];
+                Canvas.InvalidateVisual();
+            };
+            EraserSizeOptions.Children.Add(toggle);
+        }
+
+        SetChoice(EraserSizeOptions, EraserSizeSteps, Canvas.EraserSize);
+    }
+
+    private void BuildChoiceGroup(UniformGrid grid, double[] values, Action<int,double> changed, bool sizePreview)
+    {
+        grid.Children.Clear();
+        for (var i = 0; i < values.Length; i++)
+        {
+            var index = i;
+            var toggle = new ToggleButton
+            {
+                Content = sizePreview ? CreateSizeOptionVisual(i + 1, values[i]) : CreateOpacityOptionVisual(i + 1, values[i]),
+                Style = (Style)FindResource("ChoiceButton"),
+                Tag = index,
+                Margin = new Thickness(2),
+                Height = 42
+            };
+            toggle.Checked += (_, _) =>
+            {
+                foreach (var other in grid.Children.OfType<ToggleButton>())
+                    if (!ReferenceEquals(other, toggle)) other.IsChecked = false;
+                changed(index, values[index]);
+            };
+            grid.Children.Add(toggle);
+        }
+    }
+
+    private static FrameworkElement CreateSizeOptionVisual(int number, double size)
+    {
+        // Номер намеренно не показывается: размер должен читаться визуально по точке.
+        return new Border
+        {
+            Width = 34, Height = 34, Background = Brushes.Transparent,
+            Child = new Ellipse
+            {
+                Width = Math.Clamp(size, 3, 26),
+                Height = Math.Clamp(size, 3, 26),
+                Fill = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+    }
+
+    private static FrameworkElement CreateOpacityOptionVisual(int number, double percent)
+    {
+        // Процент намеренно не показывается: прозрачность читается по самой точке.
+        return new Ellipse
+        {
+            Width = 22, Height = 22,
+            Fill = new SolidColorBrush(Color.FromArgb(
+                (byte)Math.Clamp((int)Math.Round(percent * 2.55), 0, 255),
+                255, 255, 255))
+        };
+    }
+
+    private void SetChoice(UniformGrid grid, double[] values, double value)
+    {
+        var index = NearestStep(values, value);
+        for (var i = 0; i < grid.Children.Count; i++)
+            if (grid.Children[i] is ToggleButton b) b.IsChecked = i == index;
     }
 
     private void UpdateToolColorDots()
     {
-        if (PenColorDot is not null)
-            PenColorDot.Fill = new SolidColorBrush(Canvas.PenColor);
-        if (MarkerColorDot is not null)
-            MarkerColorDot.Fill = new SolidColorBrush(Canvas.MarkerColor);
+        if (PenColorDot is not null) PenColorDot.Fill = new SolidColorBrush(Canvas.PenColor);
+        if (Pen2ColorDot is not null) Pen2ColorDot.Fill = new SolidColorBrush(Canvas.Pen2Color);
+        if (MarkerColorDot is not null) MarkerColorDot.Fill = new SolidColorBrush(Canvas.MarkerColor);
     }
 
     private void UpdateStrokePreview()
     {
-        // Ползунки объявлены в XAML раньше предпросмотра, поэтому при разборе
-        // разметки этот метод вызывается, когда StrokePreview ещё не создан.
-        if (Canvas is null || StrokePreview is null)
-            return;
-
+        if (Canvas is null || StrokePreview is null) return;
         var isMarker = Canvas.Tool == BoardTool.Marker;
-        var color = isMarker ? Canvas.MarkerColor : Canvas.PenColor;
-        var thickness = isMarker ? Canvas.MarkerThickness : Canvas.PenThickness;
-        var opacity = isMarker ? Canvas.MarkerOpacity : Canvas.PenOpacity;
-
+        var isPen2 = Canvas.Tool == BoardTool.Pen2;
+        var color = isMarker ? Canvas.MarkerColor : isPen2 ? Canvas.Pen2Color : Canvas.PenColor;
+        var thickness = isMarker ? Canvas.MarkerThickness : isPen2 ? Canvas.Pen2Thickness : Canvas.PenThickness;
+        var opacity = isMarker ? Canvas.MarkerOpacity : isPen2 ? Canvas.Pen2Opacity : Canvas.PenOpacity;
         StrokePreview.Background = new SolidColorBrush(color);
         StrokePreview.Height = Math.Clamp(thickness, 1, 26);
         StrokePreview.Opacity = opacity;
@@ -340,52 +460,11 @@ public partial class EditorView : UserControl
         return best;
     }
 
-    private void Thickness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (Canvas is null)
-            return;
-
-        var index = Math.Clamp((int)Math.Round(e.NewValue), 0, ThicknessSteps.Length - 1);
-        var value = ThicknessSteps[index];
-
-        if (Canvas.Tool == BoardTool.Marker)
-            Canvas.MarkerThickness = value;
-        else
-            Canvas.PenThickness = value;
-
-        if (ThicknessValue is not null)
-            ThicknessValue.Text = value.ToString("0");
-
-        UpdateStrokePreview();
-    }
-
-    private void Opacity_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (Canvas is null)
-            return;
-
-        var index = Math.Clamp((int)Math.Round(e.NewValue), 0, OpacitySteps.Length - 1);
-        var percent = OpacitySteps[index];
-
-        if (Canvas.Tool == BoardTool.Marker)
-            Canvas.MarkerOpacity = percent / 100.0;
-        else
-            Canvas.PenOpacity = percent / 100.0;
-
-        if (OpacityValue is not null)
-            OpacityValue.Text = $"{percent:0} %";
-
-        UpdateStrokePreview();
-    }
-
     private void EraserSize_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (Canvas is null)
-            return;
-
-        Canvas.EraserSize = Math.Round(e.NewValue);
-        if (EraserValue is not null)
-            EraserValue.Text = Canvas.EraserSize.ToString("0");
+        // Оставлено для совместимости со старыми пользовательскими настройками.
+        if (Canvas is not null)
+            Canvas.EraserSize = Math.Round(e.NewValue);
     }
 
     // =====================================================================
@@ -448,23 +527,61 @@ public partial class EditorView : UserControl
 
     private void RefreshShapePalette()
     {
-        ShapeThicknessSlider.Value = NearestStep(ThicknessSteps, Canvas.ShapeThickness);
+        SetChoice(ShapeThicknessOptions, ThicknessSteps, Canvas.ShapeThickness);
+        UpdateLineStylePreview();
 
         var palette = new ColorPalette(Canvas.ShapeColor);
         palette.ColorPicked += color => Canvas.ShapeColor = color;
         ShapePaletteHost.Content = palette;
     }
 
-    private void ShapeThickness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void ShapeLineStyleButton_Click(object sender, RoutedEventArgs e)
     {
-        if (Canvas is null)
-            return;
+        _lineStyleTargetItem = null;
+        ShapeLineStylePopup.PlacementTarget = ShapeLineStyleButton;
+        ShapeLineStylePopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
+        UpdateLineStylePreview();
+        ShapeLineStylePopup.IsOpen = true;
+    }
 
-        var index = Math.Clamp((int)Math.Round(e.NewValue), 0, ThicknessSteps.Length - 1);
-        Canvas.ShapeThickness = ThicknessSteps[index];
+    private void LineStyleOption_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string tag } && Enum.TryParse<LineStyle>(tag, out var style))
+        {
+            if (_lineStyleTargetItem is not null)
+            {
+                Canvas.ApplyToSelection(i => i.LineStyle = style);
+                UpdateObjectPanelSwatches();
+                if (Canvas.Selection.FirstOrDefault() is { } selected)
+                    SetLineStylePreview(ObjectLineStylePreview, selected.LineStyle);
+            }
+            else
+            {
+                Canvas.ShapeLineStyle = style;
+                UpdateLineStylePreview();
+            }
 
-        if (ShapeThicknessValue is not null)
-            ShapeThicknessValue.Text = Canvas.ShapeThickness.ToString("0");
+            _lineStyleTargetItem = null;
+            ShapeLineStylePopup.IsOpen = false;
+            ObjectLineStylePopup.IsOpen = false;
+        }
+    }
+
+    private static void SetLineStylePreview(Line target, LineStyle style)
+    {
+        target.StrokeDashArray = style switch
+        {
+            LineStyle.Dash => new DoubleCollection { 4, 3 },
+            LineStyle.DashDot => new DoubleCollection { 4, 2, 1, 2 },
+            LineStyle.Dot => new DoubleCollection { 1, 2.5 },
+            _ => null
+        };
+    }
+
+    private void UpdateLineStylePreview()
+    {
+        if (ShapeLineStylePreview is not null)
+            SetLineStylePreview(ShapeLineStylePreview, Canvas.ShapeLineStyle);
     }
 
     // =====================================================================

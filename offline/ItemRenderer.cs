@@ -211,19 +211,53 @@ public static class ItemRenderer
             dc.Pop();
     }
 
+    private static DashStyle GetDashStyle(LineStyle style)
+    {
+        return style switch
+        {
+            LineStyle.Dash => new DashStyle(new[] { 4.0, 3.0 }, 0),
+            LineStyle.DashDot => new DashStyle(new[] { 4.0, 2.0, 1.0, 2.0 }, 0),
+            LineStyle.Dot => new DashStyle(new[] { 1.0, 2.5 }, 0),
+            _ => DashStyles.Solid
+        };
+    }
+
     private static void DrawStroke(DrawingContext dc, BoardItem item)
     {
-        var points = item.EnumeratePoints().ToList();
-        if (points.Count == 0)
-            return;
-
         var color = ParseColor(item.StrokeColor) ?? Colors.Red;
         var pen = new Pen(new SolidColorBrush(color), Math.Max(0.1, item.Thickness))
         {
             StartLineCap = item.Marker ? PenLineCap.Square : PenLineCap.Round,
             EndLineCap = item.Marker ? PenLineCap.Square : PenLineCap.Round,
-            LineJoin = PenLineJoin.Round
+            LineJoin = PenLineJoin.Round,
+            DashStyle = item.IsStraightStroke ? GetDashStyle(item.LineStyle) : DashStyles.Solid
         };
+
+        // Составной штрих остаётся одним BoardItem. Каждый внутренний сегмент
+        // рисуется отдельно, поэтому отрыв пера между буквами не превращается
+        // в соединительную линию.
+        if (item.StrokeSegments.Count > 0)
+        {
+            foreach (var segment in item.EnumerateStrokeSegments())
+            {
+                if (segment.Count >= 2)
+                    dc.DrawGeometry(null, pen, BuildStrokeGeometry(segment));
+            }
+            return;
+        }
+
+        var points = item.EnumeratePoints().ToList();
+        if (points.Count == 0)
+            return;
+
+        // Выпрямленный пером/маркером штрих остаётся Stroke, но визуально
+        // рисуется именно как прямая. Это позволяет одновременно сохранить
+        // частичное стирание и применять тип линии.
+        if (item.IsStraightStroke && points.Count >= 2)
+        {
+            dc.DrawLine(pen, points[0], points[^1]);
+            return;
+        }
 
         dc.DrawGeometry(null, pen, BuildStrokeGeometry(points));
     }
@@ -260,33 +294,27 @@ public static class ItemRenderer
             {
                 LineJoin = PenLineJoin.Round,
                 StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round
+                EndLineCap = PenLineCap.Round,
+                DashStyle = GetDashStyle(item.LineStyle)
             };
         }
 
         // Для прямой/стрелки используем разбиение центрального отрезка на
         // неповреждённые фрагменты. Это надёжнее, чем клип-маска для LineGeometry:
         // каждый оставшийся участок действительно остаётся отдельным штрихом.
-        if (item.Shape is ShapeKind.Line or ShapeKind.Arrow && item.Points.Count >= 4 && item.ErasePoints.Count >= 3)
+        if (item.Shape == ShapeKind.Line && item.Points.Count >= 4 && item.ErasePoints.Count >= 3)
         {
             if (pen is not null)
                 DrawLineShapeWithErase(dc, item, pen);
             return;
         }
 
-        // Для остальных фигур клип-маска убирает участок исходного рисунка.
-        var hasEraseMask = item.ErasePoints.Count >= 3;
-        if (hasEraseMask)
-            dc.PushClip(BuildEraseClip(item));
-
+        // Фигуры и стрелки теперь не имеют частичного стирания: при касании
+        // ластиком они удаляются целиком. Это существенно дешевле клип-масок.
         dc.DrawGeometry(fill, pen, geometry);
 
-        // Текст внутри фигуры также стирается той же маской.
         if (!string.IsNullOrEmpty(item.Text))
             DrawTextInside(dc, item, pixelsPerDip);
-
-        if (hasEraseMask)
-            dc.Pop();
     }
 
 
@@ -333,8 +361,6 @@ public static class ItemRenderer
         }
 
         var cursor = 0.0;
-        var hasFinalArrow = item.Shape == ShapeKind.Arrow;
-
         foreach (var erased in merged)
         {
             DrawLineFragment(dc, pen, a, b, cursor, erased.Start);
@@ -342,10 +368,6 @@ public static class ItemRenderer
         }
         DrawLineFragment(dc, pen, a, b, cursor, 1.0);
 
-        // Стрелка сохраняет наконечник только если её исходный конец не стёрт.
-        // Если наконечник целиком попал в область ластика, он не возвращается.
-        if (hasFinalArrow && !IsPointErased(item, b))
-            DrawArrowHead(dc, pen, a, b);
     }
 
     private static void DrawArrowHead(DrawingContext dc, Pen pen, Point start, Point end)
@@ -373,59 +395,6 @@ public static class ItemRenderer
         dc.DrawLine(pen, p1, p2);
     }
 
-    private static bool IsPointErased(BoardItem item, Point point)
-    {
-        for (var i = 0; i + 2 < item.ErasePoints.Count; i += 3)
-        {
-            var dx = point.X - item.ErasePoints[i];
-            var dy = point.Y - item.ErasePoints[i + 1];
-            var radius = Math.Max(0.1, item.ErasePoints[i + 2]);
-            if (dx * dx + dy * dy <= radius * radius)
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>Строит исходную геометрию фигуры без применения маски ластика.
-    /// Используется холстом для проверки полного стирания объекта.</summary>
-    public static Geometry BuildShapeGeometryForEraseCheck(BoardItem item)
-    {
-        if (item.Shape is ShapeKind.Line or ShapeKind.Arrow && item.Points.Count >= 4)
-        {
-            var a = new Point(item.Points[0], item.Points[1]);
-            var b = new Point(item.Points[2], item.Points[3]);
-            return item.Shape == ShapeKind.Arrow ? BuildArrow(a, b) : new LineGeometry(a, b);
-        }
-
-        return BuildShapeGeometry(item.Shape, item.Bounds);
-    }
-
-    /// <summary>
-    /// Создаёт клип-маску, исключающую области, пройденные ластиком.
-    /// Координаты ErasePoints хранятся в локальной системе объекта.
-    /// </summary>
-    private static Geometry BuildEraseClip(BoardItem item)
-    {
-        var padding = Math.Max(10, item.Thickness + 2);
-        var clipBounds = item.Bounds;
-        clipBounds.Inflate(padding, padding);
-        Geometry clip = new RectangleGeometry(clipBounds);
-
-        for (var i = 0; i + 2 < item.ErasePoints.Count; i += 3)
-        {
-            var x = item.ErasePoints[i];
-            var y = item.ErasePoints[i + 1];
-            var radius = Math.Max(0.1, item.ErasePoints[i + 2]);
-            clip = new CombinedGeometry(
-                GeometryCombineMode.Exclude,
-                clip,
-                new EllipseGeometry(new Point(x, y), radius, radius));
-        }
-
-        return clip;
-    }
-
-    /// <summary>Текст внутри фигуры — по центру, с обрезкой по габаритам.</summary>
     private static void DrawTextInside(DrawingContext dc, BoardItem item, double pixelsPerDip)
     {
         var padding = Math.Min(item.W, item.H) * 0.12;
@@ -510,15 +479,17 @@ public static class ItemRenderer
         {
             case ItemKind.Stroke:
             {
-                var points = item.EnumeratePoints().ToList();
-                if (points.Count == 1)
-                    return Distance(points[0], local) <= tolerance + item.Thickness / 2;
-
                 var limit = tolerance + item.Thickness / 2;
-                for (var i = 0; i + 1 < points.Count; i++)
+                foreach (var segment in item.EnumerateStrokeSegments())
                 {
-                    if (DistanceToSegment(local, points[i], points[i + 1]) <= limit)
+                    if (segment.Count == 1 && Distance(segment[0], local) <= limit)
                         return true;
+
+                    for (var i = 0; i + 1 < segment.Count; i++)
+                    {
+                        if (DistanceToSegment(local, segment[i], segment[i + 1]) <= limit)
+                            return true;
+                    }
                 }
                 return false;
             }

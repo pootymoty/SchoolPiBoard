@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Media;
 using SchoolPiBoard.Models;
 
@@ -29,15 +29,26 @@ public static class GridPainter
     {
         var luminance = 0.299 * background.R + 0.587 * background.G + 0.114 * background.B;
         return luminance < 128
-            ? Color.FromArgb(70, 255, 255, 255)
-            : Color.FromArgb(60, 0, 0, 0);
+            ? Color.FromArgb(34, 255, 255, 255)
+            : Color.FromArgb(30, 0, 0, 0);
+    }
+
+    public static Color LineColor(Color background, string customColor)
+    {
+        if (string.IsNullOrWhiteSpace(customColor)) return LineColor(background);
+        try
+        {
+            var c = (Color)ColorConverter.ConvertFromString(customColor)!;
+            return Color.FromArgb(c.A, c.R, c.G, c.B);
+        }
+        catch { return LineColor(background); }
     }
 
     /// <summary>
     /// Отрисовка сетки в видимой области мира.
     /// Шаг увеличивается при сильном отдалении, чтобы линии не сливались.
     /// </summary>
-    public static void Draw(DrawingContext dc, GridStyle style, Color background, Rect world, double zoom)
+    public static void Draw(DrawingContext dc, GridStyle style, Color background, Rect world, double zoom, string? customColor = null)
     {
         if (style == GridStyle.Solid)
             return;
@@ -46,7 +57,8 @@ public static class GridPainter
         while (step * zoom < 7)
             step *= 2;
 
-        var pen = new Pen(new SolidColorBrush(LineColor(background)), 1.0 / zoom);
+        var lineColor = LineColor(background, customColor ?? "");
+        var pen = new Pen(new SolidColorBrush(lineColor), 1.0 / zoom);
         pen.Freeze();
 
         var x0 = Math.Floor(world.Left / step) * step;
@@ -56,7 +68,7 @@ public static class GridPainter
         {
             case GridStyle.Dots:
             {
-                var brush = new SolidColorBrush(LineColor(background));
+                var brush = new SolidColorBrush(lineColor);
                 brush.Freeze();
                 var r = 1.4 / zoom;
                 for (var x = x0; x <= world.Right; x += step)
@@ -74,7 +86,7 @@ public static class GridPainter
                 // Мелкая клетка плюс усиленная линия каждые пять клеток.
                 VerticalLines(dc, pen, world, x0, step);
                 HorizontalLines(dc, pen, world, y0, step);
-                var bold = new Pen(new SolidColorBrush(LineColor(background)), 2.0 / zoom);
+                var bold = new Pen(new SolidColorBrush(lineColor), 1.4 / zoom);
                 bold.Freeze();
                 VerticalLines(dc, bold, world, Math.Floor(world.Left / (step * 5)) * step * 5, step * 5);
                 HorizontalLines(dc, bold, world, Math.Floor(world.Top / (step * 5)) * step * 5, step * 5);

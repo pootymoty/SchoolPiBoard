@@ -12,6 +12,7 @@ namespace SchoolPiBoard.Views;
 
 public partial class EditorView
 {
+    private BoardItem? _lineStyleTargetItem;
     // =====================================================================
     //  Панель выделенного объекта
     // =====================================================================
@@ -73,6 +74,37 @@ public partial class EditorView
         StrokeSwatch.BorderBrush = item.Thickness <= 0.01
             ? System.Windows.Media.Brushes.Transparent
             : ItemRenderer.ParseBrush(item.StrokeColor, System.Windows.Media.Brushes.Gray);
+
+        var isShape = item.Kind == ItemKind.Shape;
+        var isLineShape = isShape && (item.Shape == ShapeKind.Line || item.Shape == ShapeKind.Arrow);
+        var isStraightStroke = item.Kind == ItemKind.Stroke && item.IsStraightStroke;
+        var isImage = item.Kind == ItemKind.Image;
+
+        // Заливка нужна только настоящим фигурам. Ни линии/стрелки, ни
+        // рукописные штрихи пера/маркера не имеют параметра заливки.
+        ObjectFillButton.Visibility = isShape && !isLineShape
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        // Тип линии доступен для фигур и для прямых, полученных пером/маркером.
+        ObjectLineStyleButton.Visibility = isShape || isStraightStroke
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (isShape || isStraightStroke)
+            SetLineStylePreview(ObjectLineStylePreview, item.LineStyle);
+
+        // Текст внутри объекта не нужен для линий, стрелок, прямых штрихов
+        // и изображений. Для остальных редактируемых объектов кнопка остаётся.
+        ObjectTextButton.Visibility =
+            isImage || item.Kind == ItemKind.Stroke || isLineShape
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+        // Изображение («Рисунок») не имеет отдельной границы, которой можно
+        // управлять из панели объекта.
+        ObjectStrokeButton.Visibility = isImage
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     private void ObjectFill_Click(object sender, RoutedEventArgs e)
@@ -107,6 +139,22 @@ public partial class EditorView
             UpdateObjectPanelSwatches();
             popup.IsOpen = false;
         };
+    }
+
+    private void ObjectLineStyleButton_Click(object sender, RoutedEventArgs e)
+    {
+        var item = Canvas.Selection.FirstOrDefault(i =>
+            i.Kind == ItemKind.Shape || (i.Kind == ItemKind.Stroke && i.IsStraightStroke));
+        if (item is null)
+            return;
+
+        _lineStyleTargetItem = item;
+        SetLineStylePreview(ObjectLineStylePreview, item.LineStyle);
+        ObjectLineStylePopup.PlacementTarget = ObjectLineStyleButton;
+        ObjectLineStylePopup.Placement = _objectPanelAbove
+            ? System.Windows.Controls.Primitives.PlacementMode.Top
+            : System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        ObjectLineStylePopup.IsOpen = true;
     }
 
     private void ObjectStroke_Click(object sender, RoutedEventArgs e)
@@ -323,10 +371,38 @@ public partial class EditorView
     {
         try
         {
-            if (Clipboard.ContainsImage())
+            var data = Clipboard.GetDataObject();
+            if (data is null)
+                return false;
+
+            // Telegram и некоторые другие приложения кладут изображение в
+            // несколько форматов. Сначала пробуем обычный WPF BitmapSource,
+            // затем PNG/JPEG/BMP и DIB-представления.
+            if (data.GetDataPresent(DataFormats.Bitmap))
             {
-                var bitmap = Clipboard.GetImage();
-                if (bitmap is not null)
+                if (TryDecodeClipboardObject(data.GetData(DataFormats.Bitmap), out var bitmap))
+                {
+                    AddImage(bitmap);
+                    return true;
+                }
+            }
+
+            foreach (var format in new[] { "PNG", "image/png", "JFIF", "JPEG", "image/jpeg", "BMP", "image/bmp" })
+            {
+                if (!data.GetDataPresent(format))
+                    continue;
+                if (TryDecodeClipboardObject(data.GetData(format), out var bitmap))
+                {
+                    AddImage(bitmap);
+                    return true;
+                }
+            }
+
+            foreach (var format in new[] { "DIBV5", DataFormats.Dib })
+            {
+                if (!data.GetDataPresent(format))
+                    continue;
+                if (TryDecodeDib(data.GetData(format), out var bitmap))
                 {
                     AddImage(bitmap);
                     return true;
@@ -347,10 +423,161 @@ public partial class EditorView
         }
         catch
         {
-            // Формат буфера может быть нестандартным — просто идём дальше.
+            // Clipboard может быть занят приложением-источником или отдавать
+            // нестандартное представление. В этом случае пробуем текст/внутреннюю вставку.
         }
 
         return false;
+    }
+
+    private static bool TryDecodeClipboardObject(object? value, out BitmapSource bitmap)
+    {
+        bitmap = null!;
+        try
+        {
+            if (value is BitmapSource source)
+            {
+                if (source.PixelWidth <= 0 || source.PixelHeight <= 0 || !HasVisiblePixels(source))
+                    return false;
+
+                bitmap = EnsureFrozen(source);
+                return true;
+            }
+
+            if (value is byte[] bytes && bytes.Length > 0)
+                return TryDecodeImageBytes(bytes, out bitmap);
+
+            if (value is MemoryStream stream)
+            {
+                return TryDecodeImageBytes(stream.ToArray(), out bitmap);
+            }
+
+            if (value is Stream genericStream)
+            {
+                using var ms = new MemoryStream();
+                genericStream.CopyTo(ms);
+                return TryDecodeImageBytes(ms.ToArray(), out bitmap);
+            }
+        }
+        catch { }
+
+        return false;
+    }
+
+    private static bool TryDecodeImageBytes(byte[] bytes, out BitmapSource bitmap)
+    {
+        bitmap = null!;
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = ms;
+            image.EndInit();
+            image.Freeze();
+            bitmap = image;
+            return image.PixelWidth > 0 && image.PixelHeight > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasVisiblePixels(BitmapSource source)
+    {
+        try
+        {
+            // Telegram в некоторых сценариях отдаёт WPF BitmapSource с нулевой
+            // альфой. Такой объект формально является изображением, но на доске
+            // полностью прозрачен. Проверяем несколько строк пикселей, чтобы
+            // такой формат не был принят раньше нормального DIB/PNG-представления.
+            var format = source.Format;
+            var hasAlpha = format == PixelFormats.Bgra32 || format == PixelFormats.Pbgra32 ||
+                           format == PixelFormats.Prgba64 || format == PixelFormats.Rgba128Float;
+            if (!hasAlpha)
+                return true;
+
+            var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+            var stride = converted.PixelWidth * 4;
+            var sampleHeight = Math.Min(converted.PixelHeight, 256);
+            var sample = new byte[stride * sampleHeight];
+            converted.CopyPixels(new Int32Rect(0, 0, converted.PixelWidth, sampleHeight), sample, stride, 0);
+
+            for (var i = 3; i < sample.Length; i += 4)
+                if (sample[i] != 0)
+                    return true;
+
+            return false;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static BitmapSource EnsureFrozen(BitmapSource source)
+    {
+        if (source.IsFrozen)
+            return source;
+        var copy = new FormatConvertedBitmap(source, PixelFormats.Pbgra32, null, 0);
+        copy.Freeze();
+        return copy;
+    }
+
+    private static bool TryDecodeDib(object? value, out BitmapSource bitmap)
+    {
+        // В WPF DIB обычно приходит как MemoryStream/byte[]. Для DIB без
+        // BITMAPFILEHEADER добавляем стандартный 14-байтовый BMP-заголовок.
+        bitmap = null!;
+        try
+        {
+            byte[]? dib = value switch
+            {
+                byte[] b => b,
+                MemoryStream ms => ms.ToArray(),
+                Stream stream => ReadAll(stream),
+                _ => null
+            };
+            if (dib is null || dib.Length < 4)
+                return false;
+
+            // DIBV5/ DIB: первые 4 байта — размер BITMAPINFOHEADER.
+            var fileSize = 14 + dib.Length;
+            var pixelOffset = 14 + 40;
+            if (dib.Length >= 40)
+            {
+                var headerSize = BitConverter.ToInt32(dib, 0);
+                if (headerSize >= 40 && headerSize <= dib.Length)
+                    pixelOffset = 14 + headerSize;
+            }
+
+            using var msOut = new MemoryStream(fileSize);
+            using (var bw = new BinaryWriter(msOut, System.Text.Encoding.Default, true))
+            {
+                bw.Write((byte)'B');
+                bw.Write((byte)'M');
+                bw.Write(fileSize);
+                bw.Write((short)0);
+                bw.Write((short)0);
+                bw.Write(pixelOffset);
+                bw.Write(dib);
+            }
+            msOut.Position = 0;
+            return TryDecodeImageBytes(msOut.ToArray(), out bitmap);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static byte[] ReadAll(Stream stream)
+    {
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
     }
 
     private bool TryPasteText()

@@ -11,6 +11,7 @@ public enum BoardTool
     Cursor,
     Hand,
     Pen,
+    Pen2,
     Marker,
     Eraser,
     Text,
@@ -19,7 +20,7 @@ public enum BoardTool
 
 public enum HandleKind
 {
-    None, NW, N, NE, E, SE, S, SW, W, Rotate
+    None, NW, N, NE, E, SE, S, SW, W, Rotate, LineStart, LineEnd
 }
 
 /// <summary>
@@ -37,6 +38,8 @@ public class BoardCanvas : FrameworkElement
     private const double EraserMaxGrowth = 0.55;
     private const double HandleSizePx = 7;
     private const double RotateHandleOffsetPx = 30;
+    private const double StrokeMergeDistancePx = 25;
+    private const double StrokeMergeDelayMs = 500;
 
     // ---- документ ----
     public Board? Board { get; private set; }
@@ -48,20 +51,39 @@ public class BoardCanvas : FrameworkElement
     public Point Offset { get; private set; } = new(0, 0);
 
     // ---- инструменты ----
-    public BoardTool Tool { get; set; } = BoardTool.Cursor;
+    private BoardTool _tool = BoardTool.Cursor;
+    public BoardTool Tool
+    {
+        get => _tool;
+        set
+        {
+            if (_tool == value)
+                return;
+            _tool = value;
+            _lastFreeStrokeItem = null;
+            _lastFreeStrokeFinishedAt = DateTime.MinValue;
+        }
+    }
     public ShapeKind ShapeTool { get; set; } = ShapeKind.Rectangle;
 
     public Color PenColor { get; set; } = Colors.White;
+    public Color PenCustomColor { get; set; } = Colors.White;
+    public Color Pen2Color { get; set; } = Colors.Red;
+    public Color Pen2CustomColor { get; set; } = Colors.Red;
     public Color MarkerColor { get; set; } = Color.FromRgb(0xFB, 0xBC, 0x04);
+    public Color MarkerCustomColor { get; set; } = Color.FromRgb(0xFB, 0xBC, 0x04);
     public Color ShapeColor { get; set; } = Color.FromRgb(0x4D, 0xD0, 0xE1);
     public Color TextColor { get; set; } = Colors.White;
 
     // Значения по умолчанию совпадают с шагами ползунков,
     // иначе при открытии панели ползунок «прыгал» бы к ближайшему шагу.
     public double PenThickness { get; set; } = 5;
+    public double Pen2Thickness { get; set; } = 5;
     public double MarkerThickness { get; set; } = 15;
     public double ShapeThickness { get; set; } = 5;
+    public LineStyle ShapeLineStyle { get; set; } = LineStyle.Solid;
     public double PenOpacity { get; set; } = 1.0;
+    public double Pen2Opacity { get; set; } = 1.0;
     public double MarkerOpacity { get; set; } = 0.5;
     public double EraserSize { get; set; } = 26;
 
@@ -107,6 +129,10 @@ public class BoardCanvas : FrameworkElement
     private DateTime _lastEraseTime;
     private bool _eraseChanged;
 
+    private BoardItem? _lastFreeStrokeItem;
+    private Point _lastFreeStrokeEnd;
+    private DateTime _lastFreeStrokeFinishedAt = DateTime.MinValue;
+
     private readonly Stack<List<BoardItem>> _undo = new();
     private readonly Stack<List<BoardItem>> _redo = new();
     private List<BoardItem>? _pendingUndo;
@@ -137,6 +163,8 @@ public class BoardCanvas : FrameworkElement
         Selection.Clear();
         _undo.Clear();
         _redo.Clear();
+        _lastFreeStrokeItem = null;
+        _lastFreeStrokeFinishedAt = DateTime.MinValue;
         InvalidateVisual();
         SelectionChanged?.Invoke();
     }
@@ -167,9 +195,9 @@ public class BoardCanvas : FrameworkElement
             return;
 
         _undo.Push(_pendingUndo);
-        if (_undo.Count > 120)
+        if (_undo.Count > 20)
         {
-            var kept = _undo.ToArray().Take(120).Reverse().ToList();
+            var kept = _undo.ToArray().Take(20).Reverse().ToList();
             _undo.Clear();
             foreach (var s in kept)
                 _undo.Push(s);
@@ -191,6 +219,13 @@ public class BoardCanvas : FrameworkElement
             return;
 
         _redo.Push(Snapshot());
+        if (_redo.Count > 20)
+        {
+            var kept = _redo.ToArray().Take(20).Reverse().ToList();
+            _redo.Clear();
+            foreach (var s in kept)
+                _redo.Push(s);
+        }
         Items = _undo.Pop();
         Selection.Clear();
         SelectionChanged?.Invoke();
@@ -203,6 +238,13 @@ public class BoardCanvas : FrameworkElement
             return;
 
         _undo.Push(Snapshot());
+        if (_undo.Count > 20)
+        {
+            var kept = _undo.ToArray().Take(20).Reverse().ToList();
+            _undo.Clear();
+            foreach (var s in kept)
+                _undo.Push(s);
+        }
         Items = _redo.Pop();
         Selection.Clear();
         SelectionChanged?.Invoke();
@@ -351,7 +393,7 @@ public class BoardCanvas : FrameworkElement
         // Переходим в мировые координаты: всё дальнейшее рисуется без пересчёта.
         dc.PushTransform(new MatrixTransform(Zoom, 0, 0, Zoom, -Offset.X * Zoom, -Offset.Y * Zoom));
 
-        GridPainter.Draw(dc, Board?.Grid ?? GridStyle.Square, background, VisibleWorld(), Zoom);
+        GridPainter.Draw(dc, Board?.Grid ?? GridStyle.Square, background, VisibleWorld(), Zoom, Board?.GridColor);
 
         var ppd = PixelsPerDip;
         foreach (var item in Items.OrderBy(i => i.Z))
@@ -396,6 +438,21 @@ public class BoardCanvas : FrameworkElement
 
         var handleFill = new SolidColorBrush(Colors.White);
         var handlePen = new Pen(new SolidColorBrush(accent), 2);
+
+        if (Selection.Count == 1 && IsEndpointEditableLine(Selection[0]) &&
+            TryGetLineEndpoints(Selection[0], out var lineStart, out var lineEnd))
+        {
+            // У линии/стрелки только две ручки. Потянув одну, пользователь
+            // одновременно вращает и растягивает её вокруг второго конца.
+            foreach (var point in new[] { ToScreen(lineStart), ToScreen(lineEnd) })
+            {
+                dc.DrawEllipse(handleFill, handlePen, point, HandleSizePx / 2, HandleSizePx / 2);
+            }
+            return;
+        }
+
+        if (!Selection.All(IsStandardTransformable))
+            return;
 
         foreach (var (_, point) in HandlePositions(rect))
         {
@@ -478,13 +535,13 @@ public class BoardCanvas : FrameworkElement
 
     private void DrawDrawingToolCursor(DrawingContext dc)
     {
-        if (_toolCursorScreen is not { } center || Tool is not (BoardTool.Pen or BoardTool.Marker))
+        if (_toolCursorScreen is not { } center || Tool is not (BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker))
             return;
 
         var marker = Tool == BoardTool.Marker;
-        var color = marker ? MarkerColor : PenColor;
-        var opacity = marker ? MarkerOpacity : PenOpacity;
-        var thickness = marker ? MarkerThickness : PenThickness;
+        var color = marker ? MarkerColor : Tool == BoardTool.Pen2 ? Pen2Color : PenColor;
+        var opacity = marker ? MarkerOpacity : Tool == BoardTool.Pen2 ? Pen2Opacity : PenOpacity;
+        var thickness = marker ? MarkerThickness : Tool == BoardTool.Pen2 ? Pen2Thickness : PenThickness;
         var radius = Math.Max(2.0, thickness * Zoom / 2.0);
 
         // Небольшая контрастная окантовка делает точку видимой на любом фоне.
@@ -540,9 +597,46 @@ public class BoardCanvas : FrameworkElement
     private static Point RotateHandlePosition(Rect r) =>
         new(r.Left + r.Width / 2, r.Top - RotateHandleOffsetPx);
 
+    private void UpdateResizeCursor(Point screen)
+    {
+        var handle = HitHandle(screen);
+        Cursor = handle switch
+        {
+            HandleKind.NW or HandleKind.SE => Cursors.SizeNWSE,
+            HandleKind.NE or HandleKind.SW => Cursors.SizeNESW,
+            HandleKind.N or HandleKind.S => Cursors.SizeNS,
+            HandleKind.E or HandleKind.W => Cursors.SizeWE,
+            HandleKind.Rotate => Cursors.Hand,
+            HandleKind.LineStart or HandleKind.LineEnd => Cursors.SizeAll,
+            _ => Cursors.Arrow
+        };
+    }
+
     private HandleKind HitHandle(Point screen)
     {
         if (Selection.Count == 0)
+            return HandleKind.None;
+
+        // Для одиночной прямой/стрелки и для выпрямленного штриха пера/маркера
+        // используются только два конца. Перетягивание одного конца автоматически
+        // и вращает, и растягивает линию, оставляя второй конец неподвижным.
+        if (Selection.Count == 1 && IsEndpointEditableLine(Selection[0]))
+        {
+            var item = Selection[0];
+            if (TryGetLineEndpoints(item, out var start, out var end))
+            {
+                if (ItemRenderer.Distance(screen, ToScreen(start)) <= HandleSizePx * 1.8)
+                    return HandleKind.LineStart;
+                if (ItemRenderer.Distance(screen, ToScreen(end)) <= HandleSizePx * 1.8)
+                    return HandleKind.LineEnd;
+            }
+            return HandleKind.None;
+        }
+
+        // Масштабирование/вращение обычными ручками доступно только фигурам,
+        // изображениям и тексту. Рисованные штрихи не получают дорогую
+        // трансформацию через габаритную рамку.
+        if (!Selection.All(IsStandardTransformable))
             return HandleKind.None;
 
         var rect = SelectionScreenRect();
@@ -560,6 +654,36 @@ public class BoardCanvas : FrameworkElement
         }
 
         return HandleKind.None;
+    }
+
+    private static bool IsStandardTransformable(BoardItem item) =>
+        item.Kind is ItemKind.Shape or ItemKind.Image or ItemKind.Text;
+
+    private static bool IsEndpointEditableLine(BoardItem item) =>
+        (item.Kind == ItemKind.Shape && (item.Shape == ShapeKind.Line || item.Shape == ShapeKind.Arrow)) ||
+        (item.Kind == ItemKind.Stroke && item.IsStraightStroke);
+
+    private static bool TryGetLineEndpoints(BoardItem item, out Point start, out Point end)
+    {
+        start = end = default;
+        if (item.Kind == ItemKind.Shape && item.Points.Count >= 4)
+        {
+            start = new Point(item.Points[0], item.Points[1]);
+            end = new Point(item.Points[2], item.Points[3]);
+            return true;
+        }
+
+        if (item.Kind == ItemKind.Stroke && item.IsStraightStroke)
+        {
+            var points = item.EnumeratePoints().ToList();
+            if (points.Count >= 2)
+            {
+                start = points[0];
+                end = points[^1];
+                return true;
+            }
+        }
+        return false;
     }
 
     public BoardItem? HitItem(Point world)
@@ -597,7 +721,7 @@ public class BoardCanvas : FrameworkElement
             BoardTool.Cursor => Cursors.Arrow,
             BoardTool.Text => Cursors.IBeam,
             BoardTool.Eraser => Cursors.None,
-            BoardTool.Pen or BoardTool.Marker => Cursors.None,
+            BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker => Cursors.None,
             _ => Cursors.Cross
         };
         InvalidateVisual();
@@ -666,6 +790,7 @@ public class BoardCanvas : FrameworkElement
                 break;
 
             case BoardTool.Pen:
+            case BoardTool.Pen2:
             case BoardTool.Marker:
                 StartStroke(screen, world);
                 break;
@@ -684,7 +809,9 @@ public class BoardCanvas : FrameworkElement
 
         var screen = e.GetPosition(this);
         _toolCursorScreen = screen;
-        if (Tool is BoardTool.Pen or BoardTool.Marker)
+        if (!_dragging && !_drawing && Tool == BoardTool.Cursor)
+            UpdateResizeCursor(screen);
+        if (Tool is BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker)
             InvalidateVisual();
         var world = ToWorld(screen);
 
@@ -698,6 +825,11 @@ public class BoardCanvas : FrameworkElement
 
         if (_panning)
         {
+            // WPF может временно вернуть курсор окна к Arrow при обработке
+            // MouseMove. Явно удерживаем ScrollAll на каждом событии движения,
+            // пока идёт панорамирование.
+            Cursor = Cursors.ScrollAll;
+
             Offset = new Point(
                 _panStartOffset.X - (screen.X - _panStartScreen.X) / Zoom,
                 _panStartOffset.Y - (screen.Y - _panStartScreen.Y) / Zoom);
@@ -734,6 +866,7 @@ public class BoardCanvas : FrameworkElement
                 break;
 
             case BoardTool.Pen:
+            case BoardTool.Pen2:
             case BoardTool.Marker:
                 ContinueStroke(screen, world);
                 break;
@@ -750,6 +883,7 @@ public class BoardCanvas : FrameworkElement
         base.OnMouseLeave(e);
         _toolCursorScreen = null;
         _eraserScreen = null;
+        if (Tool == BoardTool.Cursor) Cursor = Cursors.Arrow;
         InvalidateVisual();
     }
 
@@ -802,6 +936,7 @@ public class BoardCanvas : FrameworkElement
                 break;
 
             case BoardTool.Pen:
+            case BoardTool.Pen2:
             case BoardTool.Marker:
                 FinishStroke();
                 break;
@@ -951,6 +1086,16 @@ public class BoardCanvas : FrameworkElement
     // =====================================================================
     private void BeginTransform(HandleKind handle, Point world)
     {
+        if (Selection.Count == 0)
+            return;
+
+        if (handle is not (HandleKind.None or HandleKind.LineStart or HandleKind.LineEnd or HandleKind.Rotate) &&
+            !Selection.All(IsStandardTransformable))
+            return;
+
+        if (handle == HandleKind.Rotate && !Selection.All(IsStandardTransformable))
+            return;
+
         BeginChange();
         _dragging = true;
         _activeHandle = handle;
@@ -964,7 +1109,48 @@ public class BoardCanvas : FrameworkElement
         if (Selection.Count == 0 || _dragOriginals.Count == 0)
             return;
 
-        if (_activeHandle == HandleKind.None)
+        if (_activeHandle is HandleKind.LineStart or HandleKind.LineEnd)
+        {
+            if (Selection.Count == 1 && TryGetLineEndpoints(_dragOriginals[0], out var start, out var end))
+            {
+                var fixedPoint = _activeHandle == HandleKind.LineStart ? end : start;
+                var movingPoint = world;
+                var target = Selection[0];
+
+                // Не меняем вторую точку: она является центром вращения.
+                target.Points.Clear();
+                if (_activeHandle == HandleKind.LineStart)
+                {
+                    target.Points.Add(movingPoint.X);
+                    target.Points.Add(movingPoint.Y);
+                    target.Points.Add(fixedPoint.X);
+                    target.Points.Add(fixedPoint.Y);
+                }
+                else
+                {
+                    target.Points.Add(fixedPoint.X);
+                    target.Points.Add(fixedPoint.Y);
+                    target.Points.Add(movingPoint.X);
+                    target.Points.Add(movingPoint.Y);
+                }
+
+                if (target.Kind == ItemKind.Stroke)
+                {
+                    target.SetPoints(new[] { movingPoint, fixedPoint });
+                    if (_activeHandle == HandleKind.LineEnd)
+                        target.SetPoints(new[] { fixedPoint, movingPoint });
+                }
+                else
+                {
+                    target.X = Math.Min(movingPoint.X, fixedPoint.X);
+                    target.Y = Math.Min(movingPoint.Y, fixedPoint.Y);
+                    target.W = Math.Max(0.01, Math.Abs(movingPoint.X - fixedPoint.X));
+                    target.H = Math.Max(0.01, Math.Abs(movingPoint.Y - fixedPoint.Y));
+                    target.Rotation = 0;
+                }
+            }
+        }
+        else if (_activeHandle == HandleKind.None)
         {
             var dx = world.X - _dragStartWorld.X;
             var dy = world.Y - _dragStartWorld.Y;
@@ -1007,8 +1193,22 @@ public class BoardCanvas : FrameworkElement
         target.X = original.X + dx;
         target.Y = original.Y + dy;
 
-        // Точки есть не только у штрихов, но и у линий со стрелками.
-        if (original.Points.Count >= 2)
+        if (original.StrokeSegments.Count > 0)
+        {
+            target.StrokeSegments = original.StrokeSegments.Select(segment =>
+            {
+                var shifted = new List<double>(segment.Count);
+                for (var i = 0; i + 1 < segment.Count; i += 2)
+                {
+                    shifted.Add(segment[i] + dx);
+                    shifted.Add(segment[i + 1] + dy);
+                }
+                return shifted;
+            }).ToList();
+            target.Points.Clear();
+            target.RecalculateBoundsFromSegments();
+        }
+        else if (original.Points.Count >= 2)
         {
             target.Points.Clear();
             for (var i = 0; i + 1 < original.Points.Count; i += 2)
@@ -1143,10 +1343,13 @@ public class BoardCanvas : FrameworkElement
         {
             Kind = ItemKind.Stroke,
             Marker = marker,
-            StrokeColor = (marker ? MarkerColor : PenColor).ToString(),
-            Thickness = (marker ? MarkerThickness : PenThickness) ,
-            Opacity = marker ? MarkerOpacity : PenOpacity,
-            Z = NextZ()
+            StrokeSource = marker ? "Marker" : Tool == BoardTool.Pen2 ? "Pen2" : "Pen",
+            IsStraightStroke = false,
+            StrokeColor = (marker ? MarkerColor : Tool == BoardTool.Pen2 ? Pen2Color : PenColor).ToString(),
+            Thickness = marker ? MarkerThickness : Tool == BoardTool.Pen2 ? Pen2Thickness : PenThickness,
+            Opacity = marker ? MarkerOpacity : Tool == BoardTool.Pen2 ? Pen2Opacity : PenOpacity,
+            Z = NextZ(),
+            StrokeSegments = new List<List<double>>()
         };
         _draft.SetPoints(_draftPoints);
         InvalidateVisual();
@@ -1166,6 +1369,7 @@ public class BoardCanvas : FrameworkElement
         {
             _straightStroke = true;
             _shiftStraight = true;
+            _draft.IsStraightStroke = true;
         }
 
         if (ItemRenderer.Distance(screen, _lastMoveScreen) > 3)
@@ -1198,7 +1402,7 @@ public class BoardCanvas : FrameworkElement
 
     private void CheckStraightenHold()
     {
-        if (!_drawing || _draft is null || Tool is not (BoardTool.Pen or BoardTool.Marker))
+        if (!_drawing || _draft is null || Tool is not (BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker))
             return;
 
         if (_straightStroke || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
@@ -1212,6 +1416,7 @@ public class BoardCanvas : FrameworkElement
 
         _forceStraight = true;
         _straightStroke = true;
+        _draft.IsStraightStroke = true;
         _draftPoints.Clear();
         _draftPoints.Add(_drawStartWorld);
         _draftPoints.Add(_lastMoveScreen == default ? _drawStartWorld : ToWorld(_lastMoveScreen));
@@ -1273,9 +1478,44 @@ public class BoardCanvas : FrameworkElement
                 _draft.SetPoints(_draftPoints);
             }
 
+            var isFreeStroke = !_draft.IsStraightStroke;
+            var endPoint = _draftPoints[^1];
+            var now = DateTime.Now;
+            var mergeCandidate = isFreeStroke &&
+                                  _lastFreeStrokeItem is not null &&
+                                  Items.Contains(_lastFreeStrokeItem) &&
+                                  ReferenceEquals(Items[^1], _lastFreeStrokeItem) &&
+                                  (now - _lastFreeStrokeFinishedAt).TotalMilliseconds <= StrokeMergeDelayMs &&
+                                  ItemRenderer.Distance(_lastFreeStrokeEnd, _draftPoints[0]) <= StrokeMergeDistancePx / Zoom &&
+                                  CanMergeStrokes(_lastFreeStrokeItem, _draft);
+
             BeginChange();
-            Items.Add(_draft);
+
+            if (mergeCandidate)
+            {
+                // Несколько близких касаний становятся одним BoardItem, но
+                // остаются отдельными внутренними сегментами. Ctrl+Z поэтому
+                // откатывает последнее касание, а не всё слово.
+                _lastFreeStrokeItem!.AddStrokeSegment(_draftPoints);
+            }
+            else
+            {
+                Items.Add(_draft);
+            }
+
             CommitChange();
+
+            if (isFreeStroke)
+            {
+                _lastFreeStrokeItem = mergeCandidate ? _lastFreeStrokeItem : _draft;
+                _lastFreeStrokeEnd = endPoint;
+                _lastFreeStrokeFinishedAt = now;
+            }
+            else
+            {
+                _lastFreeStrokeItem = null;
+                _lastFreeStrokeFinishedAt = DateTime.MinValue;
+            }
         }
 
         _draft = null;
@@ -1286,6 +1526,16 @@ public class BoardCanvas : FrameworkElement
         _straightenTimer.Stop();
         InvalidateVisual();
     }
+
+    private static bool CanMergeStrokes(BoardItem a, BoardItem b) =>
+        a.Kind == ItemKind.Stroke && b.Kind == ItemKind.Stroke &&
+        !a.IsStraightStroke && !b.IsStraightStroke &&
+        a.Marker == b.Marker &&
+        string.Equals(a.StrokeSource, b.StrokeSource, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(a.StrokeColor, b.StrokeColor, StringComparison.OrdinalIgnoreCase) &&
+        Math.Abs(a.Thickness - b.Thickness) < 0.001 &&
+        Math.Abs(a.Opacity - b.Opacity) < 0.001 &&
+        a.LineStyle == b.LineStyle;
 
     // =====================================================================
     //  Рисование фигур
@@ -1306,6 +1556,7 @@ public class BoardCanvas : FrameworkElement
             StrokeColor = ShapeColor.ToString(),
             FillColor = "",
             Thickness = ShapeThickness,
+            LineStyle = ShapeLineStyle,
             Opacity = 1.0,
             TextColor = TextColor.ToString(),
             Z = NextZ()
@@ -1337,7 +1588,7 @@ public class BoardCanvas : FrameworkElement
             {
                 var dx = world.X - _drawStartWorld.X;
                 var dy = world.Y - _drawStartWorld.Y;
-                var angle = Math.Round(Math.Atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+                var angle = Math.Round(Math.Atan2(dy, dx) / ShiftAngleStep) * ShiftAngleStep;
                 var length = Math.Sqrt(dx * dx + dy * dy);
                 end = new Point(
                     _drawStartWorld.X + length * Math.Cos(angle),
@@ -1494,156 +1745,190 @@ public class BoardCanvas : FrameworkElement
     /// </summary>
     private void EraseAt(Point center, double radius)
     {
-        var result = new List<BoardItem>();
         var changed = false;
 
-        foreach (var item in Items)
+        foreach (var item in Items.ToList())
         {
+            // Изображение ластиком вообще не затрагивается. Удаление картинки
+            // выполняется только кнопкой удаления. Нарисованные поверх неё
+            // штрихи остаются обычными Stroke и стираются независимо.
+            if (item.Kind == ItemKind.Image)
+                continue;
+
             if (item.Kind != ItemKind.Stroke)
             {
                 if (item.Kind == ItemKind.Shape)
                 {
-                    // Фигуры больше не удаляются целиком. Вместо этого
-                    // сохраняем круг стирания в локальных координатах объекта
-                    // и вычитаем его из геометрии при отрисовке.
-                    if (ItemRenderer.HitTest(item, center, radius))
+                    if (!ItemRenderer.HitTest(item, center, radius))
+                        continue;
+
+                    if (item.Shape == ShapeKind.Line && item.Points.Count >= 4)
                     {
-                        var local = ItemRenderer.ToLocal(item, center);
-                        var maskRadius = radius;
-
-                        // Для линий/стрелок учитываем половину толщины пера,
-                        // чтобы после прохода ластиком не оставался тонкий хвост.
-                        if (item.Shape is ShapeKind.Line or ShapeKind.Arrow)
-                            maskRadius += Math.Max(0.1, item.Thickness) / 2;
-
-                        item.ErasePoints.Add(local.X);
-                        item.ErasePoints.Add(local.Y);
-                        item.ErasePoints.Add(maskRadius);
-                        changed = true;
-
-                        // Если геометрия полностью закрыта маской, объект можно
-                        // удалить физически. В остальных случаях он сохраняется
-                        // и стирается частично.
-                        if (IsShapeFullyErased(item))
+                        // Прямая остаётся тем же BoardItem. Следы ластика
+                        // записываются в ErasePoints, без создания фрагментов.
+                        var a = new Point(item.Points[0], item.Points[1]);
+                        var b = new Point(item.Points[2], item.Points[3]);
+                        var limit = radius + item.Thickness / 2;
+                        if (ItemRenderer.DistanceToSegment(center, a, b) <= limit)
                         {
-                            Selection.Remove(item);
-                            continue;
+                            item.ErasePoints.Add(center.X);
+                            item.ErasePoints.Add(center.Y);
+                            item.ErasePoints.Add(radius);
+                            changed = true;
                         }
+                        continue;
                     }
 
-                    result.Add(item);
+                    // Остальные фигуры и стрелки стираются целиком.
+                    changed = true;
+                    Selection.Remove(item);
+                    Items.Remove(item);
                     continue;
                 }
 
-                // Текст и изображения пока сохраняют прежнее поведение:
-                // касание ластика удаляет такой объект целиком.
-                if (ItemRenderer.HitTest(item, center, radius))
+                // Текст при попадании удаляется целиком.
+                if (item.Kind == ItemKind.Text && ItemRenderer.HitTest(item, center, radius))
                 {
                     changed = true;
                     Selection.Remove(item);
-                    continue;
+                    Items.Remove(item);
                 }
-                result.Add(item);
                 continue;
             }
 
-            var points = item.EnumeratePoints().ToList();
-            var limit = radius + item.Thickness / 2;
-            var keep = points.Select(p => ItemRenderer.Distance(p, center) > limit).ToList();
+            var segments = item.EnumerateStrokeSegments().ToList();
+            if (segments.Count == 0)
+                continue;
 
-            if (keep.All(k => k))
+            var keptSegments = new List<List<Point>>();
+            var itemChanged = false;
+
+            foreach (var segment in segments)
             {
-                // Круг может задеть длинный отрезок, не касаясь его концов.
-                var split = -1;
-                for (var i = 0; i + 1 < points.Count; i++)
-                {
-                    if (ItemRenderer.DistanceToSegment(center, points[i], points[i + 1]) <= limit)
-                    {
-                        split = i;
-                        break;
-                    }
-                }
+                var kept = ClipStrokeSegment(segment, center, radius + item.Thickness / 2);
+                if (kept.Count != 1 || kept[0].Count != segment.Count ||
+                    (kept.Count == 1 && !PointsEqual(kept[0], segment)))
+                    itemChanged = true;
 
-                if (split < 0)
-                {
-                    result.Add(item);
-                    continue;
-                }
-
-                changed = true;
-                AddFragment(result, item, points.Take(split + 1).ToList());
-                AddFragment(result, item, points.Skip(split + 1).ToList());
-                Selection.Remove(item);
-                continue;
+                keptSegments.AddRange(kept);
             }
+
+            if (!itemChanged)
+                continue;
 
             changed = true;
-            Selection.Remove(item);
-
-            var current = new List<Point>();
-            for (var i = 0; i < points.Count; i++)
+            if (keptSegments.Count == 0)
             {
-                if (keep[i])
-                {
-                    current.Add(points[i]);
-                }
-                else if (current.Count > 0)
-                {
-                    AddFragment(result, item, current);
-                    current = new List<Point>();
-                }
+                Selection.Remove(item);
+                Items.Remove(item);
+                continue;
             }
-            AddFragment(result, item, current);
+
+            // ВАЖНО: объект не делится на новые BoardItem. После стирания
+            // внутри одного объекта просто становится больше сегментов.
+            item.SetStrokeSegments(keptSegments);
         }
 
         if (!changed)
             return;
 
-        Items = result;
+        _lastFreeStrokeItem = null;
+        _lastFreeStrokeFinishedAt = DateTime.MinValue;
         _eraseChanged = true;
         SelectionChanged?.Invoke();
     }
 
-
-    private static bool IsShapeFullyErased(BoardItem item)
+    private static bool PointsEqual(IReadOnlyList<Point> a, IReadOnlyList<Point> b)
     {
-        if (item.ErasePoints.Count < 3)
-            return false;
-
-        var geometry = ItemRenderer.BuildShapeGeometryForEraseCheck(item);
-        if (geometry.IsEmpty())
-            return true;
-
-        for (var i = 0; i + 2 < item.ErasePoints.Count; i += 3)
-        {
-            var circle = new EllipseGeometry(
-                new Point(item.ErasePoints[i], item.ErasePoints[i + 1]),
-                Math.Max(0.1, item.ErasePoints[i + 2]),
-                Math.Max(0.1, item.ErasePoints[i + 2]));
-            geometry = new CombinedGeometry(GeometryCombineMode.Exclude, geometry, circle);
-            if (geometry.IsEmpty())
-                return true;
-        }
-
-        return false;
+        if (a.Count != b.Count) return false;
+        for (var i = 0; i < a.Count; i++)
+            if (ItemRenderer.Distance(a[i], b[i]) > 1e-9) return false;
+        return true;
     }
 
-    private static void AddFragment(List<BoardItem> target, BoardItem source, List<Point> points)
+    /// <summary>Удаляет часть одного сегмента, возвращая 0..N оставшихся сегментов.</summary>
+    private static List<List<Point>> ClipStrokeSegment(IReadOnlyList<Point> points, Point center, double radius)
     {
         if (points.Count < 2)
-            return;
+            return new List<List<Point>>();
 
-        double length = 0;
-        for (var i = 1; i < points.Count; i++)
-            length += ItemRenderer.Distance(points[i - 1], points[i]);
+        var result = new List<List<Point>>();
+        var current = new List<Point>();
 
-        if (length < 0.6)
-            return;
+        void Flush()
+        {
+            if (current.Count >= 2)
+                result.Add(current);
+            current = new List<Point>();
+        }
 
-        var fragment = source.Clone();
-        fragment.Id = Guid.NewGuid().ToString("N");
-        fragment.SetPoints(points);
-        target.Add(fragment);
+        void AppendOutside(Point a, Point b)
+        {
+            if (current.Count == 0)
+                current.Add(a);
+            else if (ItemRenderer.Distance(current[^1], a) > 1e-7)
+                current.Add(a);
+
+            if (ItemRenderer.Distance(current[^1], b) > 1e-7)
+                current.Add(b);
+        }
+
+        for (var i = 0; i + 1 < points.Count; i++)
+        {
+            var a = points[i];
+            var b = points[i + 1];
+            var dx = b.X - a.X;
+            var dy = b.Y - a.Y;
+            var len2 = dx * dx + dy * dy;
+
+            if (len2 < 1e-12)
+            {
+                if (ItemRenderer.Distance(a, center) > radius)
+                    AppendOutside(a, a);
+                else
+                    Flush();
+                continue;
+            }
+
+            var cuts = new List<double> { 0, 1 };
+            var fx = a.X - center.X;
+            var fy = a.Y - center.Y;
+            var A = len2;
+            var B = 2 * (fx * dx + fy * dy);
+            var C = fx * fx + fy * fy - radius * radius;
+            var discriminant = B * B - 4 * A * C;
+
+            if (discriminant >= 0)
+            {
+                var root = Math.Sqrt(Math.Max(0, discriminant));
+                var t1 = (-B - root) / (2 * A);
+                var t2 = (-B + root) / (2 * A);
+                if (t1 > 0 && t1 < 1) cuts.Add(t1);
+                if (t2 > 0 && t2 < 1) cuts.Add(t2);
+            }
+
+            cuts.Sort();
+            for (var c = 0; c + 1 < cuts.Count; c++)
+            {
+                var t0 = cuts[c];
+                var t1 = cuts[c + 1];
+                if (t1 - t0 < 1e-9)
+                    continue;
+
+                var tm = (t0 + t1) / 2;
+                var mid = new Point(a.X + dx * tm, a.Y + dy * tm);
+                var p0 = new Point(a.X + dx * t0, a.Y + dy * t0);
+                var p1 = new Point(a.X + dx * t1, a.Y + dy * t1);
+
+                if (ItemRenderer.Distance(mid, center) > radius)
+                    AppendOutside(p0, p1);
+                else
+                    Flush();
+            }
+        }
+
+        Flush();
+        return result;
     }
 
     // =====================================================================
@@ -1671,6 +1956,8 @@ public class BoardCanvas : FrameworkElement
         if (Selection.Count == 0)
             return;
 
+        _lastFreeStrokeItem = null;
+        _lastFreeStrokeFinishedAt = DateTime.MinValue;
         BeginChange();
         foreach (var item in Selection)
         {
