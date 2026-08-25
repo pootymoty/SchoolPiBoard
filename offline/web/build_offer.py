@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Собирает страницу оферты для сайта из docs/legal/offer-desktop.md.
+Собирает страницу оферты для сайта из offline/docs/legal/offer-desktop.md.
 
 Единственный источник текста — markdown-файл; править нужно только его,
 а потом выполнить:
@@ -21,13 +21,13 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "legal" / "offer-desktop.md"
 TARGET = pathlib.Path(__file__).resolve().parent / "offer.html"
 
 TEMPLATE = """<!DOCTYPE html>
 <!--
-  Оферта SchoolPiBoard. Файл СГЕНЕРИРОВАН из docs/legal/offer-desktop.md
+  Оферта SchoolPiBoard. Файл СГЕНЕРИРОВАН из offline/docs/legal/offer-desktop.md
   скриптом offline/web/build_offer.py — руками не править, правки затрутся.
 
   В разметке намеренно нет удвоенных фигурных скобок и скобок с процентом:
