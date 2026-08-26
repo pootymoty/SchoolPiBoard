@@ -94,20 +94,25 @@ public sealed class RobokassaService
 
     private string BuildReceiptJson()
     {
-        var receipt = new
+        var receipt = new Dictionary<string, object>();
+
+        // Система налогообложения. У самозанятого её нет: перечень значений
+        // Робокассы (osn, usn_income, …) режима НПД не содержит, а пустая
+        // строка отклоняется так же, как неизвестное значение. Поэтому поле
+        // не передаётся вовсе — тогда настройка берётся из кабинета магазина.
+        if (!string.IsNullOrWhiteSpace(_options.TaxSystem))
+            receipt["sno"] = _options.TaxSystem;
+
+        receipt["items"] = new[]
         {
-            
-            items = new[]
+            new
             {
-                new
-                {
-                    name = _options.Description,
-                    quantity = 1,
-                    sum = _options.Amount,
-                    payment_method = "full_payment",
-                    payment_object = _options.PaymentObject,
-                    tax = _options.Tax
-                }
+                name = _options.Description,
+                quantity = 1,
+                sum = _options.Amount,
+                payment_method = "full_payment",
+                payment_object = _options.PaymentObject,
+                tax = _options.Tax
             }
         };
 

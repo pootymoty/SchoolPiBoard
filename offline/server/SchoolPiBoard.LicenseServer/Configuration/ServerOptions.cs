@@ -63,10 +63,10 @@ public sealed class ServerOptions
                 PaymentUrl = configuration["Robokassa:PaymentUrl"]
                              ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
                 IsTest = ReadBool(configuration["Robokassa:IsTest"], false),
-                SendReceipt = ReadBool(configuration["Robokassa:SendReceipt"], false),
-                TaxSystem = configuration["Robokassa:TaxSystem"] ?? "npd",
+                SendReceipt = ReadBool(configuration["Robokassa:SendReceipt"], true),
+                TaxSystem = configuration["Robokassa:TaxSystem"] ?? string.Empty,
                 Tax = configuration["Robokassa:Tax"] ?? "none",
-                PaymentObject = configuration["Robokassa:PaymentObject"] ?? "intellectual_activity"
+                PaymentObject = configuration["Robokassa:PaymentObject"] ?? "service"
             },
 
             Trial = new TrialOptions
@@ -183,23 +183,30 @@ public sealed class RobokassaOptions
     public required bool IsTest { get; init; }
 
     /// <summary>
-    /// Передавать ли состав чека параметром Receipt. Для самозанятого чек
-    /// обычно формирует сама Робокасса, поэтому по умолчанию выключено —
-    /// включать только если фискализация с составом чека включена в кабинете.
+    /// Передавать ли состав чека параметром Receipt. Нужно и самозанятому:
+    /// без Receipt Робокасса отвечает «вы не передали нам состав чека»
+    /// и предлагает выписать чек вручную. Проверено на живой оплате.
     /// </summary>
     public required bool SendReceipt { get; init; }
 
-    /// <summary>Система налогообложения в чеке (для самозанятого — npd).</summary>
+    /// <summary>
+    /// Система налогообложения в чеке. Робокасса принимает osn, usn_income,
+    /// usn_income_outcome, envd, esn, patent — режима НПД в этом перечне нет.
+    /// Пустое значение означает «не передавать поле»: настройка берётся
+    /// из кабинета магазина.
+    /// </summary>
     public required string TaxSystem { get; init; }
 
     /// <summary>Ставка НДС в чеке (для самозанятого — none).</summary>
     public required string Tax { get; init; }
 
     /// <summary>
-    /// Признак предмета расчёта. Мы продаём не услугу, а право использования
-    /// программы, поэтому по умолчанию intellectual_activity — «предоставление
-    /// результатов интеллектуальной деятельности». Это должно совпадать
-    /// с предметом оферты (docs/legal/offer-desktop.md).
+    /// Признак предмета расчёта. По смыслу оферты подошло бы
+    /// intellectual_activity — «предоставление прав на результаты
+    /// интеллектуальной деятельности», но принимает ли его Робокасса,
+    /// на живой оплате пока не проверено, а каждая проверка стоит денег.
+    /// Поэтому по умолчанию service: он точно проходит. Менять — только
+    /// после успешной пробной оплаты на малую сумму.
     /// </summary>
     public required string PaymentObject { get; init; }
 
