@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using SchoolPiBoard.LicenseServer.Configuration;
 
@@ -15,6 +16,15 @@ namespace SchoolPiBoard.LicenseServer.Services;
 /// </summary>
 public sealed class RobokassaService
 {
+    // Кириллицу в составе чека оставляем как есть. По умолчанию
+    // System.Text.Json заменяет её на \uXXXX: формально это тот же JSON,
+    // но в примерах Робокассы имя товара — обычный текст, и лишнее отличие
+    // при разборе ошибок только мешает.
+    private static readonly JsonSerializerOptions ReceiptJson = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     private readonly RobokassaOptions _options;
 
     public RobokassaService(RobokassaOptions options)
@@ -116,7 +126,7 @@ public sealed class RobokassaService
             }
         };
 
-        return JsonSerializer.Serialize(receipt);
+        return JsonSerializer.Serialize(receipt, ReceiptJson);
     }
 
     private static string Md5(string value)
