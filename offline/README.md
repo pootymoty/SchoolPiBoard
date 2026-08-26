@@ -370,7 +370,7 @@ Compiler и нажмите **Build → Compile**.
 | `Robokassa__MerchantLogin` | для продаж | логин магазина |
 | `ROBOKASSA_PASSWORD1` | для продаж | подпись ссылки на оплату |
 | `ROBOKASSA_PASSWORD2` | для продаж | проверка уведомления об оплате |
-| `Robokassa__Amount` | нет | цена, по умолчанию 15000.00 |
+| `Robokassa__Amount` | нет | цена, по умолчанию 2999.00 |
 | `Robokassa__IsTest` | нет | тестовый режим (`true`/`false`, не `1`) |
 | `License__DeviceLimit` | нет | устройств на ключ, по умолчанию 2 |
 | `License__DownloadUrl` | нет | ссылка на установщик в письме |

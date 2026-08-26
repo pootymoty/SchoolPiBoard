@@ -58,7 +58,7 @@ public sealed class ServerOptions
                 MerchantLogin = configuration["Robokassa:MerchantLogin"] ?? string.Empty,
                 Password1 = First(configuration["Robokassa:Password1"], "ROBOKASSA_PASSWORD1"),
                 Password2 = First(configuration["Robokassa:Password2"], "ROBOKASSA_PASSWORD2"),
-                Amount = ReadDecimal(configuration["Robokassa:Amount"], 15000m),
+                Amount = ReadDecimal(configuration["Robokassa:Amount"], 2999m),
                 Description = configuration["Robokassa:Description"] ?? "Лицензия SchoolPiBoard (бессрочная)",
                 PaymentUrl = configuration["Robokassa:PaymentUrl"]
                              ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
