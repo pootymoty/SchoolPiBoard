@@ -49,14 +49,16 @@ public sealed class RobokassaService
             "Encoding=utf-8"
         };
 
-        // Состав чека. Робокасса требует его уже закодированным, и в подпись
-        // попадает ровно та же закодированная строка — это место, на котором
-        // чаще всего ломается интеграция.
-        string? encodedReceipt = null;
+        // Состав чека. В адрес он уходит закодированным, а в подпись входит
+        // тем же минимизированным JSON, каким был построен, — без кодирования.
+        // Это самое частое место ошибки: подписанная закодированная строка
+        // даёт ошибку 29 «неверный параметр SignatureValue», и выглядит она
+        // как проблема с магазином, а не с подписью.
+        string? receiptJson = null;
         if (_options.SendReceipt)
         {
-            encodedReceipt = Uri.EscapeDataString(BuildReceiptJson());
-            parameters.Add("Receipt=" + encodedReceipt);
+            receiptJson = BuildReceiptJson();
+            parameters.Add("Receipt=" + Uri.EscapeDataString(receiptJson));
         }
 
         if (!string.IsNullOrWhiteSpace(email))
@@ -65,9 +67,9 @@ public sealed class RobokassaService
         if (_options.IsTest)
             parameters.Add("IsTest=1");
 
-        var signatureSource = encodedReceipt is null
+        var signatureSource = receiptJson is null
             ? $"{_options.MerchantLogin}:{sum}:{invoiceId}:{_options.Password1}"
-            : $"{_options.MerchantLogin}:{sum}:{invoiceId}:{encodedReceipt}:{_options.Password1}";
+            : $"{_options.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{_options.Password1}";
 
         parameters.Add("SignatureValue=" + Md5(signatureSource));
 
