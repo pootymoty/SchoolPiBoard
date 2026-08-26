@@ -96,7 +96,7 @@ public sealed class RobokassaService
     {
         var receipt = new
         {
-            sno = _options.TaxSystem,
+            
             items = new[]
             {
                 new
