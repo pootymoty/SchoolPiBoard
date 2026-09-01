@@ -8,6 +8,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using SchoolPiBoard.Models;
 using SchoolPiBoard.Rendering;
+using SchoolPiBoard.Services;
 
 namespace SchoolPiBoard.Views;
 
