@@ -272,6 +272,17 @@ public class Board
 
     [JsonIgnore] public string CreatedText => Created.ToString("dd.MM.yyyy HH:mm");
     [JsonIgnore] public string ModifiedText => Modified.ToString("dd.MM.yyyy HH:mm");
+
+    /// <summary>
+    /// Копия для фонового сохранения.
+    ///
+    /// Объекты доски не копируются: список объектов никогда не правится
+    /// на месте — редактор всегда присваивает <see cref="Items"/> новый
+    /// список целиком. Поэтому снимок, взявший текущий список по ссылке,
+    /// остаётся неизменным, пока его сериализуют в фоне, и снимок стоит
+    /// столько же, сколько число досок, а не число нарисованного.
+    /// </summary>
+    public Board SnapshotCopy() => (Board)MemberwiseClone();
 }
 
 public class BoardStoreFile

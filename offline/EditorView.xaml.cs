@@ -16,6 +16,8 @@ public partial class EditorView : UserControl
     private MainWindow _shell = null!;
     private Board? _board;
     private bool _dirty;
+    private bool _saving;
+    private bool _saveQueued;
 
     private readonly DispatcherTimer _autoSave = new();
     private List<BoardItem> _clipboard = new();
@@ -46,7 +48,7 @@ public partial class EditorView : UserControl
         Canvas.PreviewMouseDown += Canvas_PreviewMouseDown;
 
         _autoSave.Interval = TimeSpan.FromSeconds(3);
-        _autoSave.Tick += (_, _) => SaveIfDirty();
+        _autoSave.Tick += (_, _) => SaveInBackground();
         _autoSave.Start();
 
         Loaded += (_, _) => SelectTool(BoardTool.Cursor);
@@ -130,6 +132,79 @@ public partial class EditorView : UserControl
         UpdateUndoRedoState();
     }
 
+    /// <summary>
+    /// Автосохранение. Раньше оно сериализовало все доски и писало файл прямо
+    /// в потоке интерфейса — на большой доске это занимало десятки и сотни
+    /// миллисекунд, картинка замирала, а начатая линия обрывалась. Теперь
+    /// в потоке интерфейса остаётся только снимок, а сериализация и запись
+    /// уходят в фон. Плюс сохранение не начинается, пока рука на кнопке мыши.
+    /// </summary>
+    private void SaveInBackground()
+    {
+        if (_board is null || !_dirty || Canvas.IsInteracting)
+            return;
+
+        if (_saving)
+        {
+            // Пока идёт запись, новая не начинается: изменения попадут
+            // в следующую, сразу после завершения текущей.
+            _saveQueued = true;
+            return;
+        }
+
+        _saving = true;
+        _saveQueued = false;
+
+        Canvas.CommitToBoard();
+        _shell.Store.TouchModified(_board);
+
+        var store = _shell.Store;
+        var snapshot = store.CreateSnapshot();
+        var folder = store.DataFolder;
+        var dataFile = store.DataFile;
+        var backupFile = store.BackupFile;
+
+        _dirty = false;
+        SaveIndicator.Text = "сохранение…";
+
+        Task.Run(() =>
+        {
+            try
+            {
+                BoardStore.WriteSnapshot(snapshot, folder, dataFile, backupFile);
+                return (string?)null;
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }).ContinueWith(task =>
+        {
+            _saving = false;
+
+            if (task.Result is { } error)
+            {
+                // Сохранить не удалось — доска снова считается изменённой,
+                // следующая попытка произойдёт на очередном тике.
+                _dirty = true;
+                SaveIndicator.Text = "не удалось сохранить";
+                SaveIndicator.ToolTip = error;
+                return;
+            }
+
+            SaveIndicator.Text = "сохранено";
+            SaveIndicator.ToolTip = null;
+
+            if (_saveQueued || _dirty)
+                SaveInBackground();
+        }, TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    /// <summary>
+    /// Сохранение, после которого можно уйти с доски: выполняется целиком
+    /// и сразу. Используется при переходе к списку досок, закрытии окна
+    /// и по Ctrl+S — там короткая задержка допустима, а потеря данных нет.
+    /// </summary>
     public void SaveIfDirty()
     {
         if (_board is null || !_dirty)
@@ -140,6 +215,7 @@ public partial class EditorView : UserControl
         _shell.Store.Save();
 
         _dirty = false;
+        _saveQueued = false;
         SaveIndicator.Text = "сохранено";
     }
 

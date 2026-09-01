@@ -10,9 +10,11 @@ public class BoardStore
     public const int ArchiveAfterDays = 30;
     public const string FileName = "boards.json";
 
+    // Отступы в файле досок увеличивали его в разы, а вместе с размером —
+    // и время сериализации. Файл машинный, читать его глазами не нужно.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = true,
+        WriteIndented = false,
         Converters = { new JsonStringEnumConverter() }
     };
 
@@ -50,19 +52,33 @@ public class BoardStore
         }
     }
 
-    public void Save()
-    {
-        Directory.CreateDirectory(DataFolder);
+    public void Save() => WriteSnapshot(CreateSnapshot(), DataFolder, DataFile, BackupFile);
 
-        var json = JsonSerializer.Serialize(new BoardStoreFile { Boards = Boards }, JsonOptions);
-        var tmp = DataFile + ".tmp";
+    /// <summary>
+    /// Снимок для сохранения. Делается в потоке интерфейса и стоит одного
+    /// прохода по списку досок; всё дорогое — сериализация и запись —
+    /// происходит потом в фоне и уже не может помешать рисованию.
+    /// </summary>
+    public BoardStoreFile CreateSnapshot() =>
+        new() { Boards = Boards.Select(board => board.SnapshotCopy()).ToList() };
+
+    /// <summary>
+    /// Запись снимка. Статический метод без обращения к состоянию хранилища:
+    /// его безопасно вызывать из фонового потока.
+    /// </summary>
+    public static void WriteSnapshot(BoardStoreFile snapshot, string folder, string dataFile, string backupFile)
+    {
+        Directory.CreateDirectory(folder);
+
+        var json = JsonSerializer.Serialize(snapshot, JsonOptions);
+        var tmp = dataFile + ".tmp";
         File.WriteAllText(tmp, json);
 
-        if (File.Exists(DataFile))
+        if (File.Exists(dataFile))
         {
             try
             {
-                File.Copy(DataFile, BackupFile, overwrite: true);
+                File.Copy(dataFile, backupFile, overwrite: true);
             }
             catch
             {
@@ -70,7 +86,7 @@ public class BoardStore
             }
         }
 
-        File.Move(tmp, DataFile, overwrite: true);
+        File.Move(tmp, dataFile, overwrite: true);
     }
 
     public Board CreateBoard(string name)

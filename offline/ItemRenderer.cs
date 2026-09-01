@@ -18,7 +18,7 @@ public static class ItemRenderer
     public static Brush ParseBrush(string value, Brush fallback)
     {
         var color = ParseColor(value);
-        return color is null ? fallback : new SolidColorBrush(color.Value);
+        return color is null ? fallback : SolidBrush(color.Value);
     }
 
     public static Color? ParseColor(string value)
@@ -141,6 +141,51 @@ public static class ItemRenderer
     }
 
     /// <summary>Строит сглаженную кривую по точкам рукописного штриха.</summary>
+    // =====================================================================
+    //  Кэш кистей и перьев
+    // =====================================================================
+    // Каждый кадр раньше создавал по кисти и перу на каждый объект. На доске
+    // с тысячами штрихов это тысячи объектов на кадр, и все — незамороженные,
+    // то есть WPF на каждый вешал отслеживание изменений. Цветов и толщин
+    // в доске всего десятки, поэтому кэш маленький и попадает почти всегда.
+    private static readonly Dictionary<uint, SolidColorBrush> BrushCache = new();
+    private static readonly Dictionary<(uint Color, double Thickness, bool Flat, LineStyle Dash), Pen> PenCache = new();
+
+    public static SolidColorBrush SolidBrush(Color color)
+    {
+        var key = (uint)((color.A << 24) | (color.R << 16) | (color.G << 8) | color.B);
+
+        if (BrushCache.TryGetValue(key, out var cached))
+            return cached;
+
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        BrushCache[key] = brush;
+        return brush;
+    }
+
+    /// <param name="flat">Плоское перо маркера вместо круглого.</param>
+    public static Pen StrokePen(Color color, double thickness, bool flat, LineStyle dash)
+    {
+        var key = ((uint)((color.A << 24) | (color.R << 16) | (color.G << 8) | color.B),
+                   thickness, flat, dash);
+
+        if (PenCache.TryGetValue(key, out var cached))
+            return cached;
+
+        var pen = new Pen(SolidBrush(color), Math.Max(0.1, thickness))
+        {
+            StartLineCap = flat ? PenLineCap.Square : PenLineCap.Round,
+            EndLineCap = flat ? PenLineCap.Square : PenLineCap.Round,
+            LineJoin = PenLineJoin.Round,
+            DashStyle = GetDashStyle(dash)
+        };
+        pen.Freeze();
+
+        PenCache[key] = pen;
+        return pen;
+    }
+
     public static Geometry BuildStrokeGeometry(IList<Point> points)
     {
         if (points.Count == 0)
@@ -211,13 +256,23 @@ public static class ItemRenderer
             dc.Pop();
     }
 
+    private static readonly DashStyle DashPattern = Frozen(new DashStyle(new[] { 4.0, 3.0 }, 0));
+    private static readonly DashStyle DashDotPattern = Frozen(new DashStyle(new[] { 4.0, 2.0, 1.0, 2.0 }, 0));
+    private static readonly DashStyle DotPattern = Frozen(new DashStyle(new[] { 1.0, 2.5 }, 0));
+
+    private static DashStyle Frozen(DashStyle style)
+    {
+        style.Freeze();
+        return style;
+    }
+
     private static DashStyle GetDashStyle(LineStyle style)
     {
         return style switch
         {
-            LineStyle.Dash => new DashStyle(new[] { 4.0, 3.0 }, 0),
-            LineStyle.DashDot => new DashStyle(new[] { 4.0, 2.0, 1.0, 2.0 }, 0),
-            LineStyle.Dot => new DashStyle(new[] { 1.0, 2.5 }, 0),
+            LineStyle.Dash => DashPattern,
+            LineStyle.DashDot => DashDotPattern,
+            LineStyle.Dot => DotPattern,
             _ => DashStyles.Solid
         };
     }
@@ -225,13 +280,8 @@ public static class ItemRenderer
     private static void DrawStroke(DrawingContext dc, BoardItem item)
     {
         var color = ParseColor(item.StrokeColor) ?? Colors.Red;
-        var pen = new Pen(new SolidColorBrush(color), Math.Max(0.1, item.Thickness))
-        {
-            StartLineCap = item.Marker ? PenLineCap.Square : PenLineCap.Round,
-            EndLineCap = item.Marker ? PenLineCap.Square : PenLineCap.Round,
-            LineJoin = PenLineJoin.Round,
-            DashStyle = item.IsStraightStroke ? GetDashStyle(item.LineStyle) : DashStyles.Solid
-        };
+        var pen = StrokePen(color, item.Thickness, item.Marker,
+                            item.IsStraightStroke ? item.LineStyle : LineStyle.Solid);
 
         // Составной штрих остаётся одним BoardItem. Каждый внутренний сегмент
         // рисуется отдельно, поэтому отрыв пера между буквами не превращается
@@ -290,13 +340,7 @@ public static class ItemRenderer
         if (item.Thickness > 0.01)
         {
             var color = ParseColor(item.StrokeColor) ?? Colors.Red;
-            pen = new Pen(new SolidColorBrush(color), item.Thickness)
-            {
-                LineJoin = PenLineJoin.Round,
-                StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round,
-                DashStyle = GetDashStyle(item.LineStyle)
-            };
+            pen = StrokePen(color, item.Thickness, flat: false, item.LineStyle);
         }
 
         // Для прямой/стрелки используем разбиение центрального отрезка на

@@ -260,6 +260,13 @@ public class BoardCanvas : FrameworkElement
     public Point ToScreen(Point world) =>
         new((world.X - Offset.X) * Zoom, (world.Y - Offset.Y) * Zoom);
 
+    /// <summary>
+    /// Идёт ли прямо сейчас работа мышью: рисование, перетаскивание,
+    /// перемещение холста или выделение рамкой. Пока это так, сохранять
+    /// нельзя — любая задержка рвёт линию.
+    /// </summary>
+    public bool IsInteracting => _drawing || _dragging || _panning || _marquee;
+
     public Rect VisibleWorld()
     {
         var w = Math.Max(1, ActualWidth);
@@ -388,15 +395,16 @@ public class BoardCanvas : FrameworkElement
         var background = ItemRenderer.ParseColor(Board?.BackgroundColor ?? "#FF1B1B1F")
                           ?? Color.FromRgb(0x1B, 0x1B, 0x1F);
 
-        dc.DrawRectangle(new SolidColorBrush(background), null, new Rect(0, 0, width, height));
+        dc.DrawRectangle(ItemRenderer.SolidBrush(background), null, new Rect(0, 0, width, height));
 
         // Переходим в мировые координаты: всё дальнейшее рисуется без пересчёта.
         dc.PushTransform(new MatrixTransform(Zoom, 0, 0, Zoom, -Offset.X * Zoom, -Offset.Y * Zoom));
 
-        GridPainter.Draw(dc, Board?.Grid ?? GridStyle.Square, background, VisibleWorld(), Zoom, Board?.GridColor);
+        var visible = VisibleWorld();
+        GridPainter.Draw(dc, Board?.Grid ?? GridStyle.Square, background, visible, Zoom, Board?.GridColor);
 
         var ppd = PixelsPerDip;
-        foreach (var item in Items.OrderBy(i => i.Z))
+        foreach (var item in ItemsToDraw(visible))
             ItemRenderer.Draw(dc, item, ppd);
 
         if (_draft is not null)
@@ -408,6 +416,53 @@ public class BoardCanvas : FrameworkElement
         DrawMarquee(dc);
         DrawEraserCursor(dc);
         DrawDrawingToolCursor(dc);
+    }
+
+    // Список для отрисовки собирается в одни и те же буферы: пересоздавать
+    // их каждый кадр значит мусорить в куче на каждое движение мыши.
+    private readonly List<BoardItem> _drawList = new();
+    private readonly List<(int Z, int Index, BoardItem Item)> _drawOrder = new();
+
+    /// <summary>
+    /// Объекты, попадающие в видимую область, в порядке отрисовки.
+    ///
+    /// Раньше кадр рисовал всю доску целиком и заново сортировал её через
+    /// LINQ. На доске с тысячами объектов это происходило на каждое движение
+    /// мыши. Теперь объекты вне экрана отбрасываются сразу, а сортировка идёт
+    /// по паре «слой, позиция в списке» — так порядок одинаковых слоёв
+    /// не меняется от кадра к кадру.
+    /// </summary>
+    private List<BoardItem> ItemsToDraw(Rect visible)
+    {
+        _drawOrder.Clear();
+        _drawList.Clear();
+
+        for (var index = 0; index < Items.Count; index++)
+        {
+            var item = Items[index];
+            var bounds = ItemRenderer.RotatedBounds(item);
+            if (bounds.IsEmpty)
+                continue;
+
+            // Запас на толщину линии и на стрелки: иначе объект, чей центр
+            // за краем экрана, пропал бы вместе с видимым хвостом.
+            var pad = item.Thickness / 2 + 4;
+            bounds.Inflate(pad, pad);
+
+            if (bounds.IntersectsWith(visible))
+                _drawOrder.Add((item.Z, index, item));
+        }
+
+        _drawOrder.Sort(static (a, b) =>
+        {
+            var byZ = a.Z.CompareTo(b.Z);
+            return byZ != 0 ? byZ : a.Index.CompareTo(b.Index);
+        });
+
+        foreach (var entry in _drawOrder)
+            _drawList.Add(entry.Item);
+
+        return _drawList;
     }
 
     /// <summary>
