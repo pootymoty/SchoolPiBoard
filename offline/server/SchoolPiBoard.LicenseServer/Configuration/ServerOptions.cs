@@ -14,6 +14,7 @@ public sealed class ServerOptions
     public required RobokassaOptions Robokassa { get; init; }
     public required TrialOptions Trial { get; init; }
     public required WebOptions Web { get; init; }
+    public required BoardOptions Board { get; init; }
 
     /// <summary>
     /// Собирает настройки и сразу проверяет их. В боевом режиме отсутствие
@@ -63,6 +64,8 @@ public sealed class ServerOptions
                 PaymentUrl = configuration["Robokassa:PaymentUrl"]
                              ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
                 IsTest = ReadBool(configuration["Robokassa:IsTest"], false),
+                RecurringUrl = configuration["Robokassa:RecurringUrl"]
+                    ?? "https://auth.robokassa.ru/Merchant/Recurring",
                 SendReceipt = ReadBool(configuration["Robokassa:SendReceipt"], true),
                 TaxSystem = configuration["Robokassa:TaxSystem"] ?? string.Empty,
                 Tax = configuration["Robokassa:Tax"] ?? "none",
@@ -73,6 +76,12 @@ public sealed class ServerOptions
             {
                 Days = ReadInt(configuration["Trial:Days"], 3),
                 OneTrialPerEmail = ReadBool(configuration["Trial:OneTrialPerEmail"], true)
+            },
+
+            Board = new BoardOptions
+            {
+                SharedSecret = First(configuration["Board:SharedSecret"], "BOARD_SHARED_SECRET"),
+                CallbackUrl = (configuration["Board:CallbackUrl"] ?? string.Empty).TrimEnd('/')
             },
 
             Web = new WebOptions
@@ -183,6 +192,13 @@ public sealed class RobokassaOptions
     public required bool IsTest { get; init; }
 
     /// <summary>
+    /// Адрес повторных списаний. Робокасса принимает их отдельным запросом
+    /// со ссылкой на первый оплаченный счёт — форму покупателю при этом
+    /// уже не показывают.
+    /// </summary>
+    public required string RecurringUrl { get; init; }
+
+    /// <summary>
     /// Передавать ли состав чека параметром Receipt. Нужно и самозанятому:
     /// без Receipt Робокасса отвечает «вы не передали нам состав чека»
     /// и предлагает выписать чек вручную. Проверено на живой оплате.
@@ -226,6 +242,25 @@ public sealed class TrialOptions
     /// Отсекает переустановку Windows и смену диска.
     /// </summary>
     public required bool OneTrialPerEmail { get; init; }
+}
+
+/// <summary>
+/// Связь с онлайн-доской.
+///
+/// Доска просит счёт, сервис ключей его выставляет и после оплаты
+/// сообщает об этом обратно. Обе стороны подписывают запросы одним
+/// секретом: карты и пароли Робокассы остаются здесь и только здесь.
+/// </summary>
+public sealed class BoardOptions
+{
+    /// <summary>Общий секрет доски и сервиса ключей. Пусто — подписки выключены.</summary>
+    public required string SharedSecret { get; init; }
+
+    /// <summary>Куда сообщать об оплате, например https://board.school-pi.online/api/billing/callback.</summary>
+    public required string CallbackUrl { get; init; }
+
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(SharedSecret) && !string.IsNullOrWhiteSpace(CallbackUrl);
 }
 
 public sealed class WebOptions

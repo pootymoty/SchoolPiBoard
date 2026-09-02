@@ -100,6 +100,7 @@ public static class PurchaseEndpoints
             [FromServices] LicenseService licenses,
             [FromServices] RobokassaService robokassa,
             [FromServices] IEmailSender emails,
+            [FromServices] BoardNotifier board,
             [FromServices] ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
@@ -135,12 +136,32 @@ public static class PurchaseEndpoints
 
             // Подпись уже подтвердила сумму, но расхождение с ценой стоит
             // увидеть в логе: значит, цену поменяли в одном месте из двух.
-            if (!robokassa.IsExpectedAmount(outSum))
+            if (!RobokassaService.IsExpectedAmount(outSum, payment.Amount))
                 logger.LogWarning("Счёт {InvoiceId} оплачен на сумму {Sum}, ожидалась другая.", invoiceId, outSum);
 
-            // Повторное уведомление о том же счёте: лицензия уже выпущена.
+            // Повторное уведомление о том же счёте: всё уже сделано.
             if (payment.Status == Payment.StatusPaid)
+            {
+                // …кроме случая, когда доска в прошлый раз не ответила.
+                if (payment.Kind == Payment.KindSubscription && payment.NotifiedAt is null)
+                    await board.NotifyAsync(payment, cancellationToken);
+
                 return Results.Text($"OK{invoiceId}", "text/plain");
+            }
+
+            // Подписка на онлайн-доску: ключ не выпускается и письмо с ним не
+            // уходит — срок продлевает сама доска, узнав об оплате.
+            if (payment.Kind == Payment.KindSubscription)
+            {
+                await purchases.MarkPaidAsync(payment, cancellationToken);
+                await board.NotifyAsync(payment, cancellationToken);
+
+                // Робокассе отвечаем «принято» в любом случае: деньги уже
+                // взяты, и повторять уведомление ей незачем — недоставленное
+                // доске подберёт повтор на нашей стороне.
+                logger.LogInformation("Счёт {InvoiceId} оплачен: подписка доски.", invoiceId);
+                return Results.Text($"OK{invoiceId}", "text/plain");
+            }
 
             var license = await licenses.IssueForPaymentAsync(
                 payment.Email, PaymentHash.ForRobokassa(invoiceId), cancellationToken);

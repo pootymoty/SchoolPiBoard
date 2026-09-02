@@ -87,6 +87,14 @@ public class LicenseDbContext : DbContext
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             entity.Property(x => x.PaidAt).HasColumnName("paid_at");
             entity.Property(x => x.LicenseId).HasColumnName("license_id");
+            entity.Property(x => x.Kind).HasColumnName("kind").IsRequired();
+            entity.Property(x => x.BoardUserId).HasColumnName("board_user_id");
+            entity.Property(x => x.PlanCode).HasColumnName("plan_code");
+            entity.Property(x => x.PeriodDays).HasColumnName("period_days");
+            entity.Property(x => x.Description).HasColumnName("description");
+            entity.Property(x => x.NotifiedAt).HasColumnName("notified_at");
+            entity.Property(x => x.AutoRenew).HasColumnName("auto_renew");
+            entity.Property(x => x.PreviousInvoiceId).HasColumnName("previous_invoice_id");
 
             entity.HasIndex(x => x.InvoiceId).IsUnique();
         });

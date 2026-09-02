@@ -18,6 +18,7 @@ builder.Services.AddSingleton(options.Smtp);
 builder.Services.AddSingleton(options.Robokassa);
 builder.Services.AddSingleton(options.Trial);
 builder.Services.AddSingleton(options.Web);
+builder.Services.AddSingleton(options.Board);
 
 // Повторные попытки Npgsql намеренно не включены: сервис сам открывает
 // транзакции при активации, а стратегия повторов с ними несовместима.
@@ -28,6 +29,13 @@ builder.Services.AddSingleton<RobokassaService>();
 builder.Services.AddScoped<LicenseService>();
 builder.Services.AddScoped<TrialService>();
 builder.Services.AddScoped<PurchaseService>();
+builder.Services.AddScoped<BoardNotifier>();
+
+// Уведомления доске уходят обычным HTTP-клиентом. Повтор нужен
+// потому, что деньги уже взяты: доска могла быть недоступна ровно
+// в ту минуту, когда пришла оплата.
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<BoardNotifyRetryService>();
 
 if (options.Smtp.IsConfigured)
     builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
@@ -84,11 +92,15 @@ app.UseRateLimiter();
 app.MapLicenseEndpoints();
 app.MapTrialEndpoints();
 app.MapPurchaseEndpoints();
+app.MapBoardEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 if (!options.Smtp.IsConfigured)
     app.Logger.LogWarning("SMTP не настроен: письма с ключами пишутся в лог вместо отправки.");
+
+if (!options.Board.IsConfigured)
+    app.Logger.LogWarning("Связь с онлайн-доской не настроена: подписки выключены (BOARD_SHARED_SECRET, Board:CallbackUrl).");
 
 if (!options.Robokassa.IsConfigured)
     app.Logger.LogWarning("Робокасса не настроена: покупка недоступна, /purchase/start вернёт 503.");

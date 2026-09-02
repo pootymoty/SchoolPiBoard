@@ -36,7 +36,11 @@ jobs:
 
       # Готовый архив кладём в релиз: по такой ссылке его можно забрать
       # обычным curl, без токенов и без установки чего-либо на сервер.
+      # Только с основной ветки. Иначе сборка из любой ветки заменяла бы
+      # боевой архив в релизе license-server-latest — и на сервер уехало бы
+      # непроверенное.
       - name: Publish release
+        if: github.ref_name == github.event.repository.default_branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
