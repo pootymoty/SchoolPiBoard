@@ -39,7 +39,7 @@ public sealed class RobokassaService
     /// лицензии они одни на всех.
     /// </summary>
     public string BuildPaymentUrl(long invoiceId, string email)
-        => BuildPaymentUrl(invoiceId, email, _options.Amount, _options.Description, recurring: false);
+        => BuildPaymentUrl(_options, invoiceId, email, _options.Amount, _options.Description, recurring: false);
 
     /// <summary>
     /// Ссылка на оплату с собственной суммой и назначением — этим платят
@@ -51,12 +51,16 @@ public sealed class RobokassaService
     /// </summary>
     public string BuildPaymentUrl(
         long invoiceId, string email, decimal amount, string description, bool recurring)
+        => BuildPaymentUrl(_board, invoiceId, email, amount, description, recurring);
+
+    private static string BuildPaymentUrl(
+        RobokassaOptions shop, long invoiceId, string email, decimal amount, string description, bool recurring)
     {
         var sum = FormatSum(amount);
 
         var parameters = new List<string>
         {
-            "MerchantLogin=" + Uri.EscapeDataString(_options.MerchantLogin),
+            "MerchantLogin=" + Uri.EscapeDataString(shop.MerchantLogin),
             "OutSum=" + Uri.EscapeDataString(sum),
             "InvId=" + invoiceId.ToString(CultureInfo.InvariantCulture),
             "Description=" + Uri.EscapeDataString(description),
@@ -70,9 +74,9 @@ public sealed class RobokassaService
         // даёт ошибку 29 «неверный параметр SignatureValue», и выглядит она
         // как проблема с магазином, а не с подписью.
         string? receiptJson = null;
-        if (_options.SendReceipt)
+        if (shop.SendReceipt)
         {
-            receiptJson = BuildReceiptJson(amount, description);
+            receiptJson = BuildReceiptJson(shop, amount, description);
             parameters.Add("Receipt=" + Uri.EscapeDataString(receiptJson));
         }
 
@@ -82,16 +86,16 @@ public sealed class RobokassaService
         if (recurring)
             parameters.Add("Recurring=true");
 
-        if (_options.IsTest)
+        if (shop.IsTest)
             parameters.Add("IsTest=1");
 
         var signatureSource = receiptJson is null
-            ? $"{_options.MerchantLogin}:{sum}:{invoiceId}:{_options.Password1}"
-            : $"{_options.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{_options.Password1}";
+            ? $"{shop.MerchantLogin}:{sum}:{invoiceId}:{shop.Password1}"
+            : $"{shop.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{shop.Password1}";
 
         parameters.Add("SignatureValue=" + Md5(signatureSource));
 
-        return _options.PaymentUrl + "?" + string.Join("&", parameters);
+        return shop.PaymentUrl + "?" + string.Join("&", parameters);
     }
 
     /// <summary>
@@ -100,6 +104,10 @@ public sealed class RobokassaService
     /// подпись по присланным строкам, а не по нашим представлениям о них.
     /// </summary>
     public bool VerifyResultSignature(string? outSum, string? invoiceId, string? signature)
+        => VerifyResultSignature(_options, outSum, invoiceId, signature);
+
+    public static bool VerifyResultSignature(
+        RobokassaOptions shop, string? outSum, string? invoiceId, string? signature)
     {
         if (string.IsNullOrWhiteSpace(outSum) ||
             string.IsNullOrWhiteSpace(invoiceId) ||
@@ -108,7 +116,7 @@ public sealed class RobokassaService
             return false;
         }
 
-        var expected = Md5($"{outSum}:{invoiceId}:{_options.Password2}");
+        var expected = Md5($"{outSum}:{invoiceId}:{shop.Password2}");
 
         return CryptographicOperations.FixedTimeEquals(
             Encoding.ASCII.GetBytes(expected),
@@ -138,12 +146,12 @@ public sealed class RobokassaService
 
         var form = new Dictionary<string, string>
         {
-            ["MerchantLogin"] = _options.MerchantLogin,
+            ["MerchantLogin"] = _board.MerchantLogin,
             ["InvoiceID"] = invoiceId.ToString(CultureInfo.InvariantCulture),
             ["PreviousInvoiceID"] = previousInvoiceId.ToString(CultureInfo.InvariantCulture),
             ["OutSum"] = sum,
             ["Description"] = description,
-            ["SignatureValue"] = Md5($"{_options.MerchantLogin}:{sum}:{invoiceId}:{_options.Password1}")
+            ["SignatureValue"] = Md5($"{_board.MerchantLogin}:{sum}:{invoiceId}:{_board.Password1}")
         };
 
         // Чек здесь намеренно не передаётся: в подписи повторного списания
@@ -152,7 +160,7 @@ public sealed class RobokassaService
         // списаний чек формирует Робокасса по данным первого платежа.
 
         using var response = await http.PostAsync(
-            _options.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
+            _board.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -163,7 +171,7 @@ public sealed class RobokassaService
 
     public static string FormatSum(decimal amount) => amount.ToString("0.00", CultureInfo.InvariantCulture);
 
-    private string BuildReceiptJson(decimal amount, string description)
+    private static string BuildReceiptJson(RobokassaOptions shop, decimal amount, string description)
     {
         var receipt = new Dictionary<string, object>();
 
@@ -171,8 +179,8 @@ public sealed class RobokassaService
         // Робокассы (osn, usn_income, …) режима НПД не содержит, а пустая
         // строка отклоняется так же, как неизвестное значение. Поэтому поле
         // не передаётся вовсе — тогда настройка берётся из кабинета магазина.
-        if (!string.IsNullOrWhiteSpace(_options.TaxSystem))
-            receipt["sno"] = _options.TaxSystem;
+        if (!string.IsNullOrWhiteSpace(shop.TaxSystem))
+            receipt["sno"] = shop.TaxSystem;
 
         receipt["items"] = new[]
         {
@@ -182,8 +190,8 @@ public sealed class RobokassaService
                 quantity = 1,
                 sum = amount,
                 payment_method = "full_payment",
-                payment_object = _options.PaymentObject,
-                tax = _options.Tax
+                payment_object = shop.PaymentObject,
+                tax = shop.Tax
             }
         };
 

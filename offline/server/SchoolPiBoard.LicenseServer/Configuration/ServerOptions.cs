@@ -11,7 +11,21 @@ public sealed class ServerOptions
     public required string ConnectionString { get; init; }
     public required LicenseOptions License { get; init; }
     public required SmtpOptions Smtp { get; init; }
+    /// <summary>Магазин, через который продаются офлайн-лицензии.</summary>
     public required RobokassaOptions Robokassa { get; init; }
+
+    /// <summary>
+    /// Магазин подписок онлайн-доски.
+    ///
+    /// Отдельный намеренно: рекуррентные платежи Робокасса включает
+    /// магазину, а не продавцу, и трогать ради них работающий магазин
+    /// ключей не стоит. Плюс у подписки свой сайт, своя оферта и свой
+    /// товар в чеке.
+    ///
+    /// Не настроен — подписки идут через магазин лицензий, как если бы
+    /// магазин был один.
+    /// </summary>
+    public required RobokassaOptions RobokassaBoard { get; init; }
     public required TrialOptions Trial { get; init; }
     public required WebOptions Web { get; init; }
     public required BoardOptions Board { get; init; }
@@ -76,6 +90,27 @@ public sealed class ServerOptions
             {
                 Days = ReadInt(configuration["Trial:Days"], 3),
                 OneTrialPerEmail = ReadBool(configuration["Trial:OneTrialPerEmail"], true)
+            },
+
+            RobokassaBoard = new RobokassaOptions
+            {
+                MerchantLogin = configuration["Robokassa:Board:MerchantLogin"] ?? string.Empty,
+                Password1 = First(configuration["Robokassa:Board:Password1"], "ROBOKASSA_BOARD_PASSWORD1"),
+                Password2 = First(configuration["Robokassa:Board:Password2"], "ROBOKASSA_BOARD_PASSWORD2"),
+                // Цена подписки приходит от доски: тарифы и сроки живут там.
+                Amount = ReadDecimal(configuration["Robokassa:Board:Amount"], 1m),
+                Description = configuration["Robokassa:Board:Description"] ?? "Подписка SchoolPiBoard",
+                PaymentUrl = configuration["Robokassa:Board:PaymentUrl"]
+                    ?? configuration["Robokassa:PaymentUrl"]
+                    ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
+                IsTest = ReadBool(configuration["Robokassa:Board:IsTest"], false),
+                RecurringUrl = configuration["Robokassa:Board:RecurringUrl"]
+                    ?? configuration["Robokassa:RecurringUrl"]
+                    ?? "https://auth.robokassa.ru/Merchant/Recurring",
+                SendReceipt = ReadBool(configuration["Robokassa:Board:SendReceipt"], false),
+                TaxSystem = configuration["Robokassa:Board:TaxSystem"] ?? configuration["Robokassa:TaxSystem"] ?? string.Empty,
+                Tax = configuration["Robokassa:Board:Tax"] ?? configuration["Robokassa:Tax"] ?? "none",
+                PaymentObject = configuration["Robokassa:Board:PaymentObject"] ?? "service"
             },
 
             Board = new BoardOptions

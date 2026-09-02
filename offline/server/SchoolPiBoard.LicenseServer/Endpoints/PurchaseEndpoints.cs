@@ -118,20 +118,25 @@ public static class PurchaseEndpoints
             var invoice = Value("InvId");
             var signature = Value("SignatureValue");
 
-            if (!robokassa.VerifyResultSignature(outSum, invoice, signature))
-            {
-                logger.LogWarning("Уведомление об оплате отклонено: подпись не сходится.");
-                return Results.Text("bad sign", "text/plain", null, StatusCodes.Status400BadRequest);
-            }
-
             if (!long.TryParse(invoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var invoiceId))
                 return Results.Text("bad invoice", "text/plain", null, StatusCodes.Status400BadRequest);
 
+            // Счёт ищем до проверки подписи: лицензии и подписки продаются
+            // через разные магазины Робокассы, и подпись считается паролем
+            // того из них, который этот счёт выставил. Чтение по номеру
+            // ничего не меняет — до проверки подписи не делается ничего.
             var payment = await purchases.FindByInvoiceAsync(invoiceId, cancellationToken);
             if (payment is null)
             {
                 logger.LogError("Оплата по неизвестному счёту {InvoiceId}.", invoiceId);
                 return Results.Text("unknown invoice", "text/plain", null, StatusCodes.Status400BadRequest);
+            }
+
+            if (!RobokassaService.VerifyResultSignature(
+                    robokassa.ShopFor(payment.Kind), outSum, invoice, signature))
+            {
+                logger.LogWarning("Уведомление об оплате отклонено: подпись не сходится.");
+                return Results.Text("bad sign", "text/plain", null, StatusCodes.Status400BadRequest);
             }
 
             // Подпись уже подтвердила сумму, но расхождение с ценой стоит

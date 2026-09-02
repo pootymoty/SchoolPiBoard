@@ -99,6 +99,11 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 if (!options.Smtp.IsConfigured)
     app.Logger.LogWarning("SMTP не настроен: письма с ключами пишутся в лог вместо отправки.");
 
+if (options.Board.IsConfigured && !options.RobokassaBoard.IsConfigured)
+    app.Logger.LogWarning(
+        "Отдельный магазин подписок не настроен: подписки пойдут через магазин лицензий "
+        + "(Robokassa:Board:MerchantLogin, ROBOKASSA_BOARD_PASSWORD1/2).");
+
 if (!options.Board.IsConfigured)
     app.Logger.LogWarning("Связь с онлайн-доской не настроена: подписки выключены (BOARD_SHARED_SECRET, Board:CallbackUrl).");
 

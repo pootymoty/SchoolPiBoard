@@ -44,7 +44,7 @@ public static class BoardEndpoints
     public static void MapBoardEndpoints(this WebApplication app)
     {
         app.MapPost("/board/invoice", async (
-            HttpRequest http, BoardOptions board, RobokassaOptions robokassa,
+            HttpRequest http, BoardOptions board,
             PurchaseService purchases, RobokassaService payments,
             ILoggerFactory loggers, CancellationToken ct) =>
         {
@@ -57,7 +57,7 @@ public static class BoardEndpoints
             if (request is null || !IsSane(request.UserId, request.Days, request.Amount))
                 return Results.BadRequest(new { message = "Заказ не разобран." });
 
-            if (!robokassa.IsConfigured)
+            if (!payments.CanSellSubscriptions)
             {
                 logger.LogError("Заказ подписки при ненастроенной Робокассе.");
                 return Results.Json(new { message = "Оплата временно недоступна." }, statusCode: 503);
@@ -95,7 +95,7 @@ public static class BoardEndpoints
         // Здесь только списание: карта привязана к первому счёту, и Робокасса
         // спишет по нему без участия человека.
         app.MapPost("/board/recurring", async (
-            HttpRequest http, BoardOptions board, RobokassaOptions robokassa,
+            HttpRequest http, BoardOptions board,
             PurchaseService purchases, RobokassaService payments, IHttpClientFactory clients,
             ILoggerFactory loggers, CancellationToken ct) =>
         {
@@ -108,7 +108,7 @@ public static class BoardEndpoints
             if (request is null || !IsSane(request.UserId, request.Days, request.Amount))
                 return Results.BadRequest(new { message = "Заказ не разобран." });
 
-            if (!robokassa.IsConfigured)
+            if (!payments.CanSellSubscriptions)
                 return Results.Json(new { message = "Оплата временно недоступна." }, statusCode: 503);
 
             var first = await purchases.FindByInvoiceAsync(request.PreviousInvoiceId, ct);
