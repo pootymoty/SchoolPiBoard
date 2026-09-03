@@ -100,6 +100,7 @@ public static class PurchaseEndpoints
             [FromServices] LicenseService licenses,
             [FromServices] RobokassaService robokassa,
             [FromServices] IEmailSender emails,
+            [FromServices] BoardNotifier board,
             [FromServices] ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
@@ -117,15 +118,13 @@ public static class PurchaseEndpoints
             var invoice = Value("InvId");
             var signature = Value("SignatureValue");
 
-            if (!robokassa.VerifyResultSignature(outSum, invoice, signature))
-            {
-                logger.LogWarning("Уведомление об оплате отклонено: подпись не сходится.");
-                return Results.Text("bad sign", "text/plain", null, StatusCodes.Status400BadRequest);
-            }
-
             if (!long.TryParse(invoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var invoiceId))
                 return Results.Text("bad invoice", "text/plain", null, StatusCodes.Status400BadRequest);
 
+            // Счёт ищем до проверки подписи: лицензии и подписки продаются
+            // через разные магазины Робокассы, и подпись считается паролем
+            // того из них, который этот счёт выставил. Чтение по номеру
+            // ничего не меняет — до проверки подписи не делается ничего.
             var payment = await purchases.FindByInvoiceAsync(invoiceId, cancellationToken);
             if (payment is null)
             {
@@ -133,14 +132,41 @@ public static class PurchaseEndpoints
                 return Results.Text("unknown invoice", "text/plain", null, StatusCodes.Status400BadRequest);
             }
 
+            if (!RobokassaService.VerifyResultSignature(
+                    robokassa.ShopFor(payment.Kind), outSum, invoice, signature))
+            {
+                logger.LogWarning("Уведомление об оплате отклонено: подпись не сходится.");
+                return Results.Text("bad sign", "text/plain", null, StatusCodes.Status400BadRequest);
+            }
+
             // Подпись уже подтвердила сумму, но расхождение с ценой стоит
             // увидеть в логе: значит, цену поменяли в одном месте из двух.
-            if (!robokassa.IsExpectedAmount(outSum))
+            if (!RobokassaService.IsExpectedAmount(outSum, payment.Amount))
                 logger.LogWarning("Счёт {InvoiceId} оплачен на сумму {Sum}, ожидалась другая.", invoiceId, outSum);
 
-            // Повторное уведомление о том же счёте: лицензия уже выпущена.
+            // Повторное уведомление о том же счёте: всё уже сделано.
             if (payment.Status == Payment.StatusPaid)
+            {
+                // …кроме случая, когда доска в прошлый раз не ответила.
+                if (payment.Kind == Payment.KindSubscription && payment.NotifiedAt is null)
+                    await board.NotifyAsync(payment, cancellationToken);
+
                 return Results.Text($"OK{invoiceId}", "text/plain");
+            }
+
+            // Подписка на онлайн-доску: ключ не выпускается и письмо с ним не
+            // уходит — срок продлевает сама доска, узнав об оплате.
+            if (payment.Kind == Payment.KindSubscription)
+            {
+                await purchases.MarkPaidAsync(payment, cancellationToken);
+                await board.NotifyAsync(payment, cancellationToken);
+
+                // Робокассе отвечаем «принято» в любом случае: деньги уже
+                // взяты, и повторять уведомление ей незачем — недоставленное
+                // доске подберёт повтор на нашей стороне.
+                logger.LogInformation("Счёт {InvoiceId} оплачен: подписка доски.", invoiceId);
+                return Results.Text($"OK{invoiceId}", "text/plain");
+            }
 
             var license = await licenses.IssueForPaymentAsync(
                 payment.Email, PaymentHash.ForRobokassa(invoiceId), cancellationToken);

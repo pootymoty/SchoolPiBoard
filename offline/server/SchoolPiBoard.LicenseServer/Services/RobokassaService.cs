@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using SchoolPiBoard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Data;
 
 namespace SchoolPiBoard.LicenseServer.Services;
 
@@ -27,24 +28,70 @@ public sealed class RobokassaService
 
     private readonly RobokassaOptions _options;
 
-    public RobokassaService(RobokassaOptions options)
+    /// <summary>
+    /// Магазин подписок — отдельный от магазина лицензий, и запасного
+    /// варианта у него нет. Подписка и лицензия — разные товары с разными
+    /// чеками, офертой и сайтом; провести подписку через кассу лицензий
+    /// значило бы выбить покупателю чек не за то, что он купил.
+    ///
+    /// Не настроен — подписки не продаются вовсе.
+    /// </summary>
+    private readonly RobokassaOptions _board;
+
+    public RobokassaService(ServerOptions server)
     {
-        _options = options;
+        _options = server.Robokassa;
+
+        _board = server.RobokassaBoard;
     }
 
     public decimal Amount => _options.Amount;
 
-    /// <summary>Ссылка, на которую нужно отправить покупателя.</summary>
+    /// <summary>
+    /// Можно ли продавать подписки. Проверяется до обращения к Робокассе:
+    /// не настроен свой магазин — покупателю честное «оплата пока
+    /// недоступна», а не счёт из чужой кассы.
+    /// </summary>
+    public bool CanSellSubscriptions => _board.IsConfigured;
+
+    /// <summary>
+    /// Каким магазином выставлен счёт. Уведомление об оплате приходит на
+    /// один ResultURL от обоих, а подпись считается паролем того магазина,
+    /// который счёт и выставил.
+    /// </summary>
+    public RobokassaOptions ShopFor(string? kind)
+        => kind == Payment.KindSubscription ? _board : _options;
+
+    /// <summary>
+    /// Ссылка на оплату лицензии. Сумма и назначение — из настроек: у
+    /// лицензии они одни на всех.
+    /// </summary>
     public string BuildPaymentUrl(long invoiceId, string email)
+        => BuildPaymentUrl(_options, invoiceId, email, _options.Amount, _options.Description, recurring: false);
+
+    /// <summary>
+    /// Ссылка на оплату с собственной суммой и назначением — этим платят
+    /// подписку на онлайн-доску, где цена зависит от тарифа и срока.
+    ///
+    /// <paramref name="recurring"/> помечает счёт как разрешающий повторные
+    /// списания. Робокасса разрешает их только по такому счёту, и решить
+    /// это можно лишь один раз — при первой оплате.
+    /// </summary>
+    public string BuildPaymentUrl(
+        long invoiceId, string email, decimal amount, string description, bool recurring)
+        => BuildPaymentUrl(_board, invoiceId, email, amount, description, recurring);
+
+    private static string BuildPaymentUrl(
+        RobokassaOptions shop, long invoiceId, string email, decimal amount, string description, bool recurring)
     {
-        var sum = FormatSum(_options.Amount);
+        var sum = FormatSum(amount);
 
         var parameters = new List<string>
         {
-            "MerchantLogin=" + Uri.EscapeDataString(_options.MerchantLogin),
+            "MerchantLogin=" + Uri.EscapeDataString(shop.MerchantLogin),
             "OutSum=" + Uri.EscapeDataString(sum),
             "InvId=" + invoiceId.ToString(CultureInfo.InvariantCulture),
-            "Description=" + Uri.EscapeDataString(_options.Description),
+            "Description=" + Uri.EscapeDataString(description),
             "Culture=ru",
             "Encoding=utf-8"
         };
@@ -55,25 +102,28 @@ public sealed class RobokassaService
         // даёт ошибку 29 «неверный параметр SignatureValue», и выглядит она
         // как проблема с магазином, а не с подписью.
         string? receiptJson = null;
-        if (_options.SendReceipt)
+        if (shop.SendReceipt)
         {
-            receiptJson = BuildReceiptJson();
+            receiptJson = BuildReceiptJson(shop, amount, description);
             parameters.Add("Receipt=" + Uri.EscapeDataString(receiptJson));
         }
 
         if (!string.IsNullOrWhiteSpace(email))
             parameters.Add("Email=" + Uri.EscapeDataString(email));
 
-        if (_options.IsTest)
+        if (recurring)
+            parameters.Add("Recurring=true");
+
+        if (shop.IsTest)
             parameters.Add("IsTest=1");
 
         var signatureSource = receiptJson is null
-            ? $"{_options.MerchantLogin}:{sum}:{invoiceId}:{_options.Password1}"
-            : $"{_options.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{_options.Password1}";
+            ? $"{shop.MerchantLogin}:{sum}:{invoiceId}:{shop.Password1}"
+            : $"{shop.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{shop.Password1}";
 
         parameters.Add("SignatureValue=" + Md5(signatureSource));
 
-        return _options.PaymentUrl + "?" + string.Join("&", parameters);
+        return shop.PaymentUrl + "?" + string.Join("&", parameters);
     }
 
     /// <summary>
@@ -82,6 +132,10 @@ public sealed class RobokassaService
     /// подпись по присланным строкам, а не по нашим представлениям о них.
     /// </summary>
     public bool VerifyResultSignature(string? outSum, string? invoiceId, string? signature)
+        => VerifyResultSignature(_options, outSum, invoiceId, signature);
+
+    public static bool VerifyResultSignature(
+        RobokassaOptions shop, string? outSum, string? invoiceId, string? signature)
     {
         if (string.IsNullOrWhiteSpace(outSum) ||
             string.IsNullOrWhiteSpace(invoiceId) ||
@@ -90,7 +144,7 @@ public sealed class RobokassaService
             return false;
         }
 
-        var expected = Md5($"{outSum}:{invoiceId}:{_options.Password2}");
+        var expected = Md5($"{outSum}:{invoiceId}:{shop.Password2}");
 
         return CryptographicOperations.FixedTimeEquals(
             Encoding.ASCII.GetBytes(expected),
@@ -98,13 +152,54 @@ public sealed class RobokassaService
     }
 
     /// <summary>Совпадает ли оплаченная сумма с ценой лицензии.</summary>
-    public bool IsExpectedAmount(string? outSum)
+    public bool IsExpectedAmount(string? outSum) => IsExpectedAmount(outSum, _options.Amount);
+
+    /// <summary>Совпадает ли оплаченная сумма с той, на которую выставлен счёт.</summary>
+    public static bool IsExpectedAmount(string? outSum, decimal expected)
         => decimal.TryParse(outSum, NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
-           && value == _options.Amount;
+           && value == expected;
+
+    /// <summary>
+    /// Повторное списание по ранее оплаченному счёту.
+    ///
+    /// Форму покупателю не показывают: Робокасса списывает с карты, которой
+    /// он платил в первый раз, и присылает обычное уведомление на ResultURL —
+    /// дальше всё идёт по общему пути.
+    /// </summary>
+    public async Task<bool> ChargeRecurringAsync(
+        HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
+        CancellationToken cancellationToken)
+    {
+        var sum = FormatSum(amount);
+
+        var form = new Dictionary<string, string>
+        {
+            ["MerchantLogin"] = _board.MerchantLogin,
+            ["InvoiceID"] = invoiceId.ToString(CultureInfo.InvariantCulture),
+            ["PreviousInvoiceID"] = previousInvoiceId.ToString(CultureInfo.InvariantCulture),
+            ["OutSum"] = sum,
+            ["Description"] = description,
+            ["SignatureValue"] = Md5($"{_board.MerchantLogin}:{sum}:{invoiceId}:{_board.Password1}")
+        };
+
+        // Чек здесь намеренно не передаётся: в подписи повторного списания
+        // его место не проверено живой оплатой, а неверная подпись даёт
+        // отказ, который выглядит как поломка магазина. Для повторных
+        // списаний чек формирует Робокасса по данным первого платежа.
+
+        using var response = await http.PostAsync(
+            _board.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Робокасса отвечает строкой: OK при успехе, иначе описание ошибки.
+        return response.IsSuccessStatusCode
+            && body.TrimStart().StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static string FormatSum(decimal amount) => amount.ToString("0.00", CultureInfo.InvariantCulture);
 
-    private string BuildReceiptJson()
+    private static string BuildReceiptJson(RobokassaOptions shop, decimal amount, string description)
     {
         var receipt = new Dictionary<string, object>();
 
@@ -112,19 +207,19 @@ public sealed class RobokassaService
         // Робокассы (osn, usn_income, …) режима НПД не содержит, а пустая
         // строка отклоняется так же, как неизвестное значение. Поэтому поле
         // не передаётся вовсе — тогда настройка берётся из кабинета магазина.
-        if (!string.IsNullOrWhiteSpace(_options.TaxSystem))
-            receipt["sno"] = _options.TaxSystem;
+        if (!string.IsNullOrWhiteSpace(shop.TaxSystem))
+            receipt["sno"] = shop.TaxSystem;
 
         receipt["items"] = new[]
         {
             new
             {
-                name = _options.Description,
+                name = description,
                 quantity = 1,
-                sum = _options.Amount,
+                sum = amount,
                 payment_method = "full_payment",
-                payment_object = _options.PaymentObject,
-                tax = _options.Tax
+                payment_object = shop.PaymentObject,
+                tax = shop.Tax
             }
         };
 
