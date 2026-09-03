@@ -101,8 +101,9 @@ if (!options.Smtp.IsConfigured)
 
 if (options.Board.IsConfigured && !options.RobokassaBoard.IsConfigured)
     app.Logger.LogWarning(
-        "Отдельный магазин подписок не настроен: подписки пойдут через магазин лицензий "
-        + "(Robokassa:Board:MerchantLogin, ROBOKASSA_BOARD_PASSWORD1/2).");
+        "Магазин подписок не настроен: доска получит отказ на выставление счёта "
+        + "(Robokassa:Board:MerchantLogin, ROBOKASSA_BOARD_PASSWORD1/2). "
+        + "Магазин лицензий для подписок не используется намеренно: другой товар и другой чек.");
 
 if (!options.Board.IsConfigured)
     app.Logger.LogWarning("Связь с онлайн-доской не настроена: подписки выключены (BOARD_SHARED_SECRET, Board:CallbackUrl).");
