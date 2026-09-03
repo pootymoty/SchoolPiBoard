@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using SchoolPiBoard.LicenseServer.Configuration;
+using SchoolPiBoard.LicenseServer.Data;
 
 namespace SchoolPiBoard.LicenseServer.Services;
 
@@ -27,12 +28,39 @@ public sealed class RobokassaService
 
     private readonly RobokassaOptions _options;
 
-    public RobokassaService(RobokassaOptions options)
+    /// <summary>
+    /// Магазин подписок. Рекуррентные платежи Робокасса включает магазину,
+    /// а не продавцу, поэтому у подписки он свой — трогать ради них
+    /// работающий магазин лицензий незачем.
+    /// </summary>
+    private readonly RobokassaOptions _board;
+
+    public RobokassaService(ServerOptions server)
     {
-        _options = options;
+        _options = server.Robokassa;
+
+        // Второй магазин не заведён — подписки идут через магазин лицензий.
+        // Так витрина одна, но всё остальное работает; альтернатива —
+        // отказывать в оплате из-за ненастроенной необязательной части.
+        _board = server.RobokassaBoard.IsConfigured ? server.RobokassaBoard : server.Robokassa;
     }
 
     public decimal Amount => _options.Amount;
+
+    /// <summary>
+    /// Можно ли вообще продавать подписки. Проверяется до обращения к
+    /// Робокассе: счёт, выставленный ненастроенным магазином, покупатель
+    /// увидит как поломку, а не как «оплата пока недоступна».
+    /// </summary>
+    public bool CanSellSubscriptions => _board.IsConfigured;
+
+    /// <summary>
+    /// Каким магазином выставлен счёт. Уведомление об оплате приходит на
+    /// один ResultURL от обоих, а подпись считается паролем того магазина,
+    /// который счёт и выставил.
+    /// </summary>
+    public RobokassaOptions ShopFor(string? kind)
+        => kind == Payment.KindSubscription ? _board : _options;
 
     /// <summary>
     /// Ссылка на оплату лицензии. Сумма и назначение — из настроек: у
