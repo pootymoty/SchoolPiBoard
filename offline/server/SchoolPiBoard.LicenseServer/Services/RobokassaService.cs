@@ -178,14 +178,27 @@ public sealed class RobokassaService
             ["InvoiceID"] = invoiceId.ToString(CultureInfo.InvariantCulture),
             ["PreviousInvoiceID"] = previousInvoiceId.ToString(CultureInfo.InvariantCulture),
             ["OutSum"] = sum,
-            ["Description"] = description,
-            ["SignatureValue"] = Md5($"{_board.MerchantLogin}:{sum}:{invoiceId}:{_board.Password1}")
+            ["Description"] = description
         };
 
-        // Чек здесь намеренно не передаётся: в подписи повторного списания
-        // его место не проверено живой оплатой, а неверная подпись даёт
-        // отказ, который выглядит как поломка магазина. Для повторных
-        // списаний чек формирует Робокасса по данным первого платежа.
+        // Состав чека — и здесь тоже. Продление это отдельная продажа со
+        // своим чеком, и без номенклатуры он такой же неполный, как у
+        // первой оплаты. Место чека в подписи то же, что и в ссылке на
+        // оплату: между номером счёта и первым паролем. Кодирование формы
+        // делает HttpClient, а подписывается тот же минимизированный
+        // JSON — подписанная закодированная строка даёт ошибку 29, и
+        // выглядит она как проблема с магазином, а не с подписью.
+        string? receiptJson = null;
+        if (_board.SendReceipt)
+        {
+            receiptJson = BuildReceiptJson(_board, amount, description);
+            form["Receipt"] = receiptJson;
+        }
+
+        form["SignatureValue"] = Md5(
+            receiptJson is null
+                ? $"{_board.MerchantLogin}:{sum}:{invoiceId}:{_board.Password1}"
+                : $"{_board.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{_board.Password1}");
 
         using var response = await http.PostAsync(
             _board.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);

@@ -108,7 +108,12 @@ public sealed class ServerOptions
                 RecurringUrl = configuration["Robokassa:Board:RecurringUrl"]
                     ?? configuration["Robokassa:RecurringUrl"]
                     ?? "https://auth.robokassa.ru/Merchant/Recurring",
-                SendReceipt = ReadBool(configuration["Robokassa:Board:SendReceipt"], false),
+                // Состав чека включён по умолчанию, как и у магазина
+                // лицензий. Пока магазин подписок был тестовым, состав
+                // отключали, чтобы ошибка в нём не мешала налаживать
+                // саму оплату; на боевом магазине чек без номенклатуры —
+                // это чек, к которому есть вопросы у налоговой.
+                SendReceipt = ReadBool(configuration["Robokassa:Board:SendReceipt"], true),
                 TaxSystem = configuration["Robokassa:Board:TaxSystem"] ?? configuration["Robokassa:TaxSystem"] ?? string.Empty,
                 Tax = configuration["Robokassa:Board:Tax"] ?? configuration["Robokassa:Tax"] ?? "none",
                 PaymentObject = configuration["Robokassa:Board:PaymentObject"] ?? "service"
