@@ -83,6 +83,46 @@ public sealed class PurchaseService
         return payment;
     }
 
+    /// <summary>
+    /// Счёт за тариф ИИ-функций основного сайта — тот же приём, что и у
+    /// <see cref="CreateForBoardAsync"/>, номер из той же последовательности.
+    /// </summary>
+    public async Task<Payment> CreateForTariffsAsync(
+        long tariffUserId,
+        string email,
+        string planCode,
+        int days,
+        decimal amount,
+        string description,
+        bool autoRenew,
+        long? previousInvoiceId,
+        CancellationToken cancellationToken)
+    {
+        var invoiceId = await NextInvoiceIdAsync(cancellationToken);
+
+        var payment = new Payment
+        {
+            InvoiceId = invoiceId,
+            Email = email,
+            Amount = amount,
+            Provider = ProviderRobokassa,
+            Status = Payment.StatusPending,
+            CreatedAt = DateTime.UtcNow,
+            Kind = Payment.KindTariff,
+            TariffUserId = tariffUserId,
+            PlanCode = planCode,
+            PeriodDays = days,
+            Description = description,
+            AutoRenew = autoRenew,
+            PreviousInvoiceId = previousInvoiceId
+        };
+
+        _db.Payments.Add(payment);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return payment;
+    }
+
     /// <summary>Отмечает оплату подписки. Лицензия здесь не выпускается — её нет.</summary>
     public async Task MarkPaidAsync(Payment payment, CancellationToken cancellationToken)
     {

@@ -89,6 +89,7 @@ public class LicenseDbContext : DbContext
             entity.Property(x => x.LicenseId).HasColumnName("license_id");
             entity.Property(x => x.Kind).HasColumnName("kind").IsRequired();
             entity.Property(x => x.BoardUserId).HasColumnName("board_user_id");
+            entity.Property(x => x.TariffUserId).HasColumnName("tariff_user_id");
             entity.Property(x => x.PlanCode).HasColumnName("plan_code");
             entity.Property(x => x.PeriodDays).HasColumnName("period_days");
             entity.Property(x => x.Description).HasColumnName("description");

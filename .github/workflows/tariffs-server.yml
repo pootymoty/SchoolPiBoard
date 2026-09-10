@@ -1,0 +1,45 @@
+# Сборка сервиса тарифов основного сайта на стороне GitHub — тот же
+# приём, что и у license-server.yml: сервер слабый, SDK на нём не
+# ставится, распаковывается уже готовый архив.
+name: tariffs-server
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'main-site/server/**'
+      - '.github/workflows/tariffs-server.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish
+        run: >
+          dotnet publish main-site/server/SchoolPi.Tariffs/SchoolPi.Tariffs.csproj
+          -c Release -o publish
+
+      - name: Pack
+        run: tar -czf tariffs-server.tar.gz -C publish .
+
+      # Только с основной ветки — иначе сборка из любой ветки заменяла бы
+      # боевой архив в релизе tariffs-server-latest.
+      - name: Publish release
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete tariffs-server-latest --yes --cleanup-tag || true
+          gh release create tariffs-server-latest tariffs-server.tar.gz \
+            --title "Сервис тарифов основного сайта — последняя сборка" \
+            --notes "Собрано из ${{ github.sha }}. Распаковывается в /var/www/schoolpitariffs/api."
