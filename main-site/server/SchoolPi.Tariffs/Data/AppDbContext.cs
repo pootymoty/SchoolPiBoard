@@ -20,11 +20,14 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             entity.Property(x => x.ExternalUserId).HasColumnName("external_user_id");
             entity.Property(x => x.Plan).HasColumnName("plan").IsRequired();
-            entity.Property(x => x.StartedAt).HasColumnName("started_at");
-            entity.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(x => x.StartsAt).HasColumnName("starts_at");
+            entity.Property(x => x.EndsAt).HasColumnName("ends_at");
+            entity.Property(x => x.AutoRenew).HasColumnName("auto_renew");
+            entity.Property(x => x.InvoiceId).HasColumnName("invoice_id");
+            entity.Property(x => x.RenewalNoticeAt).HasColumnName("renewal_notice_at");
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
-            entity.HasIndex(x => x.ExternalUserId).IsUnique();
+            entity.HasIndex(x => x.ExternalUserId);
         });
 
         model.Entity<Payment>(entity =>
@@ -36,7 +39,9 @@ public class AppDbContext : DbContext
             entity.Property(x => x.InvoiceId).HasColumnName("invoice_id");
             entity.Property(x => x.Plan).HasColumnName("plan").IsRequired();
             entity.Property(x => x.Amount).HasColumnName("amount").HasPrecision(12, 2);
+            entity.Property(x => x.AutoRenew).HasColumnName("auto_renew");
             entity.Property(x => x.Status).HasColumnName("status").IsRequired();
+            entity.Property(x => x.ConsentText).HasColumnName("consent_text");
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             entity.Property(x => x.PaidAt).HasColumnName("paid_at");
             entity.HasIndex(x => x.InvoiceId).IsUnique();

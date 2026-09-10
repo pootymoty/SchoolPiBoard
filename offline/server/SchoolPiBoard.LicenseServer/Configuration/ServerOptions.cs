@@ -27,9 +27,22 @@ public sealed class ServerOptions
     /// тот товар, по чужой оферте и с чужого сайта.
     /// </summary>
     public required RobokassaOptions RobokassaBoard { get; init; }
+
+    /// <summary>
+    /// Магазин тарифов ИИ-функций основного сайта (school-pi.online).
+    ///
+    /// Третий отдельный магазин по тому же принципу, что и у доски: у
+    /// тарифов свой товар, своя оферта, свой сайт — и рекуррентные
+    /// платежи Робокасса включает магазину, а не продавцу в целом.
+    /// </summary>
+    public required RobokassaOptions RobokassaTariffs { get; init; }
+
     public required TrialOptions Trial { get; init; }
     public required WebOptions Web { get; init; }
     public required BoardOptions Board { get; init; }
+
+    /// <summary>Связь с сервисом тарифов основного сайта — тот же приём, что и <see cref="Board"/>.</summary>
+    public required TariffsOptions Tariffs { get; init; }
 
     /// <summary>
     /// Собирает настройки и сразу проверяет их. В боевом режиме отсутствие
@@ -123,6 +136,33 @@ public sealed class ServerOptions
             {
                 SharedSecret = First(configuration["Board:SharedSecret"], "BOARD_SHARED_SECRET"),
                 CallbackUrl = (configuration["Board:CallbackUrl"] ?? string.Empty).TrimEnd('/')
+            },
+
+            RobokassaTariffs = new RobokassaOptions
+            {
+                MerchantLogin = configuration["Robokassa:Tariffs:MerchantLogin"] ?? string.Empty,
+                Password1 = First(configuration["Robokassa:Tariffs:Password1"], "ROBOKASSA_TARIFFS_PASSWORD1"),
+                Password2 = First(configuration["Robokassa:Tariffs:Password2"], "ROBOKASSA_TARIFFS_PASSWORD2"),
+                // Цена приходит от сервиса тарифов: тарифы и сроки живут там.
+                Amount = ReadDecimal(configuration["Robokassa:Tariffs:Amount"], 1m),
+                Description = configuration["Robokassa:Tariffs:Description"] ?? "Тариф school-pi.online",
+                PaymentUrl = configuration["Robokassa:Tariffs:PaymentUrl"]
+                    ?? configuration["Robokassa:PaymentUrl"]
+                    ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
+                IsTest = ReadBool(configuration["Robokassa:Tariffs:IsTest"], false),
+                RecurringUrl = configuration["Robokassa:Tariffs:RecurringUrl"]
+                    ?? configuration["Robokassa:RecurringUrl"]
+                    ?? "https://auth.robokassa.ru/Merchant/Recurring",
+                SendReceipt = ReadBool(configuration["Robokassa:Tariffs:SendReceipt"], true),
+                TaxSystem = configuration["Robokassa:Tariffs:TaxSystem"] ?? configuration["Robokassa:TaxSystem"] ?? string.Empty,
+                Tax = configuration["Robokassa:Tariffs:Tax"] ?? configuration["Robokassa:Tax"] ?? "none",
+                PaymentObject = configuration["Robokassa:Tariffs:PaymentObject"] ?? "service"
+            },
+
+            Tariffs = new TariffsOptions
+            {
+                SharedSecret = First(configuration["Tariffs:SharedSecret"], "TARIFFS_SHARED_SECRET"),
+                CallbackUrl = (configuration["Tariffs:CallbackUrl"] ?? string.Empty).TrimEnd('/')
             },
 
             Web = new WebOptions
@@ -298,6 +338,25 @@ public sealed class BoardOptions
     public required string SharedSecret { get; init; }
 
     /// <summary>Куда сообщать об оплате, например https://board.school-pi.online/api/billing/callback.</summary>
+    public required string CallbackUrl { get; init; }
+
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(SharedSecret) && !string.IsNullOrWhiteSpace(CallbackUrl);
+}
+
+/// <summary>
+/// Связь с сервисом тарифов основного сайта (school-pi.online).
+///
+/// Тот же приём, что и <see cref="BoardOptions"/>: сервис тарифов просит
+/// счёт, сервис ключей его выставляет и после оплаты сообщает об этом
+/// обратно. Пароли Робокассы остаются здесь и только здесь.
+/// </summary>
+public sealed class TariffsOptions
+{
+    /// <summary>Общий секрет сервиса тарифов и сервиса ключей. Пусто — тарифы выключены.</summary>
+    public required string SharedSecret { get; init; }
+
+    /// <summary>Куда сообщать об оплате, например https://school-pi.online/tariffs-api/callback.</summary>
     public required string CallbackUrl { get; init; }
 
     public bool IsConfigured =>

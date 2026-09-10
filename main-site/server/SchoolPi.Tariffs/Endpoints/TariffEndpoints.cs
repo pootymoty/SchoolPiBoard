@@ -1,11 +1,17 @@
-using System.Globalization;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SchoolPi.Tariffs.Configuration;
+using SchoolPi.Tariffs.Data;
 using SchoolPi.Tariffs.Services;
 
 namespace SchoolPi.Tariffs.Endpoints;
 
-public sealed record CheckoutRequest(int ExternalUserId, string Plan, string? Email);
+public sealed record CheckoutRequest(int ExternalUserId, string Email, string Plan, bool AutoRenew, string? Consent);
+public sealed record AutoRenewCancelRequest(int ExternalUserId);
+
+/// <summary>Сообщение сервера ключей об оплате — тот же вид, что у доски (PaidCallback в BillingEndpoints.cs).</summary>
+public sealed record PaidCallback(string? InvoiceId, long UserId, string? PlanCode, int Days, decimal Amount,
+    bool AutoRenew, DateTime? PaidAt);
 
 public static class TariffEndpoints
 {
@@ -15,17 +21,13 @@ public static class TariffEndpoints
 
         app.MapGet("/plans", () => Results.Ok(new
         {
-            plans = TariffPlans.All.Select(plan => new { plan.Key, plan.Title, plan.Price })
+            plans = TariffPlans.All.Select(plan => new { plan.Key, plan.Title, plan.Price }),
+            periodDays = TariffPlans.PeriodDays
         }));
 
         var api = app.MapGroup("").AddEndpointFilter(async (context, next) =>
         {
-            var http = context.HttpContext;
-            var provided = http.Request.Headers["X-Api-Key"].ToString();
-
-            // Сравнение постоянного времени: сервис маленький и стоит за
-            // внутренним адресом, но угадывать секрет по времени ответа не
-            // должно быть возможно даже здесь.
+            var provided = context.HttpContext.Request.Headers["X-Api-Key"].ToString();
             if (!FixedTimeEquals(provided, options.ApiKey))
                 return Results.Unauthorized();
 
@@ -33,33 +35,23 @@ public static class TariffEndpoints
         });
 
         api.MapGet("/status/{externalUserId:int}", async (
-            int externalUserId,
-            SubscriptionService subscriptions,
-            CancellationToken cancellationToken) =>
+            int externalUserId, SubscriptionService subscriptions, CancellationToken ct) =>
         {
-            var subscription = await subscriptions.GetAsync(externalUserId, cancellationToken);
-            if (subscription is null)
-                return Results.Ok(new { subscription = (object?)null });
+            var current = await subscriptions.CurrentAsync(externalUserId, ct);
+            var upcoming = await subscriptions.UpcomingAsync(externalUserId, ct);
 
             return Results.Ok(new
             {
-                subscription = new
-                {
-                    plan = subscription.Plan,
-                    startedAt = subscription.StartedAt,
-                    expiresAt = subscription.ExpiresAt,
-                    isActive = subscription.IsActive(DateTime.UtcNow),
-                }
+                subscription = current is null ? null : Describe(current),
+                upcoming = upcoming.Select(Describe),
             });
         });
 
         api.MapPost("/checkout", async (
-            [FromBody] CheckoutRequest request,
-            SubscriptionService subscriptions,
-            CancellationToken cancellationToken) =>
+            [FromBody] CheckoutRequest request, SubscriptionService subscriptions, CancellationToken ct) =>
         {
             var result = await subscriptions.CreateCheckoutAsync(
-                request.ExternalUserId, request.Plan, request.Email, cancellationToken);
+                request.ExternalUserId, request.Email, request.Plan, request.AutoRenew, request.Consent, ct);
 
             return result.Outcome switch
             {
@@ -70,58 +62,76 @@ public static class TariffEndpoints
             };
         });
 
-        // ResultURL Робокассы: приходит от самой платёжной системы, не от
-        // браузера покупателя — вот почему это единственный внешний адрес
-        // без заголовка X-Api-Key. Подлинность проверяется подписью с
-        // Password2, подделать которую без него нельзя. Отвечать нужно
-        // строкой OK{InvId}, иначе уведомление придёт снова.
-        app.MapMethods("/robokassa/result", new[] { "POST", "GET" }, async (
-            HttpRequest httpRequest,
-            RobokassaService robokassa,
-            SubscriptionService subscriptions,
-            ILoggerFactory loggerFactory,
-            CancellationToken cancellationToken) =>
+        // Отключить автопродление — включить обратно можно только новой
+        // покупкой: это и есть согласие на следующее списание.
+        api.MapPost("/auto-renew/cancel", async (
+            [FromBody] AutoRenewCancelRequest request, SubscriptionService subscriptions, CancellationToken ct) =>
         {
-            var logger = loggerFactory.CreateLogger("Robokassa");
+            var changed = await subscriptions.CancelAutoRenewAsync(request.ExternalUserId, ct);
+            return changed
+                ? Results.Ok(new { autoRenew = false })
+                : Results.Json(new { error = "Автопродления нет или оно уже отключено." },
+                    statusCode: StatusCodes.Status400BadRequest);
+        });
 
-            Microsoft.AspNetCore.Http.IFormCollection? form = null;
-            if (httpRequest.HasFormContentType)
-                form = await httpRequest.ReadFormAsync(cancellationToken);
+        // Сообщение об оплате от сервера ключей. Без X-Api-Key: это
+        // разговор двух своих служб, подписанный общим секретом с
+        // сервером ключей (TARIFFS_SHARED_SECRET), а не ключом сайта.
+        app.MapPost("/callback", async (
+            HttpRequest http, LicenseServerClient licenseServer, SubscriptionService subscriptions,
+            ILoggerFactory loggers, CancellationToken ct) =>
+        {
+            var logger = loggers.CreateLogger("Callback");
 
-            string? Value(string name) => form is not null
-                ? form[name].ToString()
-                : httpRequest.Query[name].ToString();
+            using var reader = new StreamReader(http.Body);
+            var body = await reader.ReadToEndAsync(ct);
 
-            var outSum = Value("OutSum");
-            var invoice = Value("InvId");
-            var signature = Value("SignatureValue");
+            var timestamp = http.Headers[LicenseServerClient.TimestampHeader].ToString();
+            var signature = http.Headers[LicenseServerClient.SignatureHeader].ToString();
 
-            if (!robokassa.VerifyResultSignature(outSum, invoice, signature))
+            if (!licenseServer.Verify(timestamp, signature, body))
             {
-                logger.LogWarning("Уведомление об оплате отклонено: подпись не сходится.");
-                return Results.Text("bad sign", "text/plain", null, StatusCodes.Status400BadRequest);
+                logger.LogWarning("Сообщение об оплате отклонено: подпись не сходится.");
+                return Results.Json(new { message = "Подпись не сходится." }, statusCode: 403);
             }
 
-            if (!long.TryParse(invoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var invoiceId))
-                return Results.Text("bad invoice", "text/plain", null, StatusCodes.Status400BadRequest);
+            PaidCallback? paid;
+            try
+            {
+                paid = JsonSerializer.Deserialize<PaidCallback>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            }
+            catch (JsonException)
+            {
+                return Results.BadRequest(new { message = "Сообщение не разобрано." });
+            }
 
-            var result = await subscriptions.ApplyPaymentAsync(invoiceId, cancellationToken);
+            if (paid is null || string.IsNullOrWhiteSpace(paid.InvoiceId) || paid.UserId <= 0
+                || !long.TryParse(paid.InvoiceId, out var invoiceId))
+            {
+                return Results.BadRequest(new { message = "Сообщение не разобрано." });
+            }
+
+            var result = await subscriptions.ApplyPaymentAsync(invoiceId, ct);
             if (!result.IsOk)
             {
                 logger.LogError("Оплата по неизвестному счёту {InvoiceId}.", invoiceId);
-                return Results.Text("unknown invoice", "text/plain", null, StatusCodes.Status400BadRequest);
+                return Results.BadRequest(new { message = result.Message });
             }
 
-            return Results.Text($"OK{invoiceId}", "text/plain");
+            return Results.Ok(new { ok = true });
         });
     }
 
+    private static object Describe(Subscription subscription) => new
+    {
+        plan = subscription.Plan,
+        startsAt = subscription.StartsAt,
+        endsAt = subscription.EndsAt,
+        autoRenew = subscription.AutoRenew,
+    };
+
     private static bool FixedTimeEquals(string a, string b)
     {
-        // Сравниваются хэши фиксированной длины, а не сами строки: тогда
-        // сравнение постоянного времени работает и когда длины входа не
-        // совпадают, без отдельной ветки, которая сама могла бы стать
-        // источником различия по времени.
         var hashA = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(a));
         var hashB = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(b));
         return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(hashA, hashB);

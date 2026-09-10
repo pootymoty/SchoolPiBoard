@@ -12,6 +12,9 @@ public class Payment
     /// <summary>Подписка на онлайн-доску. Ключ не выпускается: срок продлевает сама доска.</summary>
     public const string KindSubscription = "subscription";
 
+    /// <summary>Подписка на тарифы ИИ-функций основного сайта (school-pi.online).</summary>
+    public const string KindTariff = "tariff";
+
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>Номер счёта для платёжной системы (InvId у Робокассы).</summary>
@@ -38,6 +41,9 @@ public class Payment
 
     /// <summary>Номер учётной записи на доске. У лицензии пусто.</summary>
     public long? BoardUserId { get; set; }
+
+    /// <summary>Номер учётной записи на основном сайте. Не тот же id, что у доски — другая база.</summary>
+    public long? TariffUserId { get; set; }
 
     /// <summary>Код тарифа доски.</summary>
     public string? PlanCode { get; set; }

@@ -3,26 +3,29 @@ namespace SchoolPi.Tariffs.Configuration;
 /// <summary>
 /// Настройки сервиса тарифов основного сайта (school-pi.online).
 ///
-/// Сервис маленький намеренно: он не ведёт своих пользователей и не
-/// знает про пароли и почту — этим занимается основной сайт (Flask,
-/// репозиторий my_portfolio_project). Отсюда сайт получает только два
-/// ответа: «какая подписка сейчас действует» и «ссылка на оплату».
-/// Токены и бесплатные попытки считает сам сайт по своей же таблице
-/// расхода ИИ — этому сервису про них знать незачем.
+/// Сервис не держит паролей Робокассы вовсе — этим занимается сервер
+/// ключей (offline/server/SchoolPiBoard.LicenseServer), тот же самый,
+/// что уже продаёт лицензии на офлайн-доску и подписки на онлайн-доску.
+/// У тарифов свой магазин Робокассы (третий по счёту), но пароли от него
+/// лежат только на сервере ключей — здесь только общий секрет, которым
+/// подписываются запросы между двумя своими службами.
+///
+/// Основной сайт (Flask, my_portfolio_project) про сервер ключей тоже
+/// не знает — он обращается только сюда, как раньше.
 /// </summary>
 public sealed record TariffOptions
 {
     public required string ConnectionString { get; init; }
 
     /// <summary>
-    /// Общий секрет между этим сервисом и основным сайтом. Проверяется
-    /// заголовком X-Api-Key на всём, кроме /health, /plans и
-    /// /robokassa/result — тот защищён собственной подписью Робокассы,
-    /// а не этим ключом: Робокасса не умеет слать произвольные заголовки.
+    /// Общий секрет между этим сервисом и основным сайтом (Flask).
+    /// Проверяется заголовком X-Api-Key на всём, кроме /health, /plans
+    /// и /callback — тот защищён общим секретом с сервером ключей, а не
+    /// этим ключом.
     /// </summary>
     public required string ApiKey { get; init; }
 
-    public required PaymentOptions Payments { get; init; }
+    public required LicenseServerOptions LicenseServer { get; init; }
 
     public static TariffOptions Load(IConfiguration configuration)
     {
@@ -34,16 +37,10 @@ public sealed record TariffOptions
 
             ApiKey = First(configuration["ApiKey"], "TARIFFS_API_KEY"),
 
-            Payments = new PaymentOptions
+            LicenseServer = new LicenseServerOptions
             {
-                MerchantLogin = configuration["Payments:MerchantLogin"] ?? string.Empty,
-                Password1 = First(configuration["Payments:Password1"], "ROBOKASSA_PASSWORD1"),
-                Password2 = First(configuration["Payments:Password2"], "ROBOKASSA_PASSWORD2"),
-                PaymentUrl = configuration["Payments:PaymentUrl"] ?? "https://auth.robokassa.ru/Merchant/Index.aspx",
-                IsTest = Bool(configuration["Payments:IsTest"], false),
-                SendReceipt = Bool(configuration["Payments:SendReceipt"], false),
-                TaxSystem = configuration["Payments:TaxSystem"] ?? "npd",
-                Tax = configuration["Payments:Tax"] ?? "none"
+                Url = (configuration["LicenseServer:Url"] ?? string.Empty).TrimEnd('/'),
+                SharedSecret = First(configuration["LicenseServer:SharedSecret"], "TARIFFS_SHARED_SECRET"),
             }
         };
 
@@ -71,39 +68,35 @@ public sealed record TariffOptions
         => !string.IsNullOrWhiteSpace(fromConfiguration)
             ? fromConfiguration.Trim()
             : Env(environmentVariable)?.Trim() ?? string.Empty;
-
-    private static bool Bool(string? value, bool fallback)
-        => bool.TryParse(value, out var parsed) ? parsed : fallback;
 }
 
-public sealed record PaymentOptions
+/// <summary>
+/// Связь с сервером ключей — тот же приём, что у онлайн-доски
+/// (schoolpiboard_online/server/.../KeyServerClient.cs). Общий секрет
+/// должен совпадать с тем, что на сервере ключей записан в
+/// Tariffs:SharedSecret / TARIFFS_SHARED_SECRET.
+/// </summary>
+public sealed record LicenseServerOptions
 {
-    public required string MerchantLogin { get; init; }
-    public required string Password1 { get; init; }
-    public required string Password2 { get; init; }
-    public required string PaymentUrl { get; init; }
-    public required bool IsTest { get; init; }
-    public required bool SendReceipt { get; init; }
-    public required string TaxSystem { get; init; }
-    public required string Tax { get; init; }
+    public required string Url { get; init; }
+    public required string SharedSecret { get; init; }
 
-    public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(MerchantLogin) &&
-        !string.IsNullOrWhiteSpace(Password1) &&
-        !string.IsNullOrWhiteSpace(Password2);
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(SharedSecret);
 }
 
 /// <summary>
 /// Тарифы ИИ-функций основного сайта. Цена и ключ тарифа — источник
 /// истины здесь (это деньги), лимит токенов — источник истины в
-/// my_app/billing.py на сайте (это лимит, который считает сайт сам по
-/// своей же таблице расхода). Ключи тарифов должны совпадать в обоих
+/// my_app/billing.py на сайте. Ключи тарифов должны совпадать в обоих
 /// местах, иначе сайт не поймёт статус оплаченной подписки.
 /// </summary>
 public sealed record TariffPlan(string Key, string Title, decimal Price);
 
 public static class TariffPlans
 {
+    /// <summary>Единственный срок, который продаётся, — календарный месяц.</summary>
+    public const int PeriodDays = 30;
+
     public static readonly IReadOnlyList<TariffPlan> All = new[]
     {
         new TariffPlan("tutor_basic", "Базовый", 290m),

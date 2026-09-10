@@ -19,6 +19,7 @@ builder.Services.AddSingleton(options.Robokassa);
 builder.Services.AddSingleton(options.Trial);
 builder.Services.AddSingleton(options.Web);
 builder.Services.AddSingleton(options.Board);
+builder.Services.AddSingleton(options.Tariffs);
 
 // Повторные попытки Npgsql намеренно не включены: сервис сам открывает
 // транзакции при активации, а стратегия повторов с ними несовместима.
@@ -30,12 +31,14 @@ builder.Services.AddScoped<LicenseService>();
 builder.Services.AddScoped<TrialService>();
 builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<BoardNotifier>();
+builder.Services.AddScoped<TariffsNotifier>();
 
-// Уведомления доске уходят обычным HTTP-клиентом. Повтор нужен
-// потому, что деньги уже взяты: доска могла быть недоступна ровно
+// Уведомления продуктам уходят обычным HTTP-клиентом. Повтор нужен
+// потому, что деньги уже взяты: получатель мог быть недоступен ровно
 // в ту минуту, когда пришла оплата.
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<BoardNotifyRetryService>();
+builder.Services.AddHostedService<TariffsNotifyRetryService>();
 
 if (options.Smtp.IsConfigured)
     builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
@@ -93,6 +96,7 @@ app.MapLicenseEndpoints();
 app.MapTrialEndpoints();
 app.MapPurchaseEndpoints();
 app.MapBoardEndpoints();
+app.MapTariffsEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
@@ -107,6 +111,14 @@ if (options.Board.IsConfigured && !options.RobokassaBoard.IsConfigured)
 
 if (!options.Board.IsConfigured)
     app.Logger.LogWarning("Связь с онлайн-доской не настроена: подписки выключены (BOARD_SHARED_SECRET, Board:CallbackUrl).");
+
+if (options.Tariffs.IsConfigured && !options.RobokassaTariffs.IsConfigured)
+    app.Logger.LogWarning(
+        "Магазин тарифов основного сайта не настроен: сервис тарифов получит отказ на выставление счёта "
+        + "(Robokassa:Tariffs:MerchantLogin, ROBOKASSA_TARIFFS_PASSWORD1/2).");
+
+if (!options.Tariffs.IsConfigured)
+    app.Logger.LogWarning("Связь с сервисом тарифов основного сайта не настроена: тарифы выключены (TARIFFS_SHARED_SECRET, Tariffs:CallbackUrl).");
 
 if (!options.Robokassa.IsConfigured)
     app.Logger.LogWarning("Робокасса не настроена: покупка недоступна, /purchase/start вернёт 503.");

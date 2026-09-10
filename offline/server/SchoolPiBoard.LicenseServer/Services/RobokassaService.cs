@@ -38,11 +38,18 @@ public sealed class RobokassaService
     /// </summary>
     private readonly RobokassaOptions _board;
 
+    /// <summary>
+    /// Магазин тарифов основного сайта — третий отдельный магазин по тому
+    /// же принципу, что и у доски: свой товар, своя оферта, свой сайт.
+    /// </summary>
+    private readonly RobokassaOptions _tariffs;
+
     public RobokassaService(ServerOptions server)
     {
         _options = server.Robokassa;
 
         _board = server.RobokassaBoard;
+        _tariffs = server.RobokassaTariffs;
     }
 
     public decimal Amount => _options.Amount;
@@ -54,13 +61,20 @@ public sealed class RobokassaService
     /// </summary>
     public bool CanSellSubscriptions => _board.IsConfigured;
 
+    /// <summary>Можно ли продавать тарифы основного сайта — тот же смысл, что у <see cref="CanSellSubscriptions"/>.</summary>
+    public bool CanSellTariffs => _tariffs.IsConfigured;
+
     /// <summary>
     /// Каким магазином выставлен счёт. Уведомление об оплате приходит на
-    /// один ResultURL от обоих, а подпись считается паролем того магазина,
+    /// один ResultURL от всех, а подпись считается паролем того магазина,
     /// который счёт и выставил.
     /// </summary>
-    public RobokassaOptions ShopFor(string? kind)
-        => kind == Payment.KindSubscription ? _board : _options;
+    public RobokassaOptions ShopFor(string? kind) => kind switch
+    {
+        Payment.KindSubscription => _board,
+        Payment.KindTariff => _tariffs,
+        _ => _options
+    };
 
     /// <summary>
     /// Ссылка на оплату лицензии. Сумма и назначение — из настроек: у
@@ -80,6 +94,11 @@ public sealed class RobokassaService
     public string BuildPaymentUrl(
         long invoiceId, string email, decimal amount, string description, bool recurring)
         => BuildPaymentUrl(_board, invoiceId, email, amount, description, recurring);
+
+    /// <summary>То же самое, но через магазин тарифов основного сайта.</summary>
+    public string BuildTariffsPaymentUrl(
+        long invoiceId, string email, decimal amount, string description, bool recurring)
+        => BuildPaymentUrl(_tariffs, invoiceId, email, amount, description, recurring);
 
     private static string BuildPaymentUrl(
         RobokassaOptions shop, long invoiceId, string email, decimal amount, string description, bool recurring)
@@ -166,15 +185,26 @@ public sealed class RobokassaService
     /// он платил в первый раз, и присылает обычное уведомление на ResultURL —
     /// дальше всё идёт по общему пути.
     /// </summary>
-    public async Task<bool> ChargeRecurringAsync(
+    public Task<bool> ChargeRecurringAsync(
         HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
         CancellationToken cancellationToken)
+        => ChargeRecurringAsync(http, _board, invoiceId, previousInvoiceId, amount, description, cancellationToken);
+
+    /// <summary>То же самое, но по счёту, выставленному магазином тарифов основного сайта.</summary>
+    public Task<bool> ChargeTariffsRecurringAsync(
+        HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
+        CancellationToken cancellationToken)
+        => ChargeRecurringAsync(http, _tariffs, invoiceId, previousInvoiceId, amount, description, cancellationToken);
+
+    private static async Task<bool> ChargeRecurringAsync(
+        HttpClient http, RobokassaOptions shop, long invoiceId, long previousInvoiceId, decimal amount,
+        string description, CancellationToken cancellationToken)
     {
         var sum = FormatSum(amount);
 
         var form = new Dictionary<string, string>
         {
-            ["MerchantLogin"] = _board.MerchantLogin,
+            ["MerchantLogin"] = shop.MerchantLogin,
             ["InvoiceID"] = invoiceId.ToString(CultureInfo.InvariantCulture),
             ["PreviousInvoiceID"] = previousInvoiceId.ToString(CultureInfo.InvariantCulture),
             ["OutSum"] = sum,
@@ -189,19 +219,19 @@ public sealed class RobokassaService
         // JSON — подписанная закодированная строка даёт ошибку 29, и
         // выглядит она как проблема с магазином, а не с подписью.
         string? receiptJson = null;
-        if (_board.SendReceipt)
+        if (shop.SendReceipt)
         {
-            receiptJson = BuildReceiptJson(_board, amount, description);
+            receiptJson = BuildReceiptJson(shop, amount, description);
             form["Receipt"] = receiptJson;
         }
 
         form["SignatureValue"] = Md5(
             receiptJson is null
-                ? $"{_board.MerchantLogin}:{sum}:{invoiceId}:{_board.Password1}"
-                : $"{_board.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{_board.Password1}");
+                ? $"{shop.MerchantLogin}:{sum}:{invoiceId}:{shop.Password1}"
+                : $"{shop.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{shop.Password1}");
 
         using var response = await http.PostAsync(
-            _board.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
+            shop.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 

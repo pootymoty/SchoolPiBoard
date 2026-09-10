@@ -101,6 +101,7 @@ public static class PurchaseEndpoints
             [FromServices] RobokassaService robokassa,
             [FromServices] IEmailSender emails,
             [FromServices] BoardNotifier board,
+            [FromServices] TariffsNotifier tariffs,
             [FromServices] ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
@@ -147,9 +148,14 @@ public static class PurchaseEndpoints
             // Повторное уведомление о том же счёте: всё уже сделано.
             if (payment.Status == Payment.StatusPaid)
             {
-                // …кроме случая, когда доска в прошлый раз не ответила.
-                if (payment.Kind == Payment.KindSubscription && payment.NotifiedAt is null)
-                    await board.NotifyAsync(payment, cancellationToken);
+                // …кроме случая, когда получатель в прошлый раз не ответил.
+                if (payment.NotifiedAt is null)
+                {
+                    if (payment.Kind == Payment.KindSubscription)
+                        await board.NotifyAsync(payment, cancellationToken);
+                    else if (payment.Kind == Payment.KindTariff)
+                        await tariffs.NotifyAsync(payment, cancellationToken);
+                }
 
                 return Results.Text($"OK{invoiceId}", "text/plain");
             }
@@ -165,6 +171,17 @@ public static class PurchaseEndpoints
                 // взяты, и повторять уведомление ей незачем — недоставленное
                 // доске подберёт повтор на нашей стороне.
                 logger.LogInformation("Счёт {InvoiceId} оплачен: подписка доски.", invoiceId);
+                return Results.Text($"OK{invoiceId}", "text/plain");
+            }
+
+            // Тариф основного сайта — тот же приём: ключ не выпускается,
+            // срок продлевает сервис тарифов, узнав об оплате.
+            if (payment.Kind == Payment.KindTariff)
+            {
+                await purchases.MarkPaidAsync(payment, cancellationToken);
+                await tariffs.NotifyAsync(payment, cancellationToken);
+
+                logger.LogInformation("Счёт {InvoiceId} оплачен: тариф основного сайта.", invoiceId);
                 return Results.Text($"OK{invoiceId}", "text/plain");
             }
 
