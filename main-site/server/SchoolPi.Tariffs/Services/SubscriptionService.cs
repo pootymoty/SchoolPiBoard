@@ -217,6 +217,45 @@ public sealed class SubscriptionService
         return true;
     }
 
+    /// <summary>
+    /// Переносит отложенную покупку на «сейчас» — остаток текущего срока
+    /// сгорает, зато человек сразу получает тариф, за который уже
+    /// заплатил, не дожидаясь даты начала. Работает в любую сторону (не
+    /// только «выше» текущего): у тарифов ИИ-функций нет единой шкалы
+    /// уровней, как у тарифов доски, и решение — за человеком, он видит
+    /// предупреждение о сгорающем остатке перед подтверждением на сайте.
+    /// </summary>
+    public async Task<bool> StartUpcomingNowAsync(int externalUserId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+
+        var running = await CurrentAsync(externalUserId, cancellationToken);
+        if (running is null) return false;
+
+        var next = await _db.Subscriptions
+            .Where(x => x.ExternalUserId == externalUserId && x.StartsAt > now)
+            .OrderBy(x => x.StartsAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (next is null) return false;
+
+        var shift = next.StartsAt - now;
+
+        running.EndsAt = now;
+        running.AutoRenew = false;
+        running.UpdatedAt = now;
+
+        next.StartsAt -= shift;
+        next.EndsAt -= shift;
+        next.UpdatedAt = now;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _log.LogInformation("Подписка {UserId}: отложенный тариф {Plan} запущен досрочно.",
+            externalUserId, next.Plan);
+
+        return true;
+    }
+
     /// <summary>Подписки, которые пора продлевать: с автопродлением, кончающиеся в ближайшие сутки.</summary>
     public Task<List<Subscription>> DueForRenewalAsync(TimeSpan ahead, CancellationToken cancellationToken)
     {

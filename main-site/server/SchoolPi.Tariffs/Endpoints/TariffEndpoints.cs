@@ -8,6 +8,7 @@ namespace SchoolPi.Tariffs.Endpoints;
 
 public sealed record CheckoutRequest(int ExternalUserId, string Email, string Plan, bool AutoRenew, string? Consent);
 public sealed record AutoRenewCancelRequest(int ExternalUserId);
+public sealed record StartNowRequest(int ExternalUserId);
 
 /// <summary>Сообщение сервера ключей об оплате — тот же вид, что у доски (PaidCallback в BillingEndpoints.cs).</summary>
 public sealed record PaidCallback(string? InvoiceId, long UserId, string? PlanCode, int Days, decimal Amount,
@@ -71,6 +72,19 @@ public static class TariffEndpoints
             return changed
                 ? Results.Ok(new { autoRenew = false })
                 : Results.Json(new { error = "Автопродления нет или оно уже отключено." },
+                    statusCode: StatusCodes.Status400BadRequest);
+        });
+
+        // Перейти на уже оплаченный, но отложенный тариф досрочно — остаток
+        // текущего срока сгорает, предупреждение об этом сайт показывает
+        // перед отправкой запроса.
+        api.MapPost("/start-now", async (
+            [FromBody] StartNowRequest request, SubscriptionService subscriptions, CancellationToken ct) =>
+        {
+            var moved = await subscriptions.StartUpcomingNowAsync(request.ExternalUserId, ct);
+            return moved
+                ? Results.Ok(new { ok = true })
+                : Results.Json(new { error = "Перейти досрочно не на что." },
                     statusCode: StatusCodes.Status400BadRequest);
         });
 
