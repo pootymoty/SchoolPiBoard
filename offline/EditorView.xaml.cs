@@ -91,6 +91,24 @@ public partial class EditorView : UserControl
                     MarkDirty();
                 });
 
+                // Заготовки не хранят состояния доски — знаний о ручках
+                // достаточно держать в самой панели, пересоздавать её
+                // при каждом открытии доски не обязательно, но так же
+                // просто, как у панели фона, и не хуже по цене.
+                TemplateLibraryContent.Content = new TemplateLibraryPanel(
+                    (template, values) =>
+                    {
+                        Canvas.InsertTemplate(template, values);
+                        TemplateLibraryPanelHost.Visibility = Visibility.Collapsed;
+                        MarkDirty();
+                    },
+                    text =>
+                    {
+                        Canvas.InsertQuickText(text);
+                        TemplateLibraryPanelHost.Visibility = Visibility.Collapsed;
+                        MarkDirty();
+                    });
+
                 // Открывая доску, показываем всё её содержимое целиком.
                 Canvas.FitToContent();
             }
@@ -329,6 +347,7 @@ public partial class EditorView : UserControl
         HelpPanel.Visibility = Visibility.Collapsed;
         TimerPanel.Visibility = Visibility.Collapsed;
         BackgroundPanelHost.Visibility = Visibility.Collapsed;
+        TemplateLibraryPanelHost.Visibility = Visibility.Collapsed;
     }
 
     private void Canvas_PreviewMouseDown(object? sender, MouseButtonEventArgs e)

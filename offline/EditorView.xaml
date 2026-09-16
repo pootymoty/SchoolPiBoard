@@ -226,6 +226,13 @@
                 <ContentControl x:Name="BackgroundContent"/>
             </Border>
 
+            <!-- ================= Панель заготовок ================= -->
+            <Border x:Name="TemplateLibraryPanelHost" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,12,12,0" Visibility="Collapsed" Padding="18,16">
+                <ContentControl x:Name="TemplateLibraryContent"/>
+            </Border>
+
             <!-- ================= Справка ================= -->
             <Border x:Name="HelpPanel" Style="{StaticResource FloatingPanel}"
                     HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -379,6 +386,14 @@
                                   Click="Tool_Click" Tag="Shape" ToolTip="Фигуры"/>
                     <Button Content="🖼" Style="{StaticResource IconButton}"
                             Click="InsertImage_Click" ToolTip="Вставить изображение"/>
+                    <Button Content="🧩" Style="{StaticResource IconButton}"
+                            Click="TemplateLibraryButton_Click" ToolTip="Заготовки"/>
+
+                    <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="7,5"/>
+
+                    <ToggleButton x:Name="SnapToGridButton" Content="🧲" Style="{StaticResource ToolButton}"
+                                  Click="SnapToGrid_Click"
+                                  ToolTip="Привязка к сетке — двигать, тянуть и строить фигуры и надписи только по клеткам"/>
 
                     <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="7,5"/>
 

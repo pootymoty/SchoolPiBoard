@@ -781,6 +781,21 @@ public partial class EditorView
         BackgroundPanelHost.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void TemplateLibraryButton_Click(object sender, RoutedEventArgs e)
+    {
+        var show = TemplateLibraryPanelHost.Visibility != Visibility.Visible;
+        CloseTransientPanels();
+        TemplateLibraryPanelHost.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Кнопка сама переключает своё состояние (ToggleButton) — здесь только
+    /// переносим его на холст. Никакого обхода зажатой клавишей: включили —
+    /// привязывает, выключили — снова рисуют где хотят.
+    /// </summary>
+    private void SnapToGrid_Click(object sender, RoutedEventArgs e) =>
+        Canvas.SnapToGrid = SnapToGridButton.IsChecked == true;
+
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
         var show = HelpPanel.Visibility != Visibility.Visible;

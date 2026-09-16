@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using SchoolPiBoard.Models;
+using SchoolPiBoard.Services;
 
 namespace SchoolPiBoard.Rendering;
 
@@ -86,6 +87,20 @@ public class BoardCanvas : FrameworkElement
     public double Pen2Opacity { get; set; } = 1.0;
     public double MarkerOpacity { get; set; } = 0.5;
     public double EraserSize { get; set; } = 26;
+
+    /// <summary>
+    /// Привязка к сетке. Выключена по умолчанию — рисуют от руки, где хотят,
+    /// включают перед тем, как строить чертёж. Никогда не касается
+    /// рукописного штриха (перо, маркер): тянуть его к сетке значило бы
+    /// ломать почерк.
+    /// </summary>
+    public bool SnapToGrid { get; set; }
+
+    private double Snap(double value) =>
+        SnapToGrid ? Math.Round(value / GridPainter.Cell) * GridPainter.Cell : value;
+
+    private Point Snap(Point value) =>
+        SnapToGrid ? new Point(Snap(value.X), Snap(value.Y)) : value;
 
     // ---- события для оболочки ----
     public event Action? Changed;             // документ изменён (нужно сохранить)
@@ -1230,6 +1245,7 @@ public class BoardCanvas : FrameworkElement
                 var movingPoint = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
                     ? SnapLineAngle(fixedPoint, world, ShiftAngleStep)
                     : world;
+                movingPoint = Snap(movingPoint);
 
                 var target = Selection[0];
 
@@ -1268,8 +1284,8 @@ public class BoardCanvas : FrameworkElement
         }
         else if (_activeHandle == HandleKind.None)
         {
-            var dx = world.X - _dragStartWorld.X;
-            var dy = world.Y - _dragStartWorld.Y;
+            var dx = Snap(world.X - _dragStartWorld.X);
+            var dy = Snap(world.Y - _dragStartWorld.Y);
 
             for (var i = 0; i < Selection.Count; i++)
                 MoveItem(Selection[i], _dragOriginals[i], dx, dy);
@@ -1295,7 +1311,7 @@ public class BoardCanvas : FrameworkElement
         }
         else
         {
-            var target = ResizeBounds(_dragOriginalBounds, _activeHandle, world,
+            var target = ResizeBounds(_dragOriginalBounds, _activeHandle, Snap(world),
                                        Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
 
             for (var i = 0; i < Selection.Count; i++)
@@ -1669,6 +1685,8 @@ public class BoardCanvas : FrameworkElement
     // =====================================================================
     private void StartShape(Point world)
     {
+        world = Snap(world);
+
         _drawing = true;
         _drawStartWorld = world;
 
@@ -1722,11 +1740,13 @@ public class BoardCanvas : FrameworkElement
                     _drawStartWorld.Y + length * Math.Sin(angle));
             }
 
+            end = Snap(end);
             _draft.SetPoints(new[] { _drawStartWorld, end });
             InvalidateVisual();
             return;
         }
 
+        world = Snap(world);
         var rect = new Rect(_drawStartWorld, world);
 
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
@@ -1777,6 +1797,8 @@ public class BoardCanvas : FrameworkElement
     // =====================================================================
     private void CreateTextAt(Point world)
     {
+        world = Snap(world);
+
         var item = new BoardItem
         {
             Kind = ItemKind.Text,
@@ -2124,6 +2146,86 @@ public class BoardCanvas : FrameworkElement
     }
 
     public void DuplicateSelection() => PasteItems(CopySelection());
+
+    // =====================================================================
+    //  Заготовки
+    // =====================================================================
+    /// <summary>
+    /// Вставляет заготовку в центр видимой области. Заготовка выдаёт список
+    /// обычных объектов доски — после вставки они ничем не отличаются от
+    /// нарисованного вручную. Одна запись в истории отмены на весь чертёж,
+    /// не по одной на линию: BeginChange/CommitChange уже пишут снимок
+    /// целиком, дробить его по объектам не нужно.
+    /// </summary>
+    public void InsertTemplate(BoardTemplate template, Dictionary<string, double> values)
+    {
+        var center = ToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
+
+        // Доля видимой стороны экрана, при которой заготовка не упирается
+        // в края плавающих панелей, и не «плывёт» по размеру вместе с зумом.
+        var side = Math.Min(ActualWidth, ActualHeight) * 0.62 / Zoom;
+
+        var frame = new TemplateFrame(center.X, center.Y, side,
+            ShapeColor.ToString(), ShapeThickness, TemplateFontSize);
+
+        var created = template.Build(frame, values);
+        if (created.Count == 0)
+            return;
+
+        BeginChange();
+
+        foreach (var item in created)
+        {
+            item.Z = NextZ();
+            Items.Add(item);
+        }
+
+        CommitChange();
+
+        // Чертёж почти всегда двигают или подписывают следом — отдельно
+        // кликать по каждой линии было бы неудобно.
+        Selection.Clear();
+        Selection.AddRange(created);
+        SelectionChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Вставляет готовый текст (знак, формула) в центр видимой области —
+    /// сразу как есть, без открытия поля ввода: тут нечего дописывать.
+    /// </summary>
+    public void InsertQuickText(string text)
+    {
+        var center = ToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
+        var size = ItemRenderer.MeasureText(text, TemplateFontSize, PixelsPerDip, 600);
+
+        var item = new BoardItem
+        {
+            Kind = ItemKind.Text,
+            X = center.X - size.Width / 2,
+            Y = center.Y - size.Height / 2,
+            W = size.Width,
+            H = size.Height,
+            Text = text,
+            FontSize = TemplateFontSize,
+            StrokeColor = TextColor.ToString(),
+            Z = NextZ()
+        };
+
+        BeginChange();
+        Items.Add(item);
+        CommitChange();
+
+        Selection.Clear();
+        Selection.Add(item);
+        SelectionChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    // Кегль подписей и вставленного текста заготовок и «знаков»/«формул» —
+    // нет отдельной настройки «текущий кегль», как у цвета и толщины фигур,
+    // поэтому берём то же значение, что и у обычного инструмента «Текст».
+    private const double TemplateFontSize = 20;
 
     public void BringToFront()
     {
