@@ -120,6 +120,10 @@ public class BoardCanvas : FrameworkElement
     private bool _dragging;
     private Point _dragStartWorld;
     private List<BoardItem> _dragOriginals = new();
+    // Штрихи, приклеенные к перемещаемому изображению, но не входящие
+    // в само выделение — их нужно тянуть тем же перетаскиванием.
+    private readonly List<BoardItem> _dragAttachedExtras = new();
+    private readonly List<BoardItem> _dragAttachedExtrasOriginals = new();
     private Rect _dragOriginalBounds;
 
     private Point? _eraserScreen;
@@ -714,6 +718,27 @@ public class BoardCanvas : FrameworkElement
     private static bool IsStandardTransformable(BoardItem item) =>
         item.Kind is ItemKind.Shape or ItemKind.Image or ItemKind.Text;
 
+    /// <summary>
+    /// Верхнее по Z изображение, под которым начата точка. Используется
+    /// только в момент завершения штриха — приклеивание решается один раз,
+    /// при рождении объекта, и назад не пересматривается: штрих, который
+    /// уже лежал на месте до появления картинки, её перекрытия не заметит.
+    /// </summary>
+    private BoardItem? FindImageAt(Point world)
+    {
+        BoardItem? best = null;
+        foreach (var item in Items)
+        {
+            if (item.Kind != ItemKind.Image)
+                continue;
+            if (!ItemRenderer.HitTest(item, world, 0))
+                continue;
+            if (best is null || item.Z > best.Z)
+                best = item;
+        }
+        return best;
+    }
+
     private static bool IsEndpointEditableLine(BoardItem item) =>
         (item.Kind == ItemKind.Shape && (item.Shape == ShapeKind.Line || item.Shape == ShapeKind.Arrow)) ||
         (item.Kind == ItemKind.Stroke && item.IsStraightStroke);
@@ -965,6 +990,8 @@ public class BoardCanvas : FrameworkElement
         {
             _dragging = false;
             _activeHandle = HandleKind.None;
+            _dragAttachedExtras.Clear();
+            _dragAttachedExtrasOriginals.Clear();
             CommitChange();
             return;
         }
@@ -1157,6 +1184,32 @@ public class BoardCanvas : FrameworkElement
         _dragStartWorld = world;
         _dragOriginals = Selection.Select(i => i.Clone()).ToList();
         _dragOriginalBounds = SelectionWorldBounds();
+
+        _dragAttachedExtras.Clear();
+        _dragAttachedExtrasOriginals.Clear();
+
+        // Простой перенос (не поворот и не растягивание): изображение везёт
+        // за собой приклеенные к нему штрихи, даже если они не выделены.
+        // Растягивание и поворот на них намеренно не распространяются.
+        if (handle == HandleKind.None)
+        {
+            foreach (var image in Selection)
+            {
+                if (image.Kind != ItemKind.Image)
+                    continue;
+
+                foreach (var candidate in Items)
+                {
+                    if (candidate.AttachedToId == image.Id &&
+                        !Selection.Contains(candidate) &&
+                        !_dragAttachedExtras.Contains(candidate))
+                    {
+                        _dragAttachedExtras.Add(candidate);
+                        _dragAttachedExtrasOriginals.Add(candidate.Clone());
+                    }
+                }
+            }
+        }
     }
 
     private void ContinueTransform(Point screen, Point world)
@@ -1169,7 +1222,15 @@ public class BoardCanvas : FrameworkElement
             if (Selection.Count == 1 && TryGetLineEndpoints(_dragOriginals[0], out var start, out var end))
             {
                 var fixedPoint = _activeHandle == HandleKind.LineStart ? end : start;
-                var movingPoint = world;
+
+                // Shift при редактировании ведёт себя так же, как при
+                // построении: угол снова привязывается к шагу в 15°, но
+                // теперь — относительно неподвижного конца, который остался
+                // на месте, а не относительно точки начала построения.
+                var movingPoint = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
+                    ? SnapLineAngle(fixedPoint, world, ShiftAngleStep)
+                    : world;
+
                 var target = Selection[0];
 
                 // Не меняем вторую точку: она является центром вращения.
@@ -1212,6 +1273,9 @@ public class BoardCanvas : FrameworkElement
 
             for (var i = 0; i < Selection.Count; i++)
                 MoveItem(Selection[i], _dragOriginals[i], dx, dy);
+
+            for (var i = 0; i < _dragAttachedExtras.Count; i++)
+                MoveItem(_dragAttachedExtras[i], _dragAttachedExtrasOriginals[i], dx, dy);
         }
         else if (_activeHandle == HandleKind.Rotate)
         {
@@ -1555,6 +1619,14 @@ public class BoardCanvas : FrameworkElement
             }
             else
             {
+                // Штрих, начатый поверх уже существующей картинки, приклеивается
+                // к ней: рисунок на изображении переносится вместе с ним.
+                // Решается один раз, по точке начала — картинки, добавленные
+                // позже поверх уже нарисованного, ничего не подбирают.
+                var image = FindImageAt(_draftPoints[0]);
+                if (image is not null)
+                    _draft.AttachedToId = image.Id;
+
                 Items.Add(_draft);
             }
 
@@ -1795,8 +1867,12 @@ public class BoardCanvas : FrameworkElement
     }
 
     /// <summary>
-    /// Стирает круг: штрихи разрезаются на части, прочие объекты удаляются
-    /// целиком при касании.
+    /// Стирает круг: штрихи разрезаются на части. Прямую тоже можно резать
+    /// по частям — она остаётся тем же объектом с растущим списком вырезов.
+    /// Остальные фигуры, текст и изображения ластик не удаляет вовсе: снять
+    /// их с доски можно только выделением и кнопкой/клавишей удаления,
+    /// чтобы обводка или подпись случайно не стёрлись вместе со штрихами
+    /// вокруг них.
     /// </summary>
     private void EraseAt(Point center, double radius)
     {
@@ -1804,49 +1880,33 @@ public class BoardCanvas : FrameworkElement
 
         foreach (var item in Items.ToList())
         {
-            // Изображение ластиком вообще не затрагивается. Удаление картинки
-            // выполняется только кнопкой удаления. Нарисованные поверх неё
-            // штрихи остаются обычными Stroke и стираются независимо.
-            if (item.Kind == ItemKind.Image)
+            if (item.Kind == ItemKind.Image || item.Kind == ItemKind.Text)
+                continue;
+
+            if (item.Kind == ItemKind.Shape && item.Shape != ShapeKind.Line)
                 continue;
 
             if (item.Kind != ItemKind.Stroke)
             {
-                if (item.Kind == ItemKind.Shape)
-                {
-                    if (!ItemRenderer.HitTest(item, center, radius))
-                        continue;
-
-                    if (item.Shape == ShapeKind.Line && item.Points.Count >= 4)
-                    {
-                        // Прямая остаётся тем же BoardItem. Следы ластика
-                        // записываются в ErasePoints, без создания фрагментов.
-                        var a = new Point(item.Points[0], item.Points[1]);
-                        var b = new Point(item.Points[2], item.Points[3]);
-                        var limit = radius + item.Thickness / 2;
-                        if (ItemRenderer.DistanceToSegment(center, a, b) <= limit)
-                        {
-                            item.ErasePoints.Add(center.X);
-                            item.ErasePoints.Add(center.Y);
-                            item.ErasePoints.Add(radius);
-                            changed = true;
-                        }
-                        continue;
-                    }
-
-                    // Остальные фигуры и стрелки стираются целиком.
-                    changed = true;
-                    Selection.Remove(item);
-                    Items.Remove(item);
+                // Единственная фигура, которую ластик всё ещё трогает, —
+                // прямая: она режется по частям, как и рукописный штрих.
+                if (!ItemRenderer.HitTest(item, center, radius))
                     continue;
-                }
 
-                // Текст при попадании удаляется целиком.
-                if (item.Kind == ItemKind.Text && ItemRenderer.HitTest(item, center, radius))
+                if (item.Points.Count >= 4)
                 {
-                    changed = true;
-                    Selection.Remove(item);
-                    Items.Remove(item);
+                    // Прямая остаётся тем же BoardItem. Следы ластика
+                    // записываются в ErasePoints, без создания фрагментов.
+                    var a = new Point(item.Points[0], item.Points[1]);
+                    var b = new Point(item.Points[2], item.Points[3]);
+                    var limit = radius + item.Thickness / 2;
+                    if (ItemRenderer.DistanceToSegment(center, a, b) <= limit)
+                    {
+                        item.ErasePoints.Add(center.X);
+                        item.ErasePoints.Add(center.Y);
+                        item.ErasePoints.Add(radius);
+                        changed = true;
+                    }
                 }
                 continue;
             }
@@ -2035,13 +2095,26 @@ public class BoardCanvas : FrameworkElement
         BeginChange();
         Selection.Clear();
 
+        // Соответствие старых Id новым — чтобы штрих, скопированный вместе
+        // со своей картинкой, остался приклеен к новой копии этой картинки,
+        // а не к оригиналу, оставшемуся на доске нетронутым.
+        var idMap = new Dictionary<string, string>();
+        foreach (var source in items)
+            idMap[source.Id] = Guid.NewGuid().ToString("N");
+
         var shift = offset ? 26 / Zoom : 0;
         foreach (var source in items)
         {
             var copy = source.Clone();
-            copy.Id = Guid.NewGuid().ToString("N");
+            copy.Id = idMap[source.Id];
             copy.Z = NextZ();
             MoveItem(copy, source, shift, shift);
+
+            // Картинка, к которой был приклеен штрих, не входит в эту же
+            // копию — связь рвётся. Иначе штрих неожиданно продолжил бы
+            // ездить за чужим, оставшимся на доске изображением.
+            copy.AttachedToId = idMap.TryGetValue(source.AttachedToId, out var mapped) ? mapped : "";
+
             Items.Add(copy);
             Selection.Add(copy);
         }
