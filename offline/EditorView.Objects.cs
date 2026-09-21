@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using SchoolPiBoard.Models;
 using SchoolPiBoard.Rendering;
+using SchoolPiBoard.Services;
 
 namespace SchoolPiBoard.Views;
 
@@ -255,8 +256,27 @@ public partial class EditorView
         menu.Items.Add(MakeMenuItem("На задний план", () => Canvas.SendToBack()));
         menu.Items.Add(new Separator());
         menu.Items.Add(MakeMenuItem("Дублировать", () => Canvas.DuplicateSelection()));
+        menu.Items.Add(MakeMenuItem("Сохранить как заготовку", SaveSelectionAsTemplate));
 
         menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// Кладёт копию выделения в личную библиотеку заготовок (панель «Заготовки»,
+    /// вкладка «Мои») — как есть, без пересчёта по параметрам, в отличие от
+    /// встроенных заготовок вроде числовой прямой.
+    /// </summary>
+    private void SaveSelectionAsTemplate()
+    {
+        if (Canvas.Selection.Count == 0)
+            return;
+
+        var name = PromptDialog.Show(Window.GetWindow(this)!, "Сохранить как заготовку",
+            "Название заготовки:", "Моя заготовка");
+        if (name is null)
+            return;
+
+        CustomTemplateStore.Save(name, Canvas.Selection);
     }
 
     private static MenuItem MakeMenuItem(string header, Action action)

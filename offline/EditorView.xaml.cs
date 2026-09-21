@@ -34,6 +34,7 @@ public partial class EditorView : UserControl
 
         BuildChoiceOptions();
         BuildShapeButtons();
+        BuildVolumeShapeButtons();
         BuildHelpContent();
         InitializeTimer();
 
@@ -105,6 +106,12 @@ public partial class EditorView : UserControl
                     text =>
                     {
                         Canvas.InsertQuickText(text);
+                        TemplateLibraryPanelHost.Visibility = Visibility.Collapsed;
+                        MarkDirty();
+                    },
+                    custom =>
+                    {
+                        Canvas.InsertCustomTemplate(custom);
                         TemplateLibraryPanelHost.Visibility = Visibility.Collapsed;
                         MarkDirty();
                     });
@@ -312,6 +319,9 @@ public partial class EditorView : UserControl
             case BoardTool.Shape:
                 ShapePanel.Visibility = Visibility.Visible;
                 RefreshShapePalette(); break;
+            case BoardTool.VolumeShape:
+                VolumeShapePanel.Visibility = Visibility.Visible;
+                RefreshVolumeShapePalette(); break;
             case BoardTool.Eraser:
                 EraserPanel.Visibility = Visibility.Visible; break;
         }
@@ -327,17 +337,20 @@ public partial class EditorView : UserControl
         EraserTool.IsChecked = Canvas.Tool == BoardTool.Eraser;
         TextTool.IsChecked = Canvas.Tool == BoardTool.Text;
         ShapeTool.IsChecked = Canvas.Tool == BoardTool.Shape;
+        VolumeShapeToolButton.IsChecked = Canvas.Tool == BoardTool.VolumeShape;
     }
 
     private bool IsToolPanelOpen() =>
         PenPanel.Visibility == Visibility.Visible ||
         ShapePanel.Visibility == Visibility.Visible ||
+        VolumeShapePanel.Visibility == Visibility.Visible ||
         EraserPanel.Visibility == Visibility.Visible;
 
     private void CloseToolPanels()
     {
         PenPanel.Visibility = Visibility.Collapsed;
         ShapePanel.Visibility = Visibility.Collapsed;
+        VolumeShapePanel.Visibility = Visibility.Collapsed;
         EraserPanel.Visibility = Visibility.Collapsed;
     }
 
@@ -355,7 +368,7 @@ public partial class EditorView : UserControl
         CloseTransientPanels();
 
         if (Canvas.Tool is BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker or
-            BoardTool.Eraser or BoardTool.Shape)
+            BoardTool.Eraser or BoardTool.Shape or BoardTool.VolumeShape)
         {
             CloseToolPanels();
             CloseObjectPalettePopup();
@@ -418,6 +431,7 @@ public partial class EditorView : UserControl
             UpdateStrokePreview();
         }, false);
         BuildChoiceGroup(ShapeThicknessOptions, ThicknessSteps, (_, value) => Canvas.ShapeThickness = value, true);
+        BuildChoiceGroup(VolumeShapeThicknessOptions, ThicknessSteps, (_, value) => Canvas.ShapeThickness = value, true);
         BuildEraserSizeOptions();
     }
 
@@ -631,10 +645,80 @@ public partial class EditorView : UserControl
         ShapePaletteHost.Content = palette;
     }
 
+    // =====================================================================
+    //  Панель объёмных фигур — зеркало панели плоских фигур выше, с тем же
+    //  общим цветом/толщиной/типом линии (Canvas.ShapeColor/ShapeThickness/
+    //  ShapeLineStyle) и отдельной памятью выбранной фигуры (Canvas.VolumeShapeTool).
+    // =====================================================================
+    private void BuildVolumeShapeButtons()
+    {
+        (string Glyph, ShapeKind Kind, string Tip)[] shapes =
+        {
+            ("🧊", ShapeKind.Cube, "Куб"),
+            ("🛢", ShapeKind.Cylinder, "Цилиндр"),
+            ("🍦", ShapeKind.Cone, "Конус"),
+            ("⚽", ShapeKind.Sphere, "Шар"),
+            ("🔺", ShapeKind.Pyramid, "Пирамида")
+        };
+
+        foreach (var (glyph, kind, tip) in shapes)
+        {
+            var button = new Button
+            {
+                Content = glyph,
+                FontSize = 18,
+                Width = 60,
+                Height = 42,
+                Margin = new Thickness(2),
+                Style = (Style)FindResource("IconButton"),
+                Tag = kind,
+                ToolTip = tip
+            };
+            button.Click += (s, _) =>
+            {
+                if (s is Button { Tag: ShapeKind picked })
+                {
+                    Canvas.VolumeShapeTool = picked;
+                    VolumeShapeToolButton.Content = ((Button)s).Content;
+                    HighlightVolumeShapeButtons();
+                }
+            };
+            VolumeShapeButtons.Children.Add(button);
+        }
+
+        HighlightVolumeShapeButtons();
+    }
+
+    private void HighlightVolumeShapeButtons()
+    {
+        foreach (var child in VolumeShapeButtons.Children)
+        {
+            if (child is Button button && button.Tag is ShapeKind kind)
+            {
+                button.Background = kind == Canvas.VolumeShapeTool
+                    ? (Brush)FindResource("SurfaceActive")
+                    : System.Windows.Media.Brushes.Transparent;
+            }
+        }
+    }
+
+    private void RefreshVolumeShapePalette()
+    {
+        SetChoice(VolumeShapeThicknessOptions, ThicknessSteps, Canvas.ShapeThickness);
+        UpdateLineStylePreview();
+
+        var palette = new ColorPalette(Canvas.ShapeColor);
+        palette.ColorPicked += color => Canvas.ShapeColor = color;
+        VolumeShapePaletteHost.Content = palette;
+    }
+
     private void ShapeLineStyleButton_Click(object sender, RoutedEventArgs e)
     {
+        // Одна и та же всплывающая панель типов линии обслуживает и плоские,
+        // и объёмные фигуры (общий Canvas.ShapeLineStyle) — открывается
+        // у той кнопки, по которой кликнули.
         _lineStyleTargetItem = null;
-        ShapeLineStylePopup.PlacementTarget = ShapeLineStyleButton;
+        ShapeLineStylePopup.PlacementTarget = (UIElement)sender;
         ShapeLineStylePopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
         UpdateLineStylePreview();
         ShapeLineStylePopup.IsOpen = true;
@@ -678,6 +762,8 @@ public partial class EditorView : UserControl
     {
         if (ShapeLineStylePreview is not null)
             SetLineStylePreview(ShapeLineStylePreview, Canvas.ShapeLineStyle);
+        if (VolumeShapeLineStylePreview is not null)
+            SetLineStylePreview(VolumeShapeLineStylePreview, Canvas.ShapeLineStyle);
     }
 
     // =====================================================================

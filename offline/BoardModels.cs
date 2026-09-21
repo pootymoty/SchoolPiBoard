@@ -28,7 +28,18 @@ public enum ShapeKind
     Triangle,
     Trapezoid,
     Parallelogram,
-    Rhombus
+    Rhombus,
+
+    // Объёмные фигуры — строятся той же протяжкой по диагонали габаритов,
+    // что и плоские (BoardCanvas.StartShape/ContinueShape их не различает),
+    // но рисуются как каркасная проекция: несколько контуров и рёбер внутри
+    // одного BoardItem (см. ItemRenderer.BuildShapeGeometry), а не одна
+    // замкнутая фигура.
+    Cube,
+    Cylinder,
+    Cone,
+    Sphere,
+    Pyramid
 }
 
 /// <summary>Стиль фоновой сетки доски (названия соответствуют панели «Форматирование фона»).</summary>

@@ -104,9 +104,124 @@ public static class ItemRenderer
                 return Polygon(new Point(x + w / 2, y), new Point(x + w, y + h / 2),
                                 new Point(x + w / 2, y + h), new Point(x, y + h / 2));
 
+            case ShapeKind.Cube:
+                return BuildCube(x, y, w, h);
+
+            case ShapeKind.Cylinder:
+                return BuildCylinder(x, y, w, h);
+
+            case ShapeKind.Cone:
+                return BuildCone(x, y, w, h);
+
+            case ShapeKind.Sphere:
+                return BuildSphere(x, y, w, h);
+
+            case ShapeKind.Pyramid:
+                return BuildPyramid(x, y, w, h);
+
             default:
                 return new RectangleGeometry(new Rect(x, y, w, h));
         }
+    }
+
+    // =====================================================================
+    //  Объёмные фигуры — каркасные проекции в габаритах x,y,w,h.
+    //
+    //  Каждая — GeometryGroup из закрытых контуров (видимые грани) и
+    //  отдельных рёбер. Заливка по умолчанию выключена (BoardItem.FillColor
+    //  пуст), поэтому обычно видна ровно та линия, что и задумана — сплошная
+    //  заливка нескольких наложенных контуров штатным поведением WPF
+    //  (чередование по правилу чётности) здесь не выверялась и не является
+    //  целью: рисунок задуман как каркас, как в учебнике геометрии, а не
+    //  как закрашенное тело.
+    // =====================================================================
+    private static Geometry BuildCube(double x, double y, double w, double h)
+    {
+        // Глубина «в перспективе» — смещение задней грани вверх-вправо
+        // от передней, как в стандартной учебной проекции.
+        var d = Math.Min(w, h) * 0.30;
+        var faceW = w - d;
+        var faceH = h - d;
+
+        var frontTL = new Point(x, y + d);
+        var frontTR = new Point(x + faceW, y + d);
+        var frontBR = new Point(x + faceW, y + h);
+        var frontBL = new Point(x, y + h);
+
+        var backTL = new Point(x + d, y);
+        var backTR = new Point(x + d + faceW, y);
+        var backBR = new Point(x + d + faceW, y + faceH);
+        var backBL = new Point(x + d, y + faceH);
+
+        var group = new GeometryGroup();
+        group.Children.Add(Polygon(frontTL, frontTR, frontBR, frontBL));
+        group.Children.Add(Polygon(backTL, backTR, backBR, backBL));
+        group.Children.Add(new LineGeometry(frontTL, backTL));
+        group.Children.Add(new LineGeometry(frontTR, backTR));
+        group.Children.Add(new LineGeometry(frontBR, backBR));
+        group.Children.Add(new LineGeometry(frontBL, backBL));
+        return group;
+    }
+
+    private static Geometry BuildCylinder(double x, double y, double w, double h)
+    {
+        var ellipseHeight = Math.Min(h * 0.22, h / 2);
+
+        var group = new GeometryGroup();
+        group.Children.Add(new EllipseGeometry(new Rect(x, y, w, ellipseHeight)));
+        group.Children.Add(new EllipseGeometry(new Rect(x, y + h - ellipseHeight, w, ellipseHeight)));
+        group.Children.Add(new LineGeometry(
+            new Point(x, y + ellipseHeight / 2), new Point(x, y + h - ellipseHeight / 2)));
+        group.Children.Add(new LineGeometry(
+            new Point(x + w, y + ellipseHeight / 2), new Point(x + w, y + h - ellipseHeight / 2)));
+        return group;
+    }
+
+    private static Geometry BuildCone(double x, double y, double w, double h)
+    {
+        var ellipseHeight = Math.Min(h * 0.22, h / 2);
+        var apex = new Point(x + w / 2, y);
+
+        var group = new GeometryGroup();
+        group.Children.Add(new EllipseGeometry(new Rect(x, y + h - ellipseHeight, w, ellipseHeight)));
+        group.Children.Add(new LineGeometry(apex, new Point(x, y + h - ellipseHeight / 2)));
+        group.Children.Add(new LineGeometry(apex, new Point(x + w, y + h - ellipseHeight / 2)));
+        return group;
+    }
+
+    private static Geometry BuildSphere(double x, double y, double w, double h)
+    {
+        var equatorHeight = Math.Min(h * 0.22, h / 2);
+        var midY = y + h / 2;
+
+        var group = new GeometryGroup();
+        group.Children.Add(new EllipseGeometry(new Rect(x, y, w, h)));
+        group.Children.Add(new EllipseGeometry(new Rect(x, midY - equatorHeight / 2, w, equatorHeight)));
+        return group;
+    }
+
+    private static Geometry BuildPyramid(double x, double y, double w, double h)
+    {
+        // Основание — ромб (квадрат в той же условной проекции, что и грани
+        // куба), вершина — точка над его центром.
+        var backY = y + h * 0.45;
+        var sideY = y + h * 0.72;
+        var frontY = y + h;
+        var cx = x + w / 2;
+
+        var back = new Point(cx, backY);
+        var left = new Point(x, sideY);
+        var front = new Point(cx, frontY);
+        var right = new Point(x + w, sideY);
+        var apex = new Point(cx, y);
+
+        var group = new GeometryGroup();
+        group.Children.Add(Polygon(back, right, front, left));
+        group.Children.Add(new LineGeometry(apex, back));
+        group.Children.Add(new LineGeometry(apex, left));
+        group.Children.Add(new LineGeometry(apex, front));
+        group.Children.Add(new LineGeometry(apex, right));
+        return group;
     }
 
     private static Geometry Polygon(params Point[] points)

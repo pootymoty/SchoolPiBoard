@@ -206,6 +206,37 @@
                 </StackPanel>
             </Border>
 
+            <!-- ================= Панель объёмных фигур =================
+                 Полное зеркало панели плоских фигур выше — тот же набор
+                 элементов (значки, толщина, тип линии, палитра), те же
+                 значения Canvas.ShapeThickness/ShapeColor/ShapeLineStyle:
+                 это по-прежнему один инструмент «Фигуры», просто со своим
+                 набором значков и своей последней выбранной фигурой
+                 (Canvas.VolumeShapeTool). -->
+            <Border x:Name="VolumeShapePanel" Style="{StaticResource FloatingPanel}"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    Margin="0,0,0,86" Visibility="Collapsed" Padding="16,14">
+                <StackPanel Width="290">
+                    <UniformGrid x:Name="VolumeShapeButtons" Columns="4" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Толщина" Style="{StaticResource PanelLabel}" Margin="0,0,0,5"/>
+                    <UniformGrid x:Name="VolumeShapeThicknessOptions" Columns="6" Margin="0,0,0,10"/>
+
+                    <Button x:Name="VolumeShapeLineStyleButton" Style="{StaticResource IconButton}"
+                            Height="38" HorizontalContentAlignment="Stretch"
+                            Click="ShapeLineStyleButton_Click" ToolTip="Тип линии">
+                        <Grid Margin="8,0">
+                            <TextBlock Text="Тип линии" Style="{StaticResource PanelLabel}" VerticalAlignment="Center"/>
+                            <Line x:Name="VolumeShapeLineStylePreview" X1="100" Y1="19" X2="270" Y2="19"
+                                  Stroke="{DynamicResource TextPrimary}" StrokeThickness="3"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        </Grid>
+                    </Button>
+
+                    <ContentControl x:Name="VolumeShapePaletteHost"/>
+                </StackPanel>
+            </Border>
+
             <!-- ================= Панель ластика ================= -->
             <Border x:Name="EraserPanel" Style="{StaticResource FloatingPanel}"
                     HorizontalAlignment="Center" VerticalAlignment="Bottom"
@@ -384,6 +415,8 @@
                                   Click="Tool_Click" Tag="Text" ToolTip="Текст"/>
                     <ToggleButton x:Name="ShapeTool" Content="▭" Style="{StaticResource ToolButton}"
                                   Click="Tool_Click" Tag="Shape" ToolTip="Фигуры"/>
+                    <ToggleButton x:Name="VolumeShapeToolButton" Content="🧊" Style="{StaticResource ToolButton}"
+                                  Click="Tool_Click" Tag="VolumeShape" ToolTip="Объёмные фигуры"/>
                     <Button Content="🖼" Style="{StaticResource IconButton}"
                             Click="InsertImage_Click" ToolTip="Вставить изображение"/>
                     <Button Content="🧩" Style="{StaticResource IconButton}"

@@ -16,7 +16,16 @@ public enum BoardTool
     Marker,
     Eraser,
     Text,
-    Shape
+    Shape,
+
+    /// <summary>
+    /// Тот же инструмент построения по диагонали габаритов, что и Shape —
+    /// отдельное значение существует только для того, чтобы кнопка
+    /// «Объёмные фигуры» на панели инструментов могла подсвечиваться
+    /// независимо от кнопки «Фигуры» и держать свою последнюю выбранную
+    /// фигуру (<see cref="VolumeShapeTool"/>) отдельно от плоской.
+    /// </summary>
+    VolumeShape
 }
 
 public enum HandleKind
@@ -41,6 +50,8 @@ public class BoardCanvas : FrameworkElement
     private const double RotateHandleOffsetPx = 30;
     private const double StrokeMergeDistancePx = 25;
     private const double StrokeMergeDelayMs = 500;
+    private const double AutoScrollMarginPx = 48;
+    private const double AutoScrollMaxSpeedPxPerSec = 900;
 
     // ---- документ ----
     public Board? Board { get; private set; }
@@ -66,6 +77,16 @@ public class BoardCanvas : FrameworkElement
         }
     }
     public ShapeKind ShapeTool { get; set; } = ShapeKind.Rectangle;
+
+    /// <summary>
+    /// Последняя выбранная объёмная фигура — отдельно от <see cref="ShapeTool"/>,
+    /// чтобы переключение между кнопками «Фигуры» и «Объёмные фигуры» не сбивало
+    /// выбор друг друга. Цвет, толщина и тип линии у объёмных фигур общие
+    /// с плоскими (<see cref="ShapeColor"/>, <see cref="ShapeThickness"/>,
+    /// <see cref="ShapeLineStyle"/>) — это по-прежнему один инструмент
+    /// «Фигуры», просто с двумя наборами значков.
+    /// </summary>
+    public ShapeKind VolumeShapeTool { get; set; } = ShapeKind.Cube;
 
     public Color PenColor { get; set; } = Colors.White;
     public Color PenCustomColor { get; set; } = Colors.White;
@@ -125,6 +146,9 @@ public class BoardCanvas : FrameworkElement
     private Point _lastMoveScreen;
     private readonly DispatcherTimer _straightenTimer;
 
+    private readonly DispatcherTimer _autoScrollTimer;
+    private DateTime _lastAutoScrollTick;
+
     private bool _marquee;
     private Point _marqueeStartWorld;
     private Point _marqueeCurrentWorld;
@@ -170,6 +194,13 @@ public class BoardCanvas : FrameworkElement
         _straightenTimer = new DispatcherTimer(DispatcherPriority.Input)
         { Interval = TimeSpan.FromMilliseconds(30) };
         _straightenTimer.Tick += (_, _) => CheckStraightenHold();
+
+        // Пока объект перетаскивается, тянется за угол или крутится у самого
+        // края видимой области, камера сама едет в ту же сторону — не нужно
+        // отпускать объект, чтобы переключиться на пробел или инструмент «Рука».
+        _autoScrollTimer = new DispatcherTimer(DispatcherPriority.Render)
+        { Interval = TimeSpan.FromMilliseconds(16) };
+        _autoScrollTimer.Tick += (_, _) => TickAutoScroll();
     }
 
     // =====================================================================
@@ -356,6 +387,64 @@ public class BoardCanvas : FrameworkElement
         Offset = new Point(Offset.X - dxScreen / Zoom, Offset.Y - dyScreen / Zoom);
         ViewChanged?.Invoke();
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Срабатывает, пока идёт перетаскивание/изменение размера/поворот и
+    /// курсор стоит у края видимой области — двигает камеру в ту же сторону.
+    /// Курсор при этом остаётся на месте на экране, поэтому под ним каждый
+    /// раз оказывается новая точка мира: перетаскивание пересчитывается так,
+    /// будто пользователь туда мышью и довёл.
+    /// </summary>
+    private void TickAutoScroll()
+    {
+        if (!_dragging || _toolCursorScreen is not { } screen)
+            return;
+
+        var now = DateTime.Now;
+        var dt = Math.Min(0.05, (now - _lastAutoScrollTick).TotalSeconds);
+        _lastAutoScrollTick = now;
+        if (dt <= 0)
+            return;
+
+        var width = ActualWidth;
+        var height = ActualHeight;
+        if (width < 1 || height < 1)
+            return;
+
+        var speedX = EdgeSpeed(screen.X, width);
+        var speedY = EdgeSpeed(screen.Y, height);
+        if (speedX == 0 && speedY == 0)
+            return;
+
+        Offset = new Point(
+            Offset.X + speedX * dt / Zoom,
+            Offset.Y + speedY * dt / Zoom);
+        ViewChanged?.Invoke();
+
+        ContinueTransform(screen, ToWorld(screen));
+    }
+
+    /// <summary>
+    /// Скорость автопрокрутки вдоль одной оси: 0 в глубине холста, растёт
+    /// к краю окна и достигает максимума у самой границы (и за ней — мышь
+    /// с захваченным объектом может выйти за пределы окна, курсор при этом
+    /// удержан захватом).
+    /// </summary>
+    private static double EdgeSpeed(double position, double length)
+    {
+        if (length <= 0)
+            return 0;
+
+        var margin = Math.Min(AutoScrollMarginPx, length / 2);
+
+        if (position < margin)
+            return -AutoScrollMaxSpeedPxPerSec * (1 - Math.Max(0, position) / margin);
+
+        if (position > length - margin)
+            return AutoScrollMaxSpeedPxPerSec * (1 - Math.Max(0, length - position) / margin);
+
+        return 0;
     }
 
     /// <summary>Габариты всего содержимого доски.</summary>
@@ -891,6 +980,7 @@ public class BoardCanvas : FrameworkElement
                 break;
 
             case BoardTool.Shape:
+            case BoardTool.VolumeShape:
                 StartShape(world);
                 break;
         }
@@ -967,6 +1057,7 @@ public class BoardCanvas : FrameworkElement
                 break;
 
             case BoardTool.Shape:
+            case BoardTool.VolumeShape:
                 ContinueShape(world);
                 break;
         }
@@ -976,7 +1067,13 @@ public class BoardCanvas : FrameworkElement
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
-        _toolCursorScreen = null;
+
+        // Во время перетаскивания мышь захвачена (CaptureMouse) и может увести
+        // курсор за пределы холста — это и есть сигнал для автопрокрутки,
+        // а не повод его терять.
+        if (!_dragging)
+            _toolCursorScreen = null;
+
         _eraserScreen = null;
         if (Tool == BoardTool.Cursor) Cursor = Cursors.Arrow;
         InvalidateVisual();
@@ -1004,6 +1101,7 @@ public class BoardCanvas : FrameworkElement
         if (_dragging)
         {
             _dragging = false;
+            _autoScrollTimer.Stop();
             _activeHandle = HandleKind.None;
             _dragAttachedExtras.Clear();
             _dragAttachedExtrasOriginals.Clear();
@@ -1039,6 +1137,7 @@ public class BoardCanvas : FrameworkElement
                 break;
 
             case BoardTool.Shape:
+            case BoardTool.VolumeShape:
                 FinishShape();
                 break;
         }
@@ -1199,6 +1298,9 @@ public class BoardCanvas : FrameworkElement
         _dragStartWorld = world;
         _dragOriginals = Selection.Select(i => i.Clone()).ToList();
         _dragOriginalBounds = SelectionWorldBounds();
+
+        _lastAutoScrollTick = DateTime.Now;
+        _autoScrollTimer.Start();
 
         _dragAttachedExtras.Clear();
         _dragAttachedExtrasOriginals.Clear();
@@ -1690,10 +1792,12 @@ public class BoardCanvas : FrameworkElement
         _drawing = true;
         _drawStartWorld = world;
 
+        var kind = Tool == BoardTool.VolumeShape ? VolumeShapeTool : ShapeTool;
+
         _draft = new BoardItem
         {
             Kind = ItemKind.Shape,
-            Shape = ShapeTool,
+            Shape = kind,
             X = world.X,
             Y = world.Y,
             W = 1,
@@ -1709,7 +1813,7 @@ public class BoardCanvas : FrameworkElement
 
         // У линии и стрелки хранятся собственные концы — только так
         // они могут смотреть в любую сторону, а не по диагонали габаритов.
-        if (IsLineShape(ShapeTool))
+        if (IsLineShape(kind))
             _draft.SetPoints(new[] { world, world });
 
         InvalidateVisual();
@@ -2184,6 +2288,62 @@ public class BoardCanvas : FrameworkElement
 
         // Чертёж почти всегда двигают или подписывают следом — отдельно
         // кликать по каждой линии было бы неудобно.
+        Selection.Clear();
+        Selection.AddRange(created);
+        SelectionChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Вставляет пользовательскую заготовку — группу объектов, которую сам
+    /// пользователь когда-то сохранил с доски (<see cref="CustomTemplateStore"/>).
+    /// В отличие от встроенных заготовок, геометрия не пересчитывается по
+    /// параметрам, а переносится как есть, целиком, в центр видимой области.
+    /// </summary>
+    public void InsertCustomTemplate(CustomTemplate template)
+    {
+        if (template.Items.Count == 0)
+            return;
+
+        var bounds = Rect.Empty;
+        foreach (var item in template.Items)
+        {
+            var r = ItemRenderer.RotatedBounds(item);
+            bounds = bounds.IsEmpty ? r : Rect.Union(bounds, r);
+        }
+        if (bounds.IsEmpty)
+            return;
+
+        var originalCenter = new Point(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        var targetCenter = ToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
+        var dx = targetCenter.X - originalCenter.X;
+        var dy = targetCenter.Y - originalCenter.Y;
+
+        // Соответствие старых Id новым — как при вставке из буфера обмена:
+        // штрих, приклеенный к картинке внутри заготовки, должен остаться
+        // приклеен к её копии, а не к оригиналу (которого на доске и нет).
+        var idMap = new Dictionary<string, string>();
+        foreach (var source in template.Items)
+            idMap[source.Id] = Guid.NewGuid().ToString("N");
+
+        var created = new List<BoardItem>();
+        foreach (var source in template.Items.OrderBy(i => i.Z))
+        {
+            var copy = source.Clone();
+            copy.Id = idMap[source.Id];
+            MoveItem(copy, source, dx, dy);
+            copy.AttachedToId = idMap.TryGetValue(source.AttachedToId, out var mapped) ? mapped : "";
+            created.Add(copy);
+        }
+
+        BeginChange();
+        foreach (var item in created)
+        {
+            item.Z = NextZ();
+            Items.Add(item);
+        }
+        CommitChange();
+
         Selection.Clear();
         Selection.AddRange(created);
         SelectionChanged?.Invoke();
