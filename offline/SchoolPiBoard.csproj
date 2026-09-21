@@ -6,18 +6,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <AssemblyName>SchoolPiBoard</AssemblyName>
+    <!-- Технический идентификатор (имя exe-файла, папка данных, реестр) —
+         латиницей: "DoskaPi". Видимое пользователю название продукта —
+         «Доска Пи» — задаётся отдельно в текстах окон и установщика,
+         пространства имён (SchoolPiBoard.*) не переименовывались намеренно. -->
+    <AssemblyName>DoskaPi</AssemblyName>
     <RootNamespace>SchoolPiBoard</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Version>2.2.1</Version>
 
     <!-- Иконка EXE-файла и панели задач -->
-    <ApplicationIcon>schoolpiboard.ico</ApplicationIcon>
+    <ApplicationIcon>doskapi.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Та же иконка как ресурс — чтобы задать её окнам через Icon="..." -->
-    <Resource Include="schoolpiboard.ico" />
+    <Resource Include="doskapi.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,11 +2,11 @@
 setlocal
 
 echo ============================================
-echo   Building SchoolPiBoard installer
+echo   Building DoskaPi installer
 echo ============================================
 echo.
 echo This script only BUILDS the installer.
-echo The file you give to customers is dist\SchoolPiBoardSetup.exe
+echo The file you give to customers is dist\DoskaPiSetup.exe
 echo.
 
 pushd "%~dp0.."
@@ -51,7 +51,7 @@ if errorlevel 1 goto fail
 echo.
 echo ============================================
 echo   DONE
-echo   Installer: dist\SchoolPiBoardSetup.exe
+echo   Installer: dist\DoskaPiSetup.exe
 echo   This is the file to publish for download.
 echo ============================================
 echo.

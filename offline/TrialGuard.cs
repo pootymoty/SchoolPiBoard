@@ -20,12 +20,15 @@ public static class TrialGuard
     private const string Purpose = "TrialMark";
 
     // Названия нарочно неприметные: искать «trial» в реестре будут в первую очередь.
-    private const string RegistryPath = @"Software\SchoolPiBoard";
+    private const string RegistryPath = @"Software\DoskaPi";
     private const string RegistryValue = "AppState";
+
+    private const string LegacyRegistryPath = @"Software\SchoolPiBoard";
+    private const string LegacyProductFolder = "SchoolPiBoard";
 
     private static readonly string DataFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "SchoolPiBoard");
+        "DoskaPi");
 
     private static string DataFile => Path.Combine(DataFolder, "state.bin");
 
@@ -130,6 +133,47 @@ public static class TrialGuard
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Разовый перенос меток пробного периода из папки/ветки реестра
+    /// прежнего названия (SchoolPiBoard → Доска Пи). Ниже риском, чем перенос
+    /// лицензии: даже если метка не перенесётся, худшее — сервер решит вопрос
+    /// пробного периода сам (см. класс-докстринг), ничего не сломается.
+    /// </summary>
+    public static void MigrateFromLegacyLocation()
+    {
+        try
+        {
+            using var legacyKey = Registry.CurrentUser.OpenSubKey(LegacyRegistryPath);
+            if (legacyKey?.GetValue(RegistryValue) is string legacyValue)
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RegistryPath);
+                if (key?.GetValue(RegistryValue) is null)
+                    key?.SetValue(RegistryValue, legacyValue, RegistryValueKind.String);
+            }
+        }
+        catch
+        {
+            // Останется как есть — решит либо метка на диске, либо сервер.
+        }
+
+        try
+        {
+            var legacyFile = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                LegacyProductFolder, "state.bin");
+
+            if (!File.Exists(DataFile) && File.Exists(legacyFile))
+            {
+                Directory.CreateDirectory(DataFolder);
+                File.Copy(legacyFile, DataFile);
+            }
+        }
+        catch
+        {
+            // ProgramData может быть закрыт политиками — не критично.
         }
     }
 

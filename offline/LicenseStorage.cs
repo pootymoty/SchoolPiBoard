@@ -5,7 +5,7 @@ namespace SchoolPiBoard.Services;
 
 /// <summary>
 /// Хранит состояние лицензии (или пробного периода) в
-/// %APPDATA%\SchoolPiBoard\license.dat. Файл зашифрован — см. <see cref="LocalCrypto"/>.
+/// %APPDATA%\DoskaPi\license.dat. Файл зашифрован — см. <see cref="LocalCrypto"/>.
 /// </summary>
 public static class LicenseStorage
 {
@@ -13,7 +13,7 @@ public static class LicenseStorage
 
     private static readonly string Folder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SchoolPiBoard");
+        "DoskaPi");
 
     public static string FilePath => Path.Combine(Folder, "license.dat");
 

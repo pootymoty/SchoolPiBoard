@@ -36,7 +36,7 @@ public class LicenseInfoDialog : Window
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         root.Children.Add(new TextBlock
         {
-            Text = version is null ? "SchoolPiBoard" : $"SchoolPiBoard {version.ToString(3)}",
+            Text = version is null ? "Доска Пи" : $"Доска Пи {version.ToString(3)}",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 19,
             FontWeight = FontWeights.SemiBold
@@ -243,7 +243,7 @@ public class LicenseInfoDialog : Window
         var confirmed = ConfirmDialog.Show(this,
             "Отвязать этот компьютер",
             "Ключ освободится, и его можно будет активировать на другом компьютере. " +
-            "Доски и настройки останутся на месте, но SchoolPiBoard закроется и при " +
+            "Доски и настройки останутся на месте, но «Доска Пи» закроется и при " +
             "следующем запуске снова попросит ключ.",
             "Отвязать", danger: true);
 
@@ -259,7 +259,7 @@ public class LicenseInfoDialog : Window
         {
             ConfirmDialog.Info(this,
                 "Компьютер отвязан",
-                "Ключ снова свободен. SchoolPiBoard сейчас закроется.");
+                "Ключ снова свободен. «Доска Пи» сейчас закроется.");
             Application.Current.Shutdown();
             return;
         }

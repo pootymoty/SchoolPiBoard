@@ -54,7 +54,7 @@ public class ActivationWindow : Window
     {
         _mode = mode;
 
-        Title = "SchoolPiBoard — активация";
+        Title = "Доска Пи — активация";
         Width = 560;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -65,7 +65,7 @@ public class ActivationWindow : Window
 
         try
         {
-            Icon = new BitmapImage(new Uri("pack://application:,,,/schoolpiboard.ico"));
+            Icon = new BitmapImage(new Uri("pack://application:,,,/doskapi.ico"));
         }
         catch
         {
@@ -231,7 +231,7 @@ public class ActivationWindow : Window
         {
             ActivationMode.TrialExpired => "Пробный период закончился",
             ActivationMode.ManualEntry => "Ввод ключа",
-            _ => "Активация SchoolPiBoard"
+            _ => "Активация «Доска Пи»"
         };
 
         _description.Text = _mode switch

@@ -27,7 +27,7 @@ TARGET = pathlib.Path(__file__).resolve().parent / "offer.html"
 
 TEMPLATE = """<!DOCTYPE html>
 <!--
-  Оферта SchoolPiBoard. Файл СГЕНЕРИРОВАН из offline/docs/legal/offer-desktop.md
+  Оферта «Доска Пи». Файл СГЕНЕРИРОВАН из offline/docs/legal/offer-desktop.md
   скриптом offline/web/build_offer.py — руками не править, правки затрутся.
 
   В разметке намеренно нет удвоенных фигурных скобок и скобок с процентом:
@@ -38,8 +38,8 @@ TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Оферта — SchoolPiBoard</title>
-  <meta name="description" content="Публичная оферта о заключении лицензионного договора на использование программы SchoolPiBoard.">
+  <title>Оферта — Доска Пи</title>
+  <meta name="description" content="Публичная оферта о заключении лицензионного договора на использование программы «Доска Пи».">
   <meta name="robots" content="noindex">
   <style>
     /* Палитра основного сайта school-pi.online. */

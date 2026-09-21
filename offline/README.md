@@ -1,4 +1,4 @@
-# SchoolPiBoard — десктопная доска
+# Доска Пи — десктопная доска
 
 Приложение для рисования на доске под Windows: работает полностью офлайн,
 доски хранятся на компьютере пользователя. Продаётся по бессрочному ключу
@@ -115,7 +115,7 @@ cd offline
 build.bat
 ```
 
-Результат — `offline\publish\SchoolPiBoard.exe`. Запускается прямо оттуда,
+Результат — `offline\publish\DoskaPi.exe`. Запускается прямо оттуда,
 установщик для проверки не нужен.
 
 Если сервер ключей ещё не поднят, а посмотреть приложение хочется, укажите
@@ -123,26 +123,26 @@ build.bat
 
 ```
 set SCHOOLPIBOARD_LICENSE_URL=http://localhost:5000
-publish\SchoolPiBoard.exe
+publish\DoskaPi.exe
 ```
 
 ## Где приложение хранит данные
 
 | Что | Где |
 |---|---|
-| доски | `%APPDATA%\SchoolPiBoard\boards.json` |
-| настройки | `%APPDATA%\SchoolPiBoard\settings.json` |
-| собственные заготовки | `%APPDATA%\SchoolPiBoard\custom_templates.json` |
-| лицензия | `%APPDATA%\SchoolPiBoard\license.dat` (зашифрован) |
-| метка пробного периода | `HKCU\Software\SchoolPiBoard` и `%ProgramData%\SchoolPiBoard` |
-| журнал ошибок | `%APPDATA%\SchoolPiBoard\crash.log` |
+| доски | `%APPDATA%\DoskaPi\boards.json` |
+| настройки | `%APPDATA%\DoskaPi\settings.json` |
+| собственные заготовки | `%APPDATA%\DoskaPi\custom_templates.json` |
+| лицензия | `%APPDATA%\DoskaPi\license.dat` (зашифрован) |
+| метка пробного периода | `HKCU\Software\DoskaPi` и `%ProgramData%\DoskaPi` |
+| журнал ошибок | `%APPDATA%\DoskaPi\crash.log` |
 
 `settings.json` можно править вручную — например, задать другой адрес
 сервера, не пересобирая приложение:
 
 ```json
 {
-  "DataFolder": "C:\\Users\\Имя\\AppData\\Roaming\\SchoolPiBoard",
+  "DataFolder": "C:\\Users\\Имя\\AppData\\Roaming\\DoskaPi",
   "LicenseServerUrl": "https://keys.school-pi.online"
 }
 ```
@@ -155,15 +155,15 @@ publish\SchoolPiBoard.exe
 Чтобы приложение снова показало экран активации:
 
 ```
-del "%APPDATA%\SchoolPiBoard\license.dat"
+del "%APPDATA%\DoskaPi\license.dat"
 ```
 
 Чтобы снова стал доступен пробный период (он даётся один раз на компьютер),
 этого мало — метки лежат отдельно:
 
 ```
-reg delete "HKCU\Software\SchoolPiBoard" /f
-rmdir /s /q "%ProgramData%\SchoolPiBoard"
+reg delete "HKCU\Software\DoskaPi" /f
+rmdir /s /q "%ProgramData%\DoskaPi"
 ```
 
 И даже это не поможет: сервер помнит выданный пробный период по отпечатку
@@ -200,7 +200,8 @@ Delete — удалить · Esc — курсор · Shift — прямая ли
 Начало `SchoolPiBoard.iss`:
 
 ```
-#define AppName "SchoolPiBoard"
+#define AppName "Доска Пи"
+#define AppDirName "DoskaPi"
 #define AppVersion "2.2.1"
 #define AppPublisher "Урвачев Роман Сергеевич"
 #define AppUrl "https://school-pi.online"
@@ -214,11 +215,11 @@ Delete — удалить · Esc — курсор · Shift — прямая ли
 
 | Строка | Что делает |
 |---|---|
-| `DefaultDirName={autopf}\SchoolPiBoard` | папка по умолчанию |
+| `DefaultDirName={autopf}\{#AppDirName}` | папка по умолчанию (латиницей, независимо от видимого названия) |
 | `PrivilegesRequired=lowest` | можно ставить без прав администратора |
 | `PrivilegesRequiredOverridesAllowed=dialog` | мастер спросит «для всех / только для меня» |
 | `DisableWelcomePage=no` | показывать страницу приветствия |
-| `OutputBaseFilename=SchoolPiBoardSetup` | имя файла без версии — ссылка на сайте не меняется |
+| `OutputBaseFilename=DoskaPiSetup` | имя файла без версии — ссылка на сайте не меняется |
 | `ArchitecturesAllowed=x64` | только 64-разрядная Windows |
 
 ## Как собрать
@@ -236,7 +237,7 @@ installer\build-installer.bat
 приложение), потом откройте `installer\SchoolPiBoard.iss` в Inno Setup
 Compiler и нажмите **Build → Compile**.
 
-Результат в обоих случаях — `offline\dist\SchoolPiBoardSetup.exe`.
+Результат в обоих случаях — `offline\dist\DoskaPiSetup.exe`.
 **Это единственный файл, который получает покупатель.**
 
 Файл `.bat` — скрипт сборки, он нужен только вам.
@@ -245,7 +246,7 @@ Compiler и нажмите **Build → Compile**.
 
 Приветствие → соглашение → пояснения → выбор папки → выбор папки
 в меню Пуск → галочка «ярлык на рабочем столе» → установка → последняя
-страница с галочкой «Запустить SchoolPiBoard и ввести ключ регистрации».
+страница с галочкой «Запустить «Доска Пи» и ввести ключ регистрации».
 
 Если галочку снять — ключ спросится при первом запуске. Оба сценария
 рабочие, приложение без ключа просто не пускает дальше экрана активации.
@@ -254,8 +255,8 @@ Compiler и нажмите **Build → Compile**.
 
 При удалении программы остаются:
 
-- `%APPDATA%\SchoolPiBoard` — доски и настройки пользователя;
-- `HKCU\Software\SchoolPiBoard` и `%ProgramData%\SchoolPiBoard` — метки
+- `%APPDATA%\DoskaPi` — доски и настройки пользователя;
+- `HKCU\Software\DoskaPi` и `%ProgramData%\DoskaPi` — метки
   пробного периода.
 
 Первое — чтобы переустановка не стирала работу. Второе — чтобы «удалить
@@ -286,14 +287,14 @@ Compiler и нажмите **Build → Compile**.
 поставит программу себе.
 
 **Последняя страница мастера** предлагает запустить программу с ключом
-регистрации (`SchoolPiBoard.exe --activate`). Галочку можно снять — тогда ключ
+регистрации (`DoskaPi.exe --activate`). Галочку можно снять — тогда ключ
 спросится при первом запуске. Оба сценария из технического задания
 («ввести сразу» и «ввести позже») это и есть.
 
 **Деинсталлятор не трогает три вещи:**
 
-- `%APPDATA%\SchoolPiBoard` — доски и настройки пользователя;
-- `HKCU\Software\SchoolPiBoard` и `%ProgramData%\SchoolPiBoard` — метки
+- `%APPDATA%\DoskaPi` — доски и настройки пользователя;
+- `HKCU\Software\DoskaPi` и `%ProgramData%\DoskaPi` — метки
   пробного периода. Иначе «удалить и поставить заново» давало бы новые
   три дня бесплатно.
 
@@ -613,11 +614,11 @@ JWT-API Робокассы, а мы работаем по классическо
 
 Адрес сервера в десктопном приложении берётся из переменной окружения
 `SCHOOLPIBOARD_LICENSE_URL` (перекрывает всё), иначе из `LicenseServerUrl`
-в `%APPDATA%\SchoolPiBoard\settings.json`.
+в `%APPDATA%\DoskaPi\settings.json`.
 
 ```powershell
 $env:SCHOOLPIBOARD_LICENSE_URL = "http://localhost:5000"
-.\SchoolPiBoard.exe
+.\DoskaPi.exe
 ```
 
 ### Чего здесь намеренно нет
@@ -650,12 +651,12 @@ Flask принял бы за подстановку. Можно положить
 в блоке покупки, в блоке условий и в подвале.
 
 Уже подставлено: адрес сервера ключей в форме, ссылка на установщик
-(`/download/SchoolPiBoardSetup.exe`), почта поддержки, реквизиты продавца,
+(`/download/DoskaPiSetup.exe`), почта поддержки, реквизиты продавца,
 условия возврата.
 
 ## Куда положить установщик
 
-Ссылка со страницы ведёт на `/download/SchoolPiBoardSetup.exe`. Положите файл
+Ссылка со страницы ведёт на `/download/DoskaPiSetup.exe`. Положите файл
 так, чтобы этот адрес работал, и укажите тот же адрес в переменной
 `License__DownloadUrl` на сервере — он попадает в письмо с ключом.
 
@@ -737,6 +738,43 @@ def board_page():
 
 # История версий
 
+## Версия 2.2.1 — переименование в «Доска Пи»
+
+Продукт называется «Доска Пи». Версия не менялась. В отличие от прошлого
+переименования (SchoolPiBoard, см. ниже), на этот раз разделены видимое
+название и технический идентификатор:
+
+- **Видимое** (заголовки окон, установщик, письмо с ключом, экран
+  активации, «О программе», оферта) — «Доска Пи».
+- **Технический** (имя exe-файла, папка данных, ветка реестра, переменная
+  окружения) — латиницей, `DoskaPi`: `DoskaPi.exe`, `%APPDATA%\DoskaPi`,
+  `HKCU\Software\DoskaPi`, `%ProgramData%\DoskaPi`,
+  `DOSKAPI_LICENSE_URL` (была `SCHOOLPIBOARD_LICENSE_URL`).
+- **Не менялось совсем**: пространства имён в коде (`SchoolPiBoard.*`) —
+  внутренний код, пользователю не виден; `AppId` установщика — тот же
+  GUID, иначе Windows не опознала бы уже установленную копию как
+  обновление той же программы; строки-соли в `HardwareId`/`LocalCrypto`
+  (`"SchoolPiBoard.…"`) — **намеренно**, потому что сейчас есть реальные
+  активные покупатели и смена соли аннулировала бы их привязку к
+  устройству, как это уже произошло при прошлом переименовании (см.
+  ниже); домен сервера ключей `keys.school-pi.online`; URL оферты
+  `/offer/schoolpiboard-desktop`; сервис `offline/server/`
+  (`SchoolPiBoard.LicenseServer` как namespace/проект) — переименован бы
+  только текст писем и подписи по умолчанию (`EmailTemplate.cs`,
+  `ServerOptions.cs`), сама служба, её маршруты и БД не тронуты.
+- **Иконка** — заменена на новый логотип (`doskapi.ico`, 8 размеров
+  16–256 px), собрана из присланного PNG через Pillow.
+
+**Перенос данных не сломан.** В отличие от прошлого раза, когда переезд с
+`WhiteboardApp` на `SchoolPiBoard` был ручным («скопируйте boards.json
+сами»), теперь при первом запуске новой сборки `AppSettings.MigrateFromLegacyFolder()`
+переносит всю папку `%APPDATA%\SchoolPiBoard` → `%APPDATA%\DoskaPi` целиком
+(доски, лицензию, собственные заготовки, настройки, crash.log — все они
+лежат в одной папке, поэтому один `Directory.Move` переносит всё разом), а
+`TrialGuard.MigrateFromLegacyLocation()` — метки пробного периода из
+реестра и `%ProgramData%`. Если новая папка уже существует — перенос не
+трогает ничего, ни чистая установка, ни повторный запуск не пострадают.
+
 ## Версия 2.2.1 — автопрокрутка, числовой ввод делений, собственные заготовки, объёмные фигуры
 
 Четыре независимые правки редактора, версия не менялась.
@@ -757,7 +795,7 @@ def board_page():
 
 **Собственные заготовки.** У панели объекта в меню «⋯» появился пункт
 «Сохранить как заготовку» — кладёт копию выделения в личную библиотеку
-(`%APPDATA%\SchoolPiBoard\custom_templates.json`, отдельно от досок).
+(`%APPDATA%\DoskaPi\custom_templates.json`, отдельно от досок).
 Новая вкладка «Мои» в панели «Заготовки» показывает сохранённое, вставляет
 группу целиком с сохранением взаимного расположения (включая приклейку
 штриха к картинке, если она была) и позволяет удалить лишнее. В отличие
@@ -872,7 +910,7 @@ def board_page():
   отрисовке — так поворот не накапливает искажения.
 - **Экспорт PNG** сохраняет всё содержимое доски, а не видимую область.
 - При ошибке запуска подробности пишутся в
-  `%APPDATA%\SchoolPiBoard\crash.log` и показываются с первопричиной.
+  `%APPDATA%\DoskaPi\crash.log` и показываются с первопричиной.
 
 ## Версия 2.1 — окно, ползунки, список досок
 

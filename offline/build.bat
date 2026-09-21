@@ -2,7 +2,7 @@
 setlocal
 
 echo ============================================
-echo   Building SchoolPiBoard (WPF, .NET 8)
+echo   Building DoskaPi (WPF, .NET 8)
 echo ============================================
 echo.
 
@@ -38,7 +38,7 @@ if errorlevel 1 goto fail
 echo.
 echo ============================================
 echo   DONE
-echo   Output: publish\SchoolPiBoard.exe
+echo   Output: publish\DoskaPi.exe
 echo ============================================
 echo.
 pause

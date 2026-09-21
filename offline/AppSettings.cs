@@ -12,7 +12,7 @@ public class AppSettings
 {
     private static readonly string ConfigDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SchoolPiBoard");
+        "DoskaPi");
 
     private static readonly string ConfigFile = Path.Combine(ConfigDirectory, "settings.json");
 
@@ -59,4 +59,36 @@ public class AppSettings
     }
 
     public static string DefaultFolder => ConfigDirectory;
+
+    /// <summary>
+    /// Разовый перенос всей папки данных из прежнего названия продукта
+    /// (SchoolPiBoard) в новое (Доска Пи, технически — DoskaPi): доски,
+    /// license.dat, custom_templates.json и settings.json лежат в одной
+    /// папке, поэтому перенос самой папки переносит их все разом. Если
+    /// новая папка уже существует — перенос уже случился или это чистая
+    /// установка, трогать нечего.
+    /// </summary>
+    public static void MigrateFromLegacyFolder()
+    {
+        if (Directory.Exists(ConfigDirectory))
+            return;
+
+        var legacy = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "SchoolPiBoard");
+
+        if (!Directory.Exists(legacy))
+            return;
+
+        try
+        {
+            Directory.Move(legacy, ConfigDirectory);
+        }
+        catch
+        {
+            // Не критично: старая папка остаётся на месте нетронутой, просто
+            // перенос не случился в этот раз — можно попробовать в следующий
+            // запуск (например, если файл был занят антивирусом).
+        }
+    }
 }

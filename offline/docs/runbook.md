@@ -82,7 +82,7 @@ Smtp__Port=465
 Smtp__User=info@school-pi.online
 Smtp__FromEmail=info@school-pi.online
 SMTP_PASSWORD=$SMTPPASS
-License__DownloadUrl=https://school-pi.online/download/SchoolPiBoardSetup.exe
+License__DownloadUrl=https://school-pi.online/download/DoskaPiSetup.exe
 License__SupportEmail=info@school-pi.online
 Web__SiteUrl=https://school-pi.online
 EOF
@@ -281,10 +281,10 @@ cd SchoolPiBoard\offline
 installer\build-installer.bat
 ```
 
-Результат: `offline\dist\SchoolPiBoardSetup.exe`.
+Результат: `offline\dist\DoskaPiSetup.exe`.
 
 Если нужно просто проверить приложение без установщика — `build.bat`,
-результат в `offline\publish\SchoolPiBoard.exe`.
+результат в `offline\publish\DoskaPi.exe`.
 
 ### Шаг 2.5. Установить и проверить `[ПК]`
 
@@ -300,7 +300,7 @@ installer\build-installer.bat
 
 ### Шаг 2.6. Выложить установщик `[ПК → сервер]`
 
-Положите `SchoolPiBoardSetup.exe` туда, куда ведёт ссылка со страницы
+Положите `DoskaPiSetup.exe` туда, куда ведёт ссылка со страницы
 покупки (`License__DownloadUrl` из шага 1.5).
 
 ### Шаг 2.7. Страница покупки `[сайт]`

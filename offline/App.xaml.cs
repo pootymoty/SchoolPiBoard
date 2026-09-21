@@ -10,7 +10,7 @@ public partial class App : Application
 {
     private static readonly string LogPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SchoolPiBoard", "crash.log");
+        "DoskaPi", "crash.log");
 
     public App()
     {
@@ -39,6 +39,13 @@ public partial class App : Application
         try
         {
             ThemeManager.Initialize();
+
+            // Разовый перенос данных из папки прежнего названия (SchoolPiBoard →
+            // Доска Пи) — до первого обращения к AppSettings/лицензии, иначе
+            // у уже купивших ключ пользователей доски и активация "потеряются"
+            // просто из-за переименования папки.
+            AppSettings.MigrateFromLegacyFolder();
+            TrialGuard.MigrateFromLegacyLocation();
 
             // Пока идёт активация, ни одного окна приложения ещё нет: при режиме
             // по умолчанию WPF закрыл бы приложение сразу после закрытия окна
@@ -106,7 +113,7 @@ public partial class App : Application
     {
         const string title = "Лицензия больше не действует";
         const string message =
-            "Сервер сообщил, что этот ключ отозван, поэтому SchoolPiBoard закроется.\n\n" +
+            "Сервер сообщил, что этот ключ отозван, поэтому «Доска Пи» закроется.\n\n" +
             "Доски и настройки остаются на компьютере — они снова откроются, " +
             "как только будет введён действующий ключ.";
 
@@ -175,7 +182,7 @@ public partial class App : Application
                 $"Ошибка при работе приложения.\n\n" +
                 $"ПЕРВОПРИЧИНА:\n{root.GetType().Name}\n{root.Message}\n\n" +
                 $"Подробности: {LogPath}",
-                "SchoolPiBoard — ошибка",
+                "Доска Пи — ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }

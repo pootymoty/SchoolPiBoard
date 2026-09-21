@@ -26,7 +26,7 @@
 | `/` | страница покупки и скачивания — готовый файл `offline/web/index.html` |
 | `/offer/schoolpiboard-desktop` | оферта — готовый файл `offline/web/offer.html` |
 | `/privacy` | политика обработки персональных данных — **ещё не написана** |
-| `/download/SchoolPiBoardSetup.exe` | установщик, отдаётся статикой |
+| `/download/DoskaPiSetup.exe` | установщик, отдаётся статикой |
 | `/success` | «спасибо, письмо с ключом придёт в течение нескольких минут» |
 | `/fail` | «оплата не прошла» |
 

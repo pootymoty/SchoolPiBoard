@@ -36,7 +36,7 @@ public static class CustomTemplateStore
 {
     private static readonly string ConfigDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SchoolPiBoard");
+        "DoskaPi");
 
     private static readonly string FilePath = Path.Combine(ConfigDirectory, "custom_templates.json");
 

@@ -1,21 +1,29 @@
-﻿; Установщик SchoolPiBoard (Inno Setup 6).
+﻿; Установщик «Доска Пи» (Inno Setup 6).
 ;
 ; Приложение публикуется self-contained: рантайм .NET лежит внутри exe,
 ; поэтому установщику нечего докачивать и он работает без интернета.
 ; Если когда-нибудь перейдём на framework-dependent сборку, сюда добавится
 ; проверка наличия .NET Desktop Runtime — как это сделать, описано в README.
 
-#define AppName "SchoolPiBoard"
+; AppName — то, что видит пользователь (заголовки, ярлыки, реестр программ).
+; AppDirName — технический идентификатор латиницей, только для пути
+; установки в Program Files; сам exe тоже называется по нему (AssemblyName
+; в SchoolPiBoard.csproj даёт DoskaPi.exe при сборке).
+#define AppName "Доска Пи"
+#define AppDirName "DoskaPi"
 #define AppVersion "2.2.1"
 #define AppPublisher "Урвачев Роман Сергеевич"
 #define AppUrl "https://school-pi.online"
 #define AppSupportEmail "info@school-pi.online"
-#define AppExe "SchoolPiBoard.exe"
+#define AppExe "DoskaPi.exe"
 
 ; Папка с результатом `dotnet publish` (см. build-installer.bat).
 #define SourceDir "..\publish"
 
 [Setup]
+; AppId не меняется вместе с переименованием — он опознаёт уже
+; установленные копии SchoolPiBoard/«Доска Пи» как одну и ту же программу,
+; иначе обновление ставилось бы рядом со старой, а не поверх неё.
 AppId={{8B0E5F4C-6E4B-4E2A-9A1D-6F2C5D3A7B11}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -32,7 +40,7 @@ VersionInfoCompany={#AppPublisher}
 VersionInfoDescription=Установка {#AppName}
 VersionInfoProductName={#AppName}
 
-DefaultDirName={autopf}\{#AppName}
+DefaultDirName={autopf}\{#AppDirName}
 DefaultGroupName={#AppName}
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}
@@ -66,8 +74,8 @@ InfoBeforeFile=BEFORE.txt
 OutputDir=..\dist
 ; Имя без версии: ссылка на скачивание на сайте остаётся одной и той же
 ; от выпуска к выпуску. Версия видна в свойствах файла и в мастере.
-OutputBaseFilename=SchoolPiBoardSetup
-SetupIconFile=..\schoolpiboard.ico
+OutputBaseFilename=DoskaPiSetup
+SetupIconFile=..\doskapi.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -97,10 +105,10 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Filename: "{app}\{#AppExe}"; Parameters: "--activate"; Description: "Запустить {#AppName} и ввести ключ регистрации"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; Доски пользователя (%APPDATA%\SchoolPiBoard) намеренно не удаляются:
+; Доски пользователя (%APPDATA%\DoskaPi) намеренно не удаляются:
 ; переустановка программы не должна стирать работу.
 ;
-; Метки пробного периода (HKCU\Software\SchoolPiBoard и
-; %ProgramData%\SchoolPiBoard) тоже остаются — иначе «удалить и поставить
+; Метки пробного периода (HKCU\Software\DoskaPi и
+; %ProgramData%\DoskaPi) тоже остаются — иначе «удалить и поставить
 ; заново» превращалось бы в бесконечный бесплатный период.
 Type: dirifempty; Name: "{app}"
