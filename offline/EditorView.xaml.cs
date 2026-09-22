@@ -652,21 +652,20 @@ public partial class EditorView : UserControl
     // =====================================================================
     private void BuildVolumeShapeButtons()
     {
-        (string Glyph, ShapeKind Kind, string Tip)[] shapes =
+        (ShapeKind Kind, string Tip)[] shapes =
         {
-            ("🧊", ShapeKind.Cube, "Куб"),
-            ("🛢", ShapeKind.Cylinder, "Цилиндр"),
-            ("🍦", ShapeKind.Cone, "Конус"),
-            ("⚽", ShapeKind.Sphere, "Шар"),
-            ("🔺", ShapeKind.Pyramid, "Пирамида")
+            (ShapeKind.Cube, "Куб"),
+            (ShapeKind.Cylinder, "Цилиндр"),
+            (ShapeKind.Cone, "Конус"),
+            (ShapeKind.Sphere, "Шар"),
+            (ShapeKind.Pyramid, "Пирамида")
         };
 
-        foreach (var (glyph, kind, tip) in shapes)
+        foreach (var (kind, tip) in shapes)
         {
             var button = new Button
             {
-                Content = glyph,
-                FontSize = 18,
+                Content = BuildVolumeShapeIcon(kind),
                 Width = 60,
                 Height = 42,
                 Margin = new Thickness(2),
@@ -679,14 +678,44 @@ public partial class EditorView : UserControl
                 if (s is Button { Tag: ShapeKind picked })
                 {
                     Canvas.VolumeShapeTool = picked;
-                    VolumeShapeToolButton.Content = ((Button)s).Content;
+                    VolumeShapeToolButton.Content = BuildVolumeShapeIcon(picked);
                     HighlightVolumeShapeButtons();
                 }
             };
             VolumeShapeButtons.Children.Add(button);
         }
 
+        VolumeShapeToolButton.Content = BuildVolumeShapeIcon(Canvas.VolumeShapeTool);
         HighlightVolumeShapeButtons();
+    }
+
+    /// <summary>
+    /// Значок объёмной фигуры — не эмодзи (шрифт-зависимые и не всегда
+    /// похожие на саму фигуру), а та же геометрия, что рисует
+    /// <see cref="ItemRenderer.BuildShapeGeometry"/> на холсте: значок
+    /// гарантированно совпадает с тем, что получится после вставки.
+    /// </summary>
+    private static UIElement BuildVolumeShapeIcon(ShapeKind kind)
+    {
+        const double size = 28;
+        var geometry = ItemRenderer.BuildShapeGeometry(kind, new Rect(2, 2, size - 4, size - 4));
+
+        var path = new System.Windows.Shapes.Path
+        {
+            Data = geometry,
+            StrokeThickness = 1.6,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Width = size,
+            Height = size,
+            Stretch = Stretch.None,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        path.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "TextPrimary");
+
+        return path;
     }
 
     private void HighlightVolumeShapeButtons()

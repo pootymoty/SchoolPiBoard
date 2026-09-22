@@ -33,6 +33,9 @@ public class ColorPalette : UserControl
     public event Action<Color>? ColorPicked;
     public event Action? NonePicked;
 
+    private readonly List<(Button Button, Color Color)> _swatches = new();
+    private Button? _noneButton;
+
     // customInitial оставлен только для совместимости со старыми вызовами.
     public ColorPalette(Color initial, bool allowNone = false, string noneCaption = "Без цвета", Color? customInitial = null)
     {
@@ -45,30 +48,33 @@ public class ColorPalette : UserControl
         foreach (var hex in FixedSwatches)
         {
             var color = (Color)ColorConverter.ConvertFromString(hex)!;
-            grid.Children.Add(CreateSwatch(color, hex));
+            var swatch = CreateSwatch(color, hex);
+            _swatches.Add((swatch, color));
+            grid.Children.Add(swatch);
         }
 
         root.Children.Add(grid);
 
         if (allowNone)
         {
-            var noneButton = new Button
+            _noneButton = new Button
             {
                 Content = noneCaption,
                 Style = (Style)Application.Current.Resources["TextButton"],
                 Margin = new Thickness(3, 6, 3, 0),
                 HorizontalContentAlignment = HorizontalAlignment.Center
             };
-            noneButton.Click += (_, _) =>
+            _noneButton.Click += (_, _) =>
             {
                 IsNoneSelected = true;
+                UpdateSelectionVisuals();
                 NonePicked?.Invoke();
             };
-            root.Children.Add(noneButton);
+            root.Children.Add(_noneButton);
         }
 
         Content = root;
-        Apply(initial, false);
+        UpdateSelectionVisuals();
     }
 
     private Button CreateSwatch(Color color, string tooltip)
@@ -80,8 +86,6 @@ public class ColorPalette : UserControl
             Margin = new Thickness(3),
             Cursor = System.Windows.Input.Cursors.Hand,
             Background = new SolidColorBrush(color),
-            BorderBrush = (Brush)Application.Current.Resources["BorderBrushColor"],
-            BorderThickness = new Thickness(1),
             Tag = color,
             ToolTip = tooltip
         };
@@ -91,17 +95,40 @@ public class ColorPalette : UserControl
             {
                 SelectedColor = c;
                 IsNoneSelected = false;
+                UpdateSelectionVisuals();
                 ColorPicked?.Invoke(c);
             }
         };
         return button;
     }
 
-    private void Apply(Color color, bool notify)
+    /// <summary>
+    /// Обычная тонкая рамка одного цвета не видна на образце того же (или
+    /// близкого) цвета — чёрный на чёрном, серый на сером. Поэтому у
+    /// выбранного цвета рамка акцентная и заметно толще, а не просто
+    /// другого оттенка.
+    /// </summary>
+    private void UpdateSelectionVisuals()
     {
-        SelectedColor = color;
-        IsNoneSelected = false;
-        if (notify)
-            ColorPicked?.Invoke(color);
+        var accent = (Brush)Application.Current.Resources["Accent"];
+        var normal = (Brush)Application.Current.Resources["BorderBrushColor"];
+
+        foreach (var (button, color) in _swatches)
+        {
+            var selected = !IsNoneSelected && ColorsEqual(color, SelectedColor);
+            button.BorderBrush = selected ? accent : normal;
+            button.BorderThickness = new Thickness(selected ? 3 : 1);
+        }
+
+        if (_noneButton is not null)
+        {
+            _noneButton.Foreground = IsNoneSelected
+                ? accent
+                : (Brush)Application.Current.Resources["TextPrimary"];
+            _noneButton.FontWeight = IsNoneSelected ? FontWeights.SemiBold : FontWeights.Normal;
+        }
     }
+
+    private static bool ColorsEqual(Color a, Color b) =>
+        a.A == b.A && a.R == b.R && a.G == b.G && a.B == b.B;
 }
