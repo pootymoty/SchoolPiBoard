@@ -48,7 +48,8 @@ public static class GridPainter
     /// Отрисовка сетки в видимой области мира.
     /// Шаг увеличивается при сильном отдалении, чтобы линии не сливались.
     /// </summary>
-    public static void Draw(DrawingContext dc, GridStyle style, Color background, Rect world, double zoom, string? customColor = null)
+    public static void Draw(DrawingContext dc, GridStyle style, Color background, Rect world, double zoom,
+                             string? customColor = null, double opacity = 1.0)
     {
         if (style == GridStyle.Solid)
             return;
@@ -58,6 +59,12 @@ public static class GridPainter
             step *= 2;
 
         var lineColor = LineColor(background, customColor ?? "");
+        if (opacity < 0.999)
+        {
+            var alpha = (byte)Math.Clamp((int)Math.Round(lineColor.A * Math.Max(0, opacity)), 0, 255);
+            lineColor = Color.FromArgb(alpha, lineColor.R, lineColor.G, lineColor.B);
+        }
+
         var pen = new Pen(new SolidColorBrush(lineColor), 1.0 / zoom);
         pen.Freeze();
 

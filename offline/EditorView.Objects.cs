@@ -721,11 +721,15 @@ public partial class EditorView
             return;
         }
 
+        var exportFolder = _shell.Settings.ExportFolder;
         var dialog = new SaveFileDialog
         {
             Title = "Экспорт доски",
             Filter = "PNG-изображение|*.png",
-            FileName = SanitizeFileName(_board.Name) + ".png"
+            FileName = SanitizeFileName(_board.Name) + ".png",
+            InitialDirectory = !string.IsNullOrWhiteSpace(exportFolder) && Directory.Exists(exportFolder)
+                ? exportFolder
+                : AppSettings.DefaultExportFolder
         };
 
         if (dialog.ShowDialog() != true)
@@ -765,7 +769,10 @@ public partial class EditorView
 
             dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));
 
-            GridPainter.Draw(dc, _board.Grid, background, bounds, 1.0);
+            // Раньше цвет разлиновки здесь не передавался вовсе — экспорт
+            // рисовал сетку автоматическим цветом, даже если на доске стоял
+            // выбранный вручную.
+            GridPainter.Draw(dc, _board.Grid, background, bounds, 1.0, _board.GridColor, _board.GridOpacity);
 
             foreach (var item in Canvas.Items.OrderBy(i => i.Z))
                 ItemRenderer.Draw(dc, item, 1.0);

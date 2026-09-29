@@ -288,6 +288,15 @@ public class Board
     /// <summary>Цвет оформления фоновой разлиновки.</summary>
     public string GridColor { get; set; } = "";
 
+    /// <summary>
+    /// Насыщенность (альфа) цвета разлиновки, 0..1. Автоматический цвет
+    /// (<see cref="GridColor"/> пуст) уже подобран полупрозрачным сам по
+    /// себе — этот множитель применяется поверх него тоже, но в первую
+    /// очередь нужен для выбранного вручную цвета: без него любой цвет
+    /// из палитры ложится сплошной заливкой и режет глаза.
+    /// </summary>
+    public double GridOpacity { get; set; } = 1.0;
+
     public List<BoardItem> Items { get; set; } = new();
 
     [JsonIgnore] public string CreatedText => Created.ToString("dd.MM.yyyy HH:mm");

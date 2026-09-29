@@ -21,14 +21,27 @@ public static class ThemeManager
 
     public static bool IsDark { get; private set; } = true;
 
-    public static void Initialize()
+    /// <summary>Текущий выбор пользователя: "System", "Light" или "Dark".</summary>
+    public static string Preference { get; private set; } = "System";
+
+    /// <summary>
+    /// preference — сохранённое значение из настроек ("System" по умолчанию,
+    /// если ничего не сохранено или значение не распознано).
+    /// </summary>
+    public static void Initialize(string preference)
     {
-        IsDark = ReadSystemIsDark();
+        Preference = IsKnownPreference(preference) ? preference : "System";
+        IsDark = ResolveIsDark();
         ApplyPalette();
 
         SystemEvents.UserPreferenceChanged += (_, e) =>
         {
             if (e.Category != UserPreferenceCategory.General)
+                return;
+
+            // При явном выборе «Светлая»/«Тёмная» системную тему больше не
+            // слушаем — пользователь попросил конкретный вид, а не «как в Windows».
+            if (Preference != "System")
                 return;
 
             var dark = ReadSystemIsDark();
@@ -42,6 +55,34 @@ public static class ThemeManager
                 ApplyTitleBar(window);
         };
     }
+
+    /// <summary>Меняет тему по явному выбору пользователя в настройках.</summary>
+    public static void SetPreference(string preference)
+    {
+        if (!IsKnownPreference(preference))
+            return;
+
+        Preference = preference;
+        var dark = ResolveIsDark();
+        if (dark == IsDark)
+            return;
+
+        IsDark = dark;
+        ApplyPalette();
+
+        foreach (var window in Tracked.ToList())
+            ApplyTitleBar(window);
+    }
+
+    private static bool IsKnownPreference(string? preference) =>
+        preference is "System" or "Light" or "Dark";
+
+    private static bool ResolveIsDark() => Preference switch
+    {
+        "Light" => false,
+        "Dark" => true,
+        _ => ReadSystemIsDark()
+    };
 
     /// <summary>Читает системную настройку «тёмный режим для приложений».</summary>
     private static bool ReadSystemIsDark()

@@ -38,8 +38,6 @@ public partial class App : Application
 
         try
         {
-            ThemeManager.Initialize();
-
             // Разовый перенос данных из папки прежнего названия (SchoolPiBoard →
             // Доска Пи) — до первого обращения к AppSettings/лицензии, иначе
             // у уже купивших ключ пользователей доски и активация "потеряются"
@@ -47,12 +45,15 @@ public partial class App : Application
             AppSettings.MigrateFromLegacyFolder();
             TrialGuard.MigrateFromLegacyLocation();
 
+            var settings = AppSettings.Load();
+            ThemeManager.Initialize(settings.Theme);
+
             // Пока идёт активация, ни одного окна приложения ещё нет: при режиме
             // по умолчанию WPF закрыл бы приложение сразу после закрытия окна
             // активации, не дав открыть список досок.
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-            LicenseManager.Initialize(AppSettings.Load());
+            LicenseManager.Initialize(settings);
 
             // Установщик на последней странице предлагает ввести ключ сразу —
             // тогда приложение запускается с этим ключом командной строки.

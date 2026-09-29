@@ -509,7 +509,7 @@ public class BoardCanvas : FrameworkElement
         dc.PushTransform(new MatrixTransform(Zoom, 0, 0, Zoom, -Offset.X * Zoom, -Offset.Y * Zoom));
 
         var visible = VisibleWorld();
-        GridPainter.Draw(dc, Board?.Grid ?? GridStyle.Square, background, visible, Zoom, Board?.GridColor);
+        GridPainter.Draw(dc, Board?.Grid ?? GridStyle.Square, background, visible, Zoom, Board?.GridColor, Board?.GridOpacity ?? 1.0);
 
         var ppd = PixelsPerDip;
         foreach (var item in ItemsToDraw(visible))

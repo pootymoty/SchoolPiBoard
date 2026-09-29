@@ -16,14 +16,28 @@ public class AppSettings
 
     private static readonly string ConfigFile = Path.Combine(ConfigDirectory, "settings.json");
 
+    private static readonly string DefaultExportFolderPath =
+        Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+
     /// <summary>Папка, в которой лежит файл с досками.</summary>
     public string DataFolder { get; set; } = ConfigDirectory;
+
+    /// <summary>
+    /// Папка, которую диалог «Экспорт в PNG» открывает по умолчанию.
+    /// Без своей настройки Windows сама помнит последнюю выбранную папку
+    /// между запусками диалога, но не между переустановками и не всегда
+    /// предсказуемо — своя настройка снимает эту неопределённость.
+    /// </summary>
+    public string ExportFolder { get; set; } = DefaultExportFolderPath;
 
     /// <summary>
     /// Адрес сервера лицензий. Обычно менять не нужно; поле существует,
     /// чтобы адрес можно было переключить без пересборки приложения.
     /// </summary>
     public string LicenseServerUrl { get; set; } = LicenseOptions.DefaultServerUrl;
+
+    /// <summary>Тема оформления: "System" (как в Windows), "Light" или "Dark".</summary>
+    public string Theme { get; set; } = "System";
 
     public static AppSettings Load()
     {
@@ -59,6 +73,7 @@ public class AppSettings
     }
 
     public static string DefaultFolder => ConfigDirectory;
+    public static string DefaultExportFolder => DefaultExportFolderPath;
 
     /// <summary>
     /// Разовый перенос всей папки данных из прежнего названия продукта

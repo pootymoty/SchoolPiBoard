@@ -21,10 +21,13 @@ public class BackgroundPanel : UserControl
         "#FF1B1B1F", "#FF0B2545", "#FF14342B", "#FF2A1B3D", "#FF3A2A1B"
     };
 
+    private static readonly int[] GridOpacitySteps = { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
+
     private readonly Board _board;
     private readonly Action _changed;
     private readonly List<Border> _colorTiles = new();
     private readonly List<Border> _gridTiles = new();
+    private readonly List<ToggleButton> _gridOpacityButtons = new();
 
     public BackgroundPanel(Board board, Action changed)
     {
@@ -60,6 +63,8 @@ public class BackgroundPanel : UserControl
             _changed();
         };
         root.Children.Add(palette);
+
+        root.Children.Add(BuildGridOpacityRow());
 
         Content = new ScrollViewer
         {
@@ -132,6 +137,57 @@ public class BackgroundPanel : UserControl
                 ? (Brush)Application.Current.Resources["Accent"]
                 : System.Windows.Media.Brushes.Transparent;
         }
+    }
+
+    /// <summary>
+    /// Насыщенность (альфа) разлиновки. Автоматический цвет уже подобран
+    /// полупрозрачным, но выбранный вручную цвет ложится сплошной заливкой
+    /// на все 100 % — без этой настройки его нечем было бы притушить.
+    /// Десять шагов по 10 %, тем же приёмом выбора, что и толщина/прозрачность
+    /// инструментов рисования — не слайдер, а сетка кнопок.
+    /// </summary>
+    private UIElement BuildGridOpacityRow()
+    {
+        var container = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+
+        container.Children.Add(new TextBlock
+        {
+            Text = "Насыщенность разлиновки",
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            FontSize = 12,
+            Margin = new Thickness(0, 0, 0, 6)
+        });
+
+        var current = (int)Math.Round(Math.Clamp(_board.GridOpacity * 100, 10, 100));
+        var nearest = GridOpacitySteps.OrderBy(step => Math.Abs(step - current)).First();
+
+        var grid = new UniformGrid { Columns = 5 };
+
+        foreach (var percent in GridOpacitySteps)
+        {
+            var button = new ToggleButton
+            {
+                Content = $"{percent}%",
+                Style = (Style)Application.Current.Resources["ChoiceButton"],
+                Height = 32,
+                Margin = new Thickness(2),
+                Tag = percent,
+                IsChecked = percent == nearest
+            };
+            button.Checked += (_, _) =>
+            {
+                foreach (var other in _gridOpacityButtons)
+                    if (!ReferenceEquals(other, button)) other.IsChecked = false;
+
+                _board.GridOpacity = percent / 100.0;
+                _changed();
+            };
+            _gridOpacityButtons.Add(button);
+            grid.Children.Add(button);
+        }
+
+        container.Children.Add(grid);
+        return container;
     }
 
     private UIElement BuildGridChooser()

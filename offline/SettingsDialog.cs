@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Microsoft.Win32;
 using SchoolPiBoard.Services;
@@ -8,13 +9,15 @@ using SchoolPiBoard.Services;
 namespace SchoolPiBoard.Views;
 
 /// <summary>
-/// Настройки приложения: папка, в которой хранятся доски,
-/// и состояние лицензии.
+/// Настройки приложения: папка, в которой хранятся доски, папка для
+/// экспорта картинок, тема оформления и состояние лицензии.
 /// </summary>
 public class SettingsDialog : Window
 {
     private readonly MainWindow _shell;
     private readonly TextBlock _folderLabel;
+    private readonly TextBlock _exportFolderLabel;
+    private readonly List<ToggleButton> _themeButtons = new();
     private readonly TextBlock _licenseLabel;
 
     public SettingsDialog(MainWindow shell)
@@ -105,6 +108,104 @@ public class SettingsDialog : Window
         actions.Children.Add(open);
 
         root.Children.Add(actions);
+
+        // ============ Экспорт изображений ============
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "Экспорт изображений",
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 26, 0, 0)
+        });
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "Папка, которую кнопка «Экспорт в PNG» открывает по умолчанию.",
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 12)
+        });
+
+        var exportFolderBox = new Border
+        {
+            Background = (Brush)Application.Current.Resources["AppBg2"],
+            BorderBrush = (Brush)Application.Current.Resources["BorderBrushColor"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12, 10, 12, 10)
+        };
+
+        _exportFolderLabel = new TextBlock
+        {
+            Text = _shell.Settings.ExportFolder,
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap
+        };
+        exportFolderBox.Child = _exportFolderLabel;
+        root.Children.Add(exportFolderBox);
+
+        var exportActions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+
+        var changeExport = new Button
+        {
+            Content = "Выбрать папку…",
+            Style = (Style)Application.Current.Resources["AccentButton"]
+        };
+        changeExport.Click += (_, _) => ChangeExportFolder();
+        exportActions.Children.Add(changeExport);
+
+        var resetExport = new Button
+        {
+            Content = "По умолчанию",
+            Style = (Style)Application.Current.Resources["TextButton"],
+            Margin = new Thickness(8, 0, 0, 0),
+            HorizontalContentAlignment = HorizontalAlignment.Center
+        };
+        resetExport.Click += (_, _) => ApplyExportFolder(AppSettings.DefaultExportFolder);
+        exportActions.Children.Add(resetExport);
+
+        var openExport = new Button
+        {
+            Content = "Открыть в проводнике",
+            Style = (Style)Application.Current.Resources["TextButton"],
+            Margin = new Thickness(8, 0, 0, 0),
+            HorizontalContentAlignment = HorizontalAlignment.Center
+        };
+        openExport.Click += (_, _) => OpenExportFolderInExplorer();
+        exportActions.Children.Add(openExport);
+
+        root.Children.Add(exportActions);
+
+        // ============ Тема оформления ============
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "Тема оформления",
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 26, 0, 0)
+        });
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "«Как в системе» следует за настройкой Windows и переключается " +
+                   "сама, если вы поменяете её на лету.",
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 12)
+        });
+
+        root.Children.Add(BuildThemeChooser());
 
         // ============ Лицензия ============
 
@@ -250,5 +351,97 @@ public class SettingsDialog : Window
         {
             // Не критично.
         }
+    }
+
+    // =====================================================================
+    //  Папка экспорта изображений
+    // =====================================================================
+    private void ChangeExportFolder()
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Выберите папку для сохранения картинок",
+            InitialDirectory = Directory.Exists(_shell.Settings.ExportFolder)
+                ? _shell.Settings.ExportFolder
+                : AppSettings.DefaultExportFolder
+        };
+
+        if (dialog.ShowDialog(this) == true)
+            ApplyExportFolder(dialog.FolderName);
+    }
+
+    private void ApplyExportFolder(string folder)
+    {
+        if (string.Equals(folder, _shell.Settings.ExportFolder, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        // В отличие от папки досок, здесь нечего переносить — просто меняем,
+        // куда в следующий раз откроется диалог сохранения.
+        _shell.Settings.ExportFolder = folder;
+        _shell.Settings.Save();
+        _exportFolderLabel.Text = folder;
+    }
+
+    private void OpenExportFolderInExplorer()
+    {
+        try
+        {
+            Directory.CreateDirectory(_shell.Settings.ExportFolder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = _shell.Settings.ExportFolder,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Не критично.
+        }
+    }
+
+    // =====================================================================
+    //  Тема оформления
+    // =====================================================================
+    private UIElement BuildThemeChooser()
+    {
+        var row = new UniformGrid { Columns = 3 };
+
+        foreach (var (value, title) in new[]
+                 {
+                     ("System", "Как в системе"),
+                     ("Light", "Светлая"),
+                     ("Dark", "Тёмная")
+                 })
+        {
+            var button = new ToggleButton
+            {
+                Content = title,
+                Style = (Style)Application.Current.Resources["ChoiceButton"],
+                Height = 36,
+                Margin = new Thickness(3),
+                Tag = value,
+                IsChecked = _shell.Settings.Theme == value
+            };
+            button.Checked += (_, _) =>
+            {
+                foreach (var other in _themeButtons)
+                    if (!ReferenceEquals(other, button)) other.IsChecked = false;
+                SetTheme(value);
+            };
+            _themeButtons.Add(button);
+            row.Children.Add(button);
+        }
+
+        return row;
+    }
+
+    private void SetTheme(string preference)
+    {
+        if (_shell.Settings.Theme == preference)
+            return;
+
+        _shell.Settings.Theme = preference;
+        _shell.Settings.Save();
+        ThemeManager.SetPreference(preference);
     }
 }
