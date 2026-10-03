@@ -609,7 +609,9 @@ public class BoardCanvas : FrameworkElement
             // одновременно вращает и растягивает её вокруг второго конца.
             foreach (var point in new[] { ToScreen(lineStart), ToScreen(lineEnd) })
             {
-                dc.DrawEllipse(handleFill, handlePen, point, HandleSizePx / 2, HandleSizePx / 2);
+                dc.DrawRectangle(handleFill, handlePen, new Rect(
+                    point.X - HandleSizePx / 2, point.Y - HandleSizePx / 2,
+                    HandleSizePx, HandleSizePx));
             }
             return;
         }
@@ -994,7 +996,7 @@ public class BoardCanvas : FrameworkElement
 
         var screen = e.GetPosition(this);
         _toolCursorScreen = screen;
-        if (!_dragging && !_drawing && Tool == BoardTool.Cursor)
+        if (!_dragging && !_drawing && !_panning && !_spaceHeld && Tool == BoardTool.Cursor)
             UpdateResizeCursor(screen);
         if (Tool is BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker)
             InvalidateVisual();
@@ -1075,7 +1077,7 @@ public class BoardCanvas : FrameworkElement
             _toolCursorScreen = null;
 
         _eraserScreen = null;
-        if (Tool == BoardTool.Cursor) Cursor = Cursors.Arrow;
+        if (Tool == BoardTool.Cursor && !_spaceHeld && !_panning) Cursor = Cursors.Arrow;
         InvalidateVisual();
     }
 
