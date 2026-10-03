@@ -888,6 +888,11 @@ public class BoardCanvas : FrameworkElement
     // =====================================================================
     public void SetSpaceHeld(bool held)
     {
+        // Автоповтор клавиши шлёт KeyDown десятки раз в секунду — повторные
+        // вызовы не должны перерисовывать холст и дёргать курсор.
+        if (_spaceHeld == held)
+            return;
+
         _spaceHeld = held;
         UpdateCursor();
     }
@@ -998,9 +1003,13 @@ public class BoardCanvas : FrameworkElement
         _toolCursorScreen = screen;
         if (!_dragging && !_drawing && !_panning && !_spaceHeld && Tool == BoardTool.Cursor)
             UpdateResizeCursor(screen);
-        if (Tool is BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker)
+        if (Tool is BoardTool.Pen or BoardTool.Pen2 or BoardTool.Marker && !_spaceHeld)
             InvalidateVisual();
         var world = ToWorld(screen);
+
+        // WPF может вернуть курсор окна к стрелке при движении — удерживаем ладошку.
+        if (_spaceHeld && !_panning)
+            Cursor = Cursors.Hand;
 
         if (Tool == BoardTool.Eraser)
         {
