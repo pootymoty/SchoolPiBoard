@@ -686,6 +686,29 @@ public static class ItemRenderer
         }
     }
 
+    /// <summary>
+    /// Попадание во внутреннюю область фигуры независимо от заливки
+    /// (у пустой фигуры обычный HitTest ловит только контур).
+    /// Линии и стрелки внутренней области не имеют.
+    /// </summary>
+    public static bool HitTestInterior(BoardItem item, Point world)
+    {
+        if (item.Kind != ItemKind.Shape || item.Shape is ShapeKind.Line or ShapeKind.Arrow)
+            return false;
+
+        var local = ToLocal(item, world);
+        if (!item.Bounds.Contains(local))
+            return false;
+
+        // Объёмные фигуры — каркас из линий, у них нет площади для FillContains:
+        // ловим по габаритам. Плоские — по настоящей геометрии (эллипс, треугольник).
+        if (item.Shape is ShapeKind.Cube or ShapeKind.Cylinder or ShapeKind.Cone or
+            ShapeKind.Sphere or ShapeKind.Pyramid)
+            return true;
+
+        return BuildShapeGeometry(item.Shape, item.Bounds).FillContains(local);
+    }
+
     /// <summary>Габариты с учётом поворота — нужны для вписывания содержимого в экран.</summary>
     public static Rect RotatedBounds(BoardItem item)
     {

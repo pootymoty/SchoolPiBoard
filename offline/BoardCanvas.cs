@@ -900,6 +900,15 @@ public class BoardCanvas : FrameworkElement
             if (ItemRenderer.HitTest(item, world, tolerance))
                 return item;
         }
+
+        // Второй проход: внутри пустой фигуры тоже можно взять её —
+        // но только если под курсором нет ничего, что лежит точнее
+        // (штрих или надпись внутри рамки остаются доступны).
+        foreach (var item in Items.OrderByDescending(i => i.Z))
+        {
+            if (ItemRenderer.HitTestInterior(item, world))
+                return item;
+        }
         return null;
     }
 
@@ -1230,6 +1239,13 @@ public class BoardCanvas : FrameworkElement
                 SelectionChanged?.Invoke();
             }
 
+            BeginTransform(HandleKind.None, world);
+            return;
+        }
+
+        // Уже выделенное можно брать за любую точку внутри рамки выделения.
+        if (!ctrl && Selection.Count > 0 && SelectionScreenRect().Contains(screen))
+        {
             BeginTransform(HandleKind.None, world);
             return;
         }
