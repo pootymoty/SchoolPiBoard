@@ -772,9 +772,29 @@ public class BoardCanvas : FrameworkElement
             HandleKind.N or HandleKind.S => Cursors.SizeNS,
             HandleKind.E or HandleKind.W => Cursors.SizeWE,
             HandleKind.Rotate => Cursors.Hand,
-            HandleKind.LineStart or HandleKind.LineEnd => Cursors.SizeAll,
+            HandleKind.LineStart or HandleKind.LineEnd => LineEndCursor(),
             _ => Cursors.Arrow
         };
+    }
+
+    /// <summary>
+    /// Курсор конца линии — двусторонняя стрелка вдоль самой линии
+    /// (как на углу фигуры), а не крест «переместить».
+    /// </summary>
+    private Cursor LineEndCursor()
+    {
+        if (Selection.Count != 1 || !TryGetLineEndpoints(Selection[0], out var a, out var b))
+            return Cursors.SizeAll;
+
+        var p = ToScreen(a);
+        var q = ToScreen(b);
+        var angle = Math.Atan2(q.Y - p.Y, q.X - p.X) * 180 / Math.PI;
+        angle = ((angle % 180) + 180) % 180; // 0..180, направление не важно
+
+        if (angle < 22.5 || angle >= 157.5) return Cursors.SizeWE;
+        if (angle < 67.5) return Cursors.SizeNWSE;   // вниз-вправо (ось Y экрана вниз)
+        if (angle < 112.5) return Cursors.SizeNS;
+        return Cursors.SizeNESW;
     }
 
     private HandleKind HitHandle(Point screen)
