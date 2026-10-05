@@ -400,7 +400,15 @@
                             </Border>
                             <ToggleButton x:Name="PART_ToggleButton" Background="Transparent" BorderThickness="0"
                                           Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
-                                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                                <!-- Прозрачная кнопка без системного вида: стандартный шаблон
+                                     заливал бы всё поле голубым при наведении. -->
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
                             <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
                                    AllowsTransparency="True" PopupAnimation="Fade">
                                 <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource BorderBrushColor}"

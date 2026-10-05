@@ -124,6 +124,8 @@
         <Border Grid.Row="3" CornerRadius="0,0,10,10"
                 Background="{DynamicResource AppBg2}" Padding="6">
             <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="BoardList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -172,6 +174,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </ScrollViewer>
 
                 <TextBlock x:Name="EmptyHint"
                            Foreground="{DynamicResource TextSecondary}"
