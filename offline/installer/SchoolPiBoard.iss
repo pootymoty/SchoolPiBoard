@@ -74,7 +74,7 @@ InfoBeforeFile=BEFORE.txt
 OutputDir=..\dist
 ; Имя без версии: ссылка на скачивание на сайте остаётся одной и той же
 ; от выпуска к выпуску. Версия видна в свойствах файла и в мастере.
-OutputBaseFilename=DoskaPiSetup
+OutputBaseFilename=SchoolPiBoardSetup
 SetupIconFile=..\doskapi.ico
 Compression=lzma2/max
 SolidCompression=yes

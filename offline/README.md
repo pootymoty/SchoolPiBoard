@@ -219,7 +219,7 @@ Delete — удалить · Esc — курсор · Shift — прямая ли
 | `PrivilegesRequired=lowest` | можно ставить без прав администратора |
 | `PrivilegesRequiredOverridesAllowed=dialog` | мастер спросит «для всех / только для меня» |
 | `DisableWelcomePage=no` | показывать страницу приветствия |
-| `OutputBaseFilename=DoskaPiSetup` | имя файла без версии — ссылка на сайте не меняется |
+| `OutputBaseFilename=SchoolPiBoardSetup` | имя файла без версии — ссылка на сайте не меняется |
 | `ArchitecturesAllowed=x64` | только 64-разрядная Windows |
 
 ## Как собрать
@@ -237,7 +237,7 @@ installer\build-installer.bat
 приложение), потом откройте `installer\SchoolPiBoard.iss` в Inno Setup
 Compiler и нажмите **Build → Compile**.
 
-Результат в обоих случаях — `offline\dist\DoskaPiSetup.exe`.
+Результат в обоих случаях — `offline\dist\SchoolPiBoardSetup.exe`.
 **Это единственный файл, который получает покупатель.**
 
 Файл `.bat` — скрипт сборки, он нужен только вам.
@@ -651,12 +651,12 @@ Flask принял бы за подстановку. Можно положить
 в блоке покупки, в блоке условий и в подвале.
 
 Уже подставлено: адрес сервера ключей в форме, ссылка на установщик
-(`/download/DoskaPiSetup.exe`), почта поддержки, реквизиты продавца,
+(`/download/SchoolPiBoardSetup.exe`), почта поддержки, реквизиты продавца,
 условия возврата.
 
 ## Куда положить установщик
 
-Ссылка со страницы ведёт на `/download/DoskaPiSetup.exe`. Положите файл
+Ссылка со страницы ведёт на `/download/SchoolPiBoardSetup.exe`. Положите файл
 так, чтобы этот адрес работал, и укажите тот же адрес в переменной
 `License__DownloadUrl` на сервере — он попадает в письмо с ключом.
 

@@ -39,7 +39,7 @@
 | Подпапка | Что там |
 |---|---|
 | `offline/` (корень) | само WPF-приложение (`SchoolPiBoard.csproj`, exe называется `DoskaPi.exe`) |
-| `offline/installer/` | установщик Inno Setup (`DoskaPiSetup.exe`) |
+| `offline/installer/` | установщик Inno Setup (`SchoolPiBoardSetup.exe`) |
 | `offline/server/SchoolPiBoard.LicenseServer/` | сервер лицензий: ключи, устройства, пробный период, приём оплаты за десктоп |
 | `offline/web/` | страница покупки и оферта (готовые HTML, собирать не нужно) |
 | `offline/docs/` | развёртывание сервера ключей, платежи, интеграция с сайтом |
@@ -189,11 +189,11 @@ build.bat
 
 :: с установленным Inno Setup 6
 installer\build-installer.bat
-:: результат: offline\dist\DoskaPiSetup.exe — этот файл выдаётся покупателям
+:: результат: offline\dist\SchoolPiBoardSetup.exe — этот файл выдаётся покупателям
 ```
 
-Дальше `DoskaPiSetup.exe` нужно вручную положить туда, куда ведёт ссылка
-на странице покупки (`/download/DoskaPiSetup.exe` в
+Дальше `SchoolPiBoardSetup.exe` нужно вручную положить туда, куда ведёт ссылка
+на странице покупки (`/download/SchoolPiBoardSetup.exe` в
 `offline/web/index.html`) — обычно на тот же сервер, где крутится сайт
 `school-pi.online`, или в его статику. Это отдельный шаг, CI его не делает.
 

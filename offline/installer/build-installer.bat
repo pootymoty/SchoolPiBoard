@@ -6,7 +6,7 @@ echo   Building DoskaPi installer
 echo ============================================
 echo.
 echo This script only BUILDS the installer.
-echo The file you give to customers is dist\DoskaPiSetup.exe
+echo The file you give to customers is dist\SchoolPiBoardSetup.exe
 echo.
 
 pushd "%~dp0.."
@@ -51,7 +51,7 @@ if errorlevel 1 goto fail
 echo.
 echo ============================================
 echo   DONE
-echo   Installer: dist\DoskaPiSetup.exe
+echo   Installer: dist\SchoolPiBoardSetup.exe
 echo   This is the file to publish for download.
 echo ============================================
 echo.
