@@ -132,8 +132,22 @@ public static class ThemeManager
 
     private static void SetBrush(string key, string dark, string light)
     {
-        if (Application.Current?.Resources[key] is SolidColorBrush brush && !brush.IsFrozen)
-            brush.Color = (Color)ColorConverter.ConvertFromString(IsDark ? dark : light)!;
+        var resources = Application.Current?.Resources;
+        if (resources is null)
+            return;
+
+        var color = (Color)ColorConverter.ConvertFromString(IsDark ? dark : light)!;
+
+        if (resources[key] is SolidColorBrush { IsFrozen: false } brush)
+        {
+            brush.Color = color;
+            return;
+        }
+
+        // Кисть заморожена (или её нет) — менять Color нельзя, и раньше тема
+        // молча не применялась. Подменяем ресурс новой кистью: все элементы
+        // с DynamicResource подхватят её сами.
+        resources[key] = new SolidColorBrush(color);
     }
 
     /// <summary>Меняет цвета кистей приложения; все элементы обновятся автоматически.</summary>
