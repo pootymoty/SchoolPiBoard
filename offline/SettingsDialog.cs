@@ -122,7 +122,7 @@ public class SettingsDialog : Window
 
         root.Children.Add(new TextBlock
         {
-            Text = "Папка, которую кнопка «Экспорт в PNG» открывает по умолчанию.",
+            Text = "Картинки из «Экспорта в PNG» сохраняются сразу, без диалога, в подпапку «Доска Пи» внутри этой папки.",
             Foreground = (Brush)Application.Current.Resources["TextSecondary"],
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
@@ -386,10 +386,10 @@ public class SettingsDialog : Window
     {
         try
         {
-            Directory.CreateDirectory(_shell.Settings.ExportFolder);
+            Directory.CreateDirectory(_shell.Settings.ExportDirectory);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
-                FileName = _shell.Settings.ExportFolder,
+                FileName = _shell.Settings.ExportDirectory,
                 UseShellExecute = true
             });
         }

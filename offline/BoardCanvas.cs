@@ -209,6 +209,7 @@ public class BoardCanvas : FrameworkElement
     public void LoadBoard(Board board)
     {
         Board = board;
+        AdjustDefaultInkColors(board);
         Items = board.Items.Select(i => i.Clone()).ToList();
         Selection.Clear();
         _undo.Clear();
@@ -217,6 +218,24 @@ public class BoardCanvas : FrameworkElement
         _lastFreeStrokeFinishedAt = DateTime.MinValue;
         InvalidateVisual();
         SelectionChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Чёрные/белые «умолчательные» чернила невидимы на фоне своего цвета:
+    /// на тёмной доске берём белые, на светлой — чёрные. Другие цвета,
+    /// выбранные пользователем, не трогаем.
+    /// </summary>
+    private void AdjustDefaultInkColors(Board board)
+    {
+        var background = (Color)ColorConverter.ConvertFromString(board.BackgroundColor)!;
+        var luminance = (0.299 * background.R + 0.587 * background.G + 0.114 * background.B) / 255;
+        var ink = luminance < 0.5 ? Colors.White : Colors.Black;
+
+        static bool IsPlain(Color c) => c == Colors.White || c == Colors.Black;
+
+        if (IsPlain(PenColor)) PenColor = ink;
+        if (IsPlain(PenCustomColor)) PenCustomColor = ink;
+        if (IsPlain(TextColor)) TextColor = ink;
     }
 
     public void CommitToBoard()

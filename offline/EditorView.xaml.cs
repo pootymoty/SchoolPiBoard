@@ -88,6 +88,7 @@ public partial class EditorView : UserControl
 
                 BackgroundContent.Content = new BackgroundPanel(board, () =>
                 {
+                    RememberBoardFormat(board);
                     Canvas.InvalidateVisual();
                     MarkDirty();
                 });
@@ -249,6 +250,17 @@ public partial class EditorView : UserControl
     {
         UndoButton.IsEnabled = Canvas.CanUndo;
         RedoButton.IsEnabled = Canvas.CanRedo;
+    }
+
+    /// <summary>Формат холста запоминается для всех следующих новых досок.</summary>
+    private void RememberBoardFormat(Board board)
+    {
+        var settings = _shell.Settings;
+        settings.NewBoardBackgroundColor = board.BackgroundColor;
+        settings.NewBoardGrid = board.Grid;
+        settings.NewBoardGridColor = board.GridColor;
+        settings.NewBoardGridOpacity = board.GridOpacity;
+        settings.Save();
     }
 
     private void Home_Click(object sender, RoutedEventArgs e) => _shell.ShowHome();

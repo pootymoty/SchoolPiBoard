@@ -104,6 +104,11 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 ; ключ спросится при первом запуске программы — сценарий «позже».
 Filename: "{app}\{#AppExe}"; Parameters: "--activate"; Description: "Запустить {#AppName} и ввести ключ регистрации"; Flags: nowait postinstall skipifsilent
 
+[InstallDelete]
+; Обновление поверх старой установки: до переименования главный файл
+; назывался SchoolPiBoard.exe — теперь он лишний.
+Type: files; Name: "{app}\SchoolPiBoard.exe"
+
 [UninstallDelete]
 ; Доски пользователя (%APPDATA%\DoskaPi) намеренно не удаляются:
 ; переустановка программы не должна стирать работу.
@@ -112,3 +117,51 @@ Filename: "{app}\{#AppExe}"; Parameters: "--activate"; Description: "Запус�
 ; %ProgramData%\DoskaPi) тоже остаются — иначе «удалить и поставить
 ; заново» превращалось бы в бесконечный бесплатный период.
 Type: dirifempty; Name: "{app}"
+
+[Code]
+{ Вопросы при удалении: оставить или убрать доски и сохранённые картинки.
+  По умолчанию (и в тихом режиме) ничего не удаляется. Адреса папок
+  программа сама записывает в реестр (HKCU\Software\DoskaPi\Paths). }
+
+function ReadSavedPath(const Name, Fallback: String): String;
+begin
+  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Software\DoskaPi\Paths', Name, Result)
+     or (Result = '') then
+    Result := Fallback;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir, ImagesDir: String;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+
+  DataDir := ReadSavedPath('DataFolder', ExpandConstant('{userappdata}\DoskaPi'));
+  if FileExists(DataDir + '\boards.json') then
+  begin
+    if SuppressibleMsgBox(
+         'Удалить сохранённые доски?' + #13#10 + #13#10 +
+         'Папка: ' + DataDir + #13#10 + #13#10 +
+         'Это необратимо. Если нажать «Нет», доски останутся, и после ' +
+         'повторной установки программы вы увидите их снова.',
+         mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
+    begin
+      DeleteFile(DataDir + '\boards.json');
+      DeleteFile(DataDir + '\boards.backup.json');
+      DeleteFile(DataDir + '\boards.json.tmp');
+    end;
+  end;
+
+  ImagesDir := ReadSavedPath('ExportDirectory', '');
+  { Удаляем только папку «Доска Пи» — чужие файлы в «Изображениях» не задеваем. }
+  if (ImagesDir <> '') and (ExtractFileName(ImagesDir) = 'Доска Пи') and DirExists(ImagesDir) then
+  begin
+    if SuppressibleMsgBox(
+         'Удалить сохранённые картинки досок?' + #13#10 + #13#10 +
+         'Папка: ' + ImagesDir + #13#10 + #13#10 +
+         'Будет удалена вся папка вместе с содержимым. Это необратимо.',
+         mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
+      DelTree(ImagesDir, True, True, True);
+  end;
+end;

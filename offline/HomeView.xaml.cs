@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using SchoolPiBoard.Models;
+using SchoolPiBoard.Services;
 
 namespace SchoolPiBoard.Views;
 
@@ -267,7 +268,7 @@ public partial class HomeView : UserControl
         if (string.IsNullOrWhiteSpace(name))
             return;
 
-        var board = _shell.Store.CreateBoard(name);
+        var board = _shell.Store.CreateBoard(name, _shell.Settings, ThemeManager.IsDark);
 
         if (_showingArchive)
             ArchiveToggle_Click(sender, e);

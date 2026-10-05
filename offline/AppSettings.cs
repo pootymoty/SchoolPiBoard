@@ -1,5 +1,7 @@
 ﻿using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using SchoolPiBoard.Models;
 
 namespace SchoolPiBoard.Services;
 
@@ -36,10 +38,57 @@ public class AppSettings
     /// </summary>
     public string LicenseServerUrl { get; set; } = LicenseOptions.DefaultServerUrl;
 
+    /// <summary>Имя подпапки внутри <see cref="ExportFolder"/>, куда падают все экспортированные картинки.</summary>
+    public const string ExportSubfolderName = "Доска Пи";
+
+    /// <summary>
+    /// Куда реально сохраняются картинки: подпапка внутри выбранной папки.
+    /// Только в ней программа что-то создаёт, поэтому при удалении
+    /// программы её можно снести целиком, не задев чужие файлы в «Изображениях».
+    /// </summary>
+    [JsonIgnore]
+    public string ExportDirectory => Path.Combine(
+        string.IsNullOrWhiteSpace(ExportFolder) ? DefaultExportFolderPath : ExportFolder,
+        ExportSubfolderName);
+
+    // Формат холста для новых досок: запоминается при любом изменении фона,
+    // цвета/вида разлиновки на любой доске. Пока null — берётся умолчание
+    // по теме (тёмная тема — тёмный холст, светлая — белый, без сетки).
+    public string? NewBoardBackgroundColor { get; set; }
+    public GridStyle? NewBoardGrid { get; set; }
+    public string? NewBoardGridColor { get; set; }
+    public double? NewBoardGridOpacity { get; set; }
+
     /// <summary>Тема оформления: "System" (как в Windows), "Light" или "Dark".</summary>
     public string Theme { get; set; } = "System";
 
     public static AppSettings Load()
+    {
+        var settings = LoadCore();
+        settings.PublishPathsForUninstaller();
+        return settings;
+    }
+
+    /// <summary>
+    /// Деинсталлятор читает адреса папок досок и картинок из реестра:
+    /// settings.json в UTF-8, а Inno Setup читает его как ANSI, и пути с
+    /// русскими буквами исказились бы. Ключ только для чтения установщиком.
+    /// </summary>
+    private void PublishPathsForUninstaller()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\DoskaPi\Paths");
+            key?.SetValue("DataFolder", DataFolder);
+            key?.SetValue("ExportDirectory", ExportDirectory);
+        }
+        catch
+        {
+            // Не критично: деинсталлятор возьмёт стандартные папки.
+        }
+    }
+
+    private static AppSettings LoadCore()
     {
         try
         {
@@ -65,6 +114,7 @@ public class AppSettings
             Directory.CreateDirectory(ConfigDirectory);
             File.WriteAllText(ConfigFile,
                 JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            PublishPathsForUninstaller();
         }
         catch
         {

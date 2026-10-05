@@ -89,15 +89,18 @@ public class BoardStore
         File.Move(tmp, dataFile, overwrite: true);
     }
 
-    public Board CreateBoard(string name)
+    public Board CreateBoard(string name, AppSettings? settings = null, bool darkTheme = true)
     {
         var board = new Board
         {
             Name = string.IsNullOrWhiteSpace(name) ? "Новая доска" : name.Trim(),
-            // Новая доска — чистый белый лист без разлиновки. Умолчания класса Board
-            // не трогаем: от них зависит чтение старых досок из boards.json.
-            BackgroundColor = "#FFFFFFFF",
-            Grid = GridStyle.Solid
+            // Формат — как у последнего изменённого холста, а при первом запуске:
+            // тёмная тема — тёмный холст, светлая — белый, оба без разлиновки.
+            // Умолчания класса Board не трогаем: от них зависит чтение старых досок.
+            BackgroundColor = settings?.NewBoardBackgroundColor ?? (darkTheme ? "#FF1B1B1F" : "#FFFFFFFF"),
+            Grid = settings?.NewBoardGrid ?? GridStyle.Solid,
+            GridColor = settings?.NewBoardGridColor ?? "",
+            GridOpacity = settings?.NewBoardGridOpacity ?? 1.0
         };
         Boards.Add(board);
         Save();

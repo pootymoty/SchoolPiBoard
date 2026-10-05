@@ -721,24 +721,21 @@ public partial class EditorView
             return;
         }
 
-        var exportFolder = _shell.Settings.ExportFolder;
-        var dialog = new SaveFileDialog
-        {
-            Title = "Экспорт доски",
-            Filter = "PNG-изображение|*.png",
-            FileName = SanitizeFileName(_board.Name) + ".png",
-            InitialDirectory = !string.IsNullOrWhiteSpace(exportFolder) && Directory.Exists(exportFolder)
-                ? exportFolder
-                : AppSettings.DefaultExportFolder
-        };
-
-        if (dialog.ShowDialog() != true)
-            return;
-
+        // Без диалога: картинка сразу ложится в подпапку «Доска Пи» внутри
+        // папки экспорта из настроек. Единое место нужно, чтобы при
+        // удалении программы можно было предложить убрать все картинки разом.
         try
         {
-            ExportToPng(bounds, dialog.FileName);
-            ConfirmDialog.Info(Window.GetWindow(this)!, "Экспорт завершён", dialog.FileName);
+            var directory = _shell.Settings.ExportDirectory;
+            Directory.CreateDirectory(directory);
+
+            var baseName = SanitizeFileName(_board.Name);
+            var path = Path.Combine(directory, baseName + ".png");
+            for (var n = 2; File.Exists(path); n++)
+                path = Path.Combine(directory, $"{baseName} ({n}).png");
+
+            ExportToPng(bounds, path);
+            ConfirmDialog.Info(Window.GetWindow(this)!, "Экспорт завершён", path);
         }
         catch (Exception ex)
         {
