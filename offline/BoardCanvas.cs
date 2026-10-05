@@ -88,14 +88,14 @@ public class BoardCanvas : FrameworkElement
     /// </summary>
     public ShapeKind VolumeShapeTool { get; set; } = ShapeKind.Cube;
 
-    public Color PenColor { get; set; } = Colors.White;
-    public Color PenCustomColor { get; set; } = Colors.White;
+    public Color PenColor { get; set; } = Colors.Black;
+    public Color PenCustomColor { get; set; } = Colors.Black;
     public Color Pen2Color { get; set; } = Colors.Red;
     public Color Pen2CustomColor { get; set; } = Colors.Red;
-    public Color MarkerColor { get; set; } = Color.FromRgb(0xFB, 0xBC, 0x04);
-    public Color MarkerCustomColor { get; set; } = Color.FromRgb(0xFB, 0xBC, 0x04);
+    public Color MarkerColor { get; set; } = Color.FromRgb(0x1E, 0x88, 0xE5);
+    public Color MarkerCustomColor { get; set; } = Color.FromRgb(0x1E, 0x88, 0xE5);
     public Color ShapeColor { get; set; } = Color.FromRgb(0x4D, 0xD0, 0xE1);
-    public Color TextColor { get; set; } = Colors.White;
+    public Color TextColor { get; set; } = Colors.Black;
 
     // Значения по умолчанию совпадают с шагами ползунков,
     // иначе при открытии панели ползунок «прыгал» бы к ближайшему шагу.

@@ -93,7 +93,11 @@ public class BoardStore
     {
         var board = new Board
         {
-            Name = string.IsNullOrWhiteSpace(name) ? "Новая доска" : name.Trim()
+            Name = string.IsNullOrWhiteSpace(name) ? "Новая доска" : name.Trim(),
+            // Новая доска — чистый белый лист без разлиновки. Умолчания класса Board
+            // не трогаем: от них зависит чтение старых досок из boards.json.
+            BackgroundColor = "#FFFFFFFF",
+            Grid = GridStyle.Solid
         };
         Boards.Add(board);
         Save();
