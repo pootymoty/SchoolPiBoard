@@ -21,6 +21,9 @@ public static class ThemeManager
 
     public static bool IsDark { get; private set; } = true;
 
+    /// <summary>Тема сменилась: окна, собранные кодом, могут перестроиться.</summary>
+    public static event Action? ThemeChanged;
+
     /// <summary>Текущий выбор пользователя: "System", "Light" или "Dark".</summary>
     public static string Preference { get; private set; } = "System";
 
@@ -53,6 +56,8 @@ public static class ThemeManager
 
             foreach (var window in Tracked.ToList())
                 ApplyTitleBar(window);
+
+            ThemeChanged?.Invoke();
         };
     }
 
@@ -72,6 +77,8 @@ public static class ThemeManager
 
         foreach (var window in Tracked.ToList())
             ApplyTitleBar(window);
+
+        ThemeChanged?.Invoke();
     }
 
     private static bool IsKnownPreference(string? preference) =>

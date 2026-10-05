@@ -15,10 +15,10 @@ namespace SchoolPiBoard.Views;
 public class SettingsDialog : Window
 {
     private readonly MainWindow _shell;
-    private readonly TextBlock _folderLabel;
-    private readonly TextBlock _exportFolderLabel;
+    private TextBlock _folderLabel = null!;
+    private TextBlock _exportFolderLabel = null!;
     private readonly List<ToggleButton> _themeButtons = new();
-    private readonly TextBlock _licenseLabel;
+    private TextBlock _licenseLabel = null!;
 
     public SettingsDialog(MainWindow shell)
     {
@@ -34,6 +34,27 @@ public class SettingsDialog : Window
         Background = (Brush)Application.Current.Resources["AppBg"];
         SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
 
+        // Элементы окна собраны кодом и держат конкретные кисти — при смене темы
+        // «на лету» сами не перекрасятся, поэтому окно пересобирается целиком.
+        ThemeManager.ThemeChanged += OnThemeChanged;
+        Closed += (_, _) => ThemeManager.ThemeChanged -= OnThemeChanged;
+
+        Content = BuildContent();
+    }
+
+    private void OnThemeChanged()
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            _themeButtons.Clear();
+            Background = (Brush)Application.Current.Resources["AppBg"];
+            Content = BuildContent();
+            ThemeManager.ApplyTitleBar(this);
+        });
+    }
+
+    private UIElement BuildContent()
+    {
         var root = new StackPanel { Margin = new Thickness(24) };
 
         root.Children.Add(new TextBlock
@@ -256,7 +277,7 @@ public class SettingsDialog : Window
         close.Click += (_, _) => Close();
         root.Children.Add(close);
 
-        Content = root;
+        return root;
     }
 
     /// <summary>Короткая строка о состоянии лицензии для раздела настроек.</summary>
