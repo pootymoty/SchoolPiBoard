@@ -250,8 +250,31 @@ public partial class HomeView : UserControl
     {
         _showingArchive = !_showingArchive;
         TitleText.Text = _showingArchive ? "Архив досок" : "Мои доски";
-        ArchiveToggleButton.Content = _showingArchive ? "← Активные" : "Архив";
+        ArchiveToggleButton.Content = _showingArchive ? "← Назад к доскам" : "Архив";
+        ApplyArchiveButtonLook();
         RefreshList(resetPage: true);
+    }
+
+    /// <summary>
+    /// В архиве кнопка возврата выделена красноватым фоном и рамкой —
+    /// чтобы было видно, что это не обычный список досок.
+    /// </summary>
+    private void ApplyArchiveButtonLook()
+    {
+        if (_showingArchive)
+        {
+            ArchiveToggleButton.SetResourceReference(Control.BackgroundProperty, "DangerBg");
+            ArchiveToggleButton.SetResourceReference(Control.BorderBrushProperty, "DangerText");
+            ArchiveToggleButton.SetResourceReference(Control.ForegroundProperty, "DangerText");
+            ArchiveToggleButton.BorderThickness = new Thickness(1.5);
+        }
+        else
+        {
+            ArchiveToggleButton.ClearValue(Control.BackgroundProperty);
+            ArchiveToggleButton.ClearValue(Control.BorderBrushProperty);
+            ArchiveToggleButton.ClearValue(Control.ForegroundProperty);
+            ArchiveToggleButton.ClearValue(Control.BorderThicknessProperty);
+        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
@@ -330,12 +353,33 @@ public partial class HomeView : UserControl
 
     private void ToggleArchive(Board board)
     {
-        board.Archived = !_showingArchive;
-        if (!board.Archived)
+        if (_showingArchive)
+        {
+            // Возврат из архива: если доска сжата, сначала вернуть содержимое.
+            try
+            {
+                _shell.Store.EnsureLoaded(board);
+            }
+            catch (Exception ex)
+            {
+                ConfirmDialog.Info(Window.GetWindow(this)!, "Не удалось вернуть доску",
+                    "Файл архива этой доски не читается: " + ex.Message);
+                return;
+            }
+
+            board.Archived = false;
             board.Modified = DateTime.Now;
+        }
+        else
+        {
+            board.Archived = true;
+        }
 
         _shell.Store.Save();
         RefreshList();
+
+        if (board.Archived)
+            _shell.StartArchiveCompression();
     }
 
     private void Delete(Board board)

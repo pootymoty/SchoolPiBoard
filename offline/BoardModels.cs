@@ -282,6 +282,13 @@ public class Board
     public DateTime Modified { get; set; } = DateTime.Now;
     public bool Archived { get; set; }
 
+    /// <summary>
+    /// Содержимое доски лежит не здесь, а в сжатом файле архива
+    /// (<c>archive\&lt;Id&gt;.json.gz</c> рядом с досками); <see cref="Items"/> пуст.
+    /// Перед открытием содержимое возвращает <c>BoardStore.EnsureLoaded</c>.
+    /// </summary>
+    public bool Compressed { get; set; }
+
     public GridStyle Grid { get; set; } = GridStyle.Square;
     public string BackgroundColor { get; set; } = "#FF1B1B1F";
 

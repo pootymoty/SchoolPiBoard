@@ -150,6 +150,7 @@ begin
       DeleteFile(DataDir + '\boards.json');
       DeleteFile(DataDir + '\boards.backup.json');
       DeleteFile(DataDir + '\boards.json.tmp');
+      DelTree(DataDir + '\archive', True, True, True);
     end;
   end;
 
