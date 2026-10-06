@@ -60,7 +60,36 @@ public sealed class SubscriptionService
         _log = log;
     }
 
-    /// <summary>Подписка, действующая прямо сейчас, или null — тогда действует бесплатный лимит сайта.</summary>
+    /// <summary>
+    /// Тариф, который действует для человека сейчас (то, что видит сайт в
+    /// /status), или null — тогда действует бесплатный лимит сайта.
+    ///
+    /// Обычно это и есть CurrentAsync. Разница — когда сроки наложились:
+    /// поверх оплаченного «Базового» выдан по акции «Стандарт» на неделю.
+    /// Тогда действует тариф выше (в той же линейке), а оплаченный срок
+    /// идёт своим чередом и остаётся после окончания акции.
+    /// </summary>
+    public async Task<Subscription?> EffectiveAsync(int externalUserId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var running = await _db.Subscriptions
+            .Where(x => x.ExternalUserId == externalUserId && x.StartsAt <= now && x.EndsAt > now)
+            .ToListAsync(cancellationToken);
+        if (running.Count == 0) return null;
+
+        var line = TariffPlans.Line(running.OrderByDescending(x => x.EndsAt).First().Plan);
+        return running
+            .Where(x => TariffPlans.Line(x.Plan) == line)
+            .OrderByDescending(x => TariffPlans.Rank(x.Plan))
+            .ThenByDescending(x => x.EndsAt)
+            .First();
+    }
+
+    /// <summary>
+    /// Срок, который идёт сейчас и кончается позже всех, — от него
+    /// отсчитываются переносы (StartUpcomingNowAsync). Какой тариф при
+    /// этом действует — EffectiveAsync.
+    /// </summary>
     public Task<Subscription?> CurrentAsync(int externalUserId, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
@@ -282,17 +311,20 @@ public sealed class SubscriptionService
     /// Не выдаёт, если у человека уже есть действующий или оплаченный
     /// вперёд тариф той же линейки того же уровня или выше, и если этот
     /// тариф ему уже выдавали бесплатно раньше — повторный вызов ничего не
-    /// меняет. Покупка во время выданного срока работает как обычно:
+    /// меняет (once = true, так выдаётся пробная неделя). Для акций —
+    /// once = false: тот же тариф можно выдать снова (к Дню учителя, потом
+    /// к Новому году), но не тому, у кого он или выше уже действует.
+    /// Покупка во время выданного срока работает как обычно:
     /// оплаченный период начнётся после его окончания (ApplyPaymentAsync).
     /// </summary>
     public async Task<(GrantOutcome Outcome, Subscription? Subscription)> GrantAsync(
-        int externalUserId, string planKey, int days, CancellationToken cancellationToken)
+        int externalUserId, string planKey, int days, bool once, CancellationToken cancellationToken)
     {
         var plan = TariffPlans.Find(planKey);
         if (plan is null || days < 1 || days > 366)
             return (GrantOutcome.UnknownPlan, null);
 
-        var alreadyGranted = await _db.Subscriptions.AnyAsync(
+        var alreadyGranted = once && await _db.Subscriptions.AnyAsync(
             x => x.ExternalUserId == externalUserId && x.InvoiceId == null && x.Plan == plan.Key,
             cancellationToken);
         if (alreadyGranted)

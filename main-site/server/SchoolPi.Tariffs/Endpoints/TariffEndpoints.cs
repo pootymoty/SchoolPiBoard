@@ -10,7 +10,8 @@ namespace SchoolPi.Tariffs.Endpoints;
 public sealed record CheckoutRequest(int ExternalUserId, string Email, string Plan, bool AutoRenew, string? Consent);
 public sealed record AutoRenewCancelRequest(int ExternalUserId);
 public sealed record StartNowRequest(int ExternalUserId);
-public sealed record GrantRequest(int ExternalUserId, string Plan, int Days);
+/// <summary>Once: true (по умолчанию) — этот тариф выдаётся человеку бесплатно один раз (пробный); false — акция, можно повторно.</summary>
+public sealed record GrantRequest(int ExternalUserId, string Plan, int Days, bool? Once);
 
 /// <summary>Сообщение сервера ключей об оплате — тот же вид, что у доски (PaidCallback в BillingEndpoints.cs).</summary>
 public sealed record PaidCallback(string? InvoiceId, long UserId, string? PlanCode, int Days, decimal Amount,
@@ -40,7 +41,7 @@ public static class TariffEndpoints
         api.MapGet("/status/{externalUserId:int}", async (
             int externalUserId, SubscriptionService subscriptions, CancellationToken ct) =>
         {
-            var current = await subscriptions.CurrentAsync(externalUserId, ct);
+            var current = await subscriptions.EffectiveAsync(externalUserId, ct);
             var upcoming = await subscriptions.UpcomingAsync(externalUserId, ct);
 
             return Results.Ok(new
@@ -97,7 +98,7 @@ public static class TariffEndpoints
             [FromBody] GrantRequest request, SubscriptionService subscriptions, CancellationToken ct) =>
         {
             var (outcome, subscription) = await subscriptions.GrantAsync(
-                request.ExternalUserId, request.Plan, request.Days, ct);
+                request.ExternalUserId, request.Plan, request.Days, request.Once ?? true, ct);
 
             return outcome switch
             {
