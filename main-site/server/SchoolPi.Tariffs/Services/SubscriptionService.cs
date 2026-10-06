@@ -12,6 +12,18 @@ public enum BillingOutcome
     NotFound,
 }
 
+public enum GrantOutcome
+{
+    /// <summary>Тариф выдан.</summary>
+    Granted,
+    /// <summary>Такого тарифа нет.</summary>
+    UnknownPlan,
+    /// <summary>У человека уже есть действующий или оплаченный вперёд тариф того же уровня или выше.</summary>
+    AlreadyHasPlan,
+    /// <summary>Этот тариф ему уже выдавали бесплатно — второй раз не выдаём.</summary>
+    AlreadyGranted,
+}
+
 public sealed record BillingResult(BillingOutcome Outcome, Subscription? Subscription = null,
     string? PaymentUrl = null, string? Message = null)
 {
@@ -31,9 +43,9 @@ public sealed record BillingResult(BillingOutcome Outcome, Subscription? Subscri
 ///   действующей подписке; если новая покупка тоже с автопродлением,
 ///   оно переезжает на неё, снимаясь с прежней.
 ///
-/// Пробного периода и бесплатного тарифа здесь нет — их считает сам
-/// основной сайт по своей таблице расхода ИИ, этому сервису об этом
-/// знать незачем.
+/// Бесплатные пробные попытки считает сам основной сайт по своей таблице
+/// расхода ИИ. Здесь — только выданные сайтом сроки тарифа без оплаты
+/// (GrantAsync): например, неделя «Базового» новому преподавателю.
 /// </summary>
 public sealed class SubscriptionService
 {
@@ -48,7 +60,36 @@ public sealed class SubscriptionService
         _log = log;
     }
 
-    /// <summary>Подписка, действующая прямо сейчас, или null — тогда действует бесплатный лимит сайта.</summary>
+    /// <summary>
+    /// Тариф, который действует для человека сейчас (то, что видит сайт в
+    /// /status), или null — тогда действует бесплатный лимит сайта.
+    ///
+    /// Обычно это и есть CurrentAsync. Разница — когда сроки наложились:
+    /// поверх оплаченного «Базового» выдан по акции «Стандарт» на неделю.
+    /// Тогда действует тариф выше (в той же линейке), а оплаченный срок
+    /// идёт своим чередом и остаётся после окончания акции.
+    /// </summary>
+    public async Task<Subscription?> EffectiveAsync(int externalUserId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var running = await _db.Subscriptions
+            .Where(x => x.ExternalUserId == externalUserId && x.StartsAt <= now && x.EndsAt > now)
+            .ToListAsync(cancellationToken);
+        if (running.Count == 0) return null;
+
+        var line = TariffPlans.Line(running.OrderByDescending(x => x.EndsAt).First().Plan);
+        return running
+            .Where(x => TariffPlans.Line(x.Plan) == line)
+            .OrderByDescending(x => TariffPlans.Rank(x.Plan))
+            .ThenByDescending(x => x.EndsAt)
+            .First();
+    }
+
+    /// <summary>
+    /// Срок, который идёт сейчас и кончается позже всех, — от него
+    /// отсчитываются переносы (StartUpcomingNowAsync). Какой тариф при
+    /// этом действует — EffectiveAsync.
+    /// </summary>
     public Task<Subscription?> CurrentAsync(int externalUserId, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
@@ -254,6 +295,71 @@ public sealed class SubscriptionService
             externalUserId, next.Plan);
 
         return true;
+    }
+
+    /// <summary>
+    /// Выдаёт тариф без оплаты на days дней с текущего момента — пробный
+    /// период, который назначает основной сайт (новым преподавателям и
+    /// разово — уже работающим).
+    ///
+    /// Выданный срок — обычная подписка, только без счёта (InvoiceId =
+    /// null): по этому признаку его и отличают от купленного. Отдельной
+    /// колонки не нужно, схема базы не меняется. Автопродление у него
+    /// выключено, а DueForRenewalAsync и так берёт только подписки со
+    /// счётом — списать за выданный срок нечего и не с чего.
+    ///
+    /// Не выдаёт, если у человека уже есть действующий или оплаченный
+    /// вперёд тариф той же линейки того же уровня или выше, и если этот
+    /// тариф ему уже выдавали бесплатно раньше — повторный вызов ничего не
+    /// меняет (once = true, так выдаётся пробная неделя). Для акций —
+    /// once = false: тот же тариф можно выдать снова (к Дню учителя, потом
+    /// к Новому году), но не тому, у кого он или выше уже действует.
+    /// Покупка во время выданного срока работает как обычно:
+    /// оплаченный период начнётся после его окончания (ApplyPaymentAsync).
+    /// </summary>
+    public async Task<(GrantOutcome Outcome, Subscription? Subscription)> GrantAsync(
+        int externalUserId, string planKey, int days, bool once, CancellationToken cancellationToken)
+    {
+        var plan = TariffPlans.Find(planKey);
+        if (plan is null || days < 1 || days > 366)
+            return (GrantOutcome.UnknownPlan, null);
+
+        var alreadyGranted = once && await _db.Subscriptions.AnyAsync(
+            x => x.ExternalUserId == externalUserId && x.InvoiceId == null && x.Plan == plan.Key,
+            cancellationToken);
+        if (alreadyGranted)
+            return (GrantOutcome.AlreadyGranted, null);
+
+        var now = DateTime.UtcNow;
+        var held = await _db.Subscriptions
+            .Where(x => x.ExternalUserId == externalUserId && x.EndsAt > now)
+            .Select(x => x.Plan)
+            .ToListAsync(cancellationToken);
+
+        var line = TariffPlans.Line(plan.Key);
+        var rank = TariffPlans.Rank(plan.Key);
+        if (held.Any(key => TariffPlans.Line(key) == line && TariffPlans.Rank(key) >= rank))
+            return (GrantOutcome.AlreadyHasPlan, null);
+
+        var subscription = new Subscription
+        {
+            ExternalUserId = externalUserId,
+            Plan = plan.Key,
+            StartsAt = now,
+            EndsAt = now.AddDays(days),
+            AutoRenew = false,
+            InvoiceId = null,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        _db.Subscriptions.Add(subscription);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _log.LogInformation("Пользователю {UserId} выдан тариф {Plan} на {Days} дн. без оплаты.",
+            externalUserId, plan.Key, days);
+
+        return (GrantOutcome.Granted, subscription);
     }
 
     /// <summary>Подписки, которые пора продлевать: с автопродлением, кончающиеся в ближайшие сутки.</summary>

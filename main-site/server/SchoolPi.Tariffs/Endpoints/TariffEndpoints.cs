@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SchoolPi.Tariffs.Configuration;
@@ -9,6 +10,8 @@ namespace SchoolPi.Tariffs.Endpoints;
 public sealed record CheckoutRequest(int ExternalUserId, string Email, string Plan, bool AutoRenew, string? Consent);
 public sealed record AutoRenewCancelRequest(int ExternalUserId);
 public sealed record StartNowRequest(int ExternalUserId);
+/// <summary>Once: true (по умолчанию) — этот тариф выдаётся человеку бесплатно один раз (пробный); false — акция, можно повторно.</summary>
+public sealed record GrantRequest(int ExternalUserId, string Plan, int Days, bool? Once);
 
 /// <summary>Сообщение сервера ключей об оплате — тот же вид, что у доски (PaidCallback в BillingEndpoints.cs).</summary>
 public sealed record PaidCallback(string? InvoiceId, long UserId, string? PlanCode, int Days, decimal Amount,
@@ -38,7 +41,7 @@ public static class TariffEndpoints
         api.MapGet("/status/{externalUserId:int}", async (
             int externalUserId, SubscriptionService subscriptions, CancellationToken ct) =>
         {
-            var current = await subscriptions.CurrentAsync(externalUserId, ct);
+            var current = await subscriptions.EffectiveAsync(externalUserId, ct);
             var upcoming = await subscriptions.UpcomingAsync(externalUserId, ct);
 
             return Results.Ok(new
@@ -86,6 +89,71 @@ public static class TariffEndpoints
                 ? Results.Ok(new { ok = true })
                 : Results.Json(new { error = "Перейти досрочно не на что." },
                     statusCode: StatusCodes.Status400BadRequest);
+        });
+
+        // Выдать тариф без оплаты на несколько дней — пробный период,
+        // который назначает основной сайт. Правила (не выше уже имеющегося,
+        // не дважды) — в SubscriptionService.GrantAsync.
+        api.MapPost("/grant", async (
+            [FromBody] GrantRequest request, SubscriptionService subscriptions, CancellationToken ct) =>
+        {
+            var (outcome, subscription) = await subscriptions.GrantAsync(
+                request.ExternalUserId, request.Plan, request.Days, request.Once ?? true, ct);
+
+            return outcome switch
+            {
+                GrantOutcome.Granted => Results.Ok(new
+                {
+                    granted = true,
+                    subscription = subscription is null ? null : Describe(subscription),
+                }),
+                GrantOutcome.UnknownPlan => Results.Json(new { granted = false, reason = "unknown_plan" },
+                    statusCode: StatusCodes.Status400BadRequest),
+                GrantOutcome.AlreadyHasPlan => Results.Ok(new { granted = false, reason = "already_has_plan" }),
+                _ => Results.Ok(new { granted = false, reason = "already_granted" }),
+            };
+        });
+
+        // Сводка для владельца сайта: все сроки тарифов (купленные и
+        // выданные) и все оплаченные платежи. Только чтение, только по
+        // ключу сайта. Считает и показывает сайт (страница «Тарифы и
+        // доход» в админ-панели) — здесь только данные как есть.
+        api.MapGet("/admin/overview", async (AppDbContext db, CancellationToken ct) =>
+        {
+            var subscriptions = await db.Subscriptions.AsNoTracking()
+                .OrderBy(x => x.StartsAt)
+                .Select(x => new
+                {
+                    userId = x.ExternalUserId,
+                    plan = x.Plan,
+                    startsAt = x.StartsAt,
+                    endsAt = x.EndsAt,
+                    autoRenew = x.AutoRenew,
+                    granted = x.InvoiceId == null,
+                })
+                .ToListAsync(ct);
+
+            var payments = await db.Payments.AsNoTracking()
+                .Where(x => x.Status == Payment.StatusPaid)
+                .OrderBy(x => x.PaidAt)
+                .Select(x => new
+                {
+                    userId = x.ExternalUserId,
+                    plan = x.Plan,
+                    amount = x.Amount,
+                    autoRenew = x.AutoRenew,
+                    paidAt = x.PaidAt,
+                })
+                .ToListAsync(ct);
+
+            return Results.Ok(new
+            {
+                now = DateTime.UtcNow,
+                periodDays = TariffPlans.PeriodDays,
+                plans = TariffPlans.All.Select(plan => new { plan.Key, plan.Title, plan.Price }),
+                subscriptions,
+                payments,
+            });
         });
 
         // Сообщение об оплате от сервера ключей. Без X-Api-Key: это
