@@ -47,7 +47,7 @@ public class BoardCanvas : FrameworkElement
     private const double EraserSpeedFull = 2400;
     private const double EraserMaxGrowth = 0.55;
     private const double HandleSizePx = 7;
-    private const double RotateHandleOffsetPx = 30;
+    private const double RotateHandleOffsetPx = 28;
     private const double StrokeMergeDistancePx = 25;
     private const double StrokeMergeDelayMs = 500;
     private const double AutoScrollMarginPx = 48;
@@ -156,6 +156,8 @@ public class BoardCanvas : FrameworkElement
     private bool _marqueeIsRect;
 
     private HandleKind _activeHandle = HandleKind.None;
+    private Point _rotateHandleWorld;
+    private double _rotateDeltaDegrees;
     private bool _dragging;
     private Point _dragStartWorld;
     private List<BoardItem> _dragOriginals = new();
@@ -607,6 +609,16 @@ public class BoardCanvas : FrameworkElement
             DashStyle = new DashStyle(new double[] { 4, 3 }, 0)
         };
 
+        // Во время поворота рамки нет: прямая рамка вокруг повёрнутого
+        // «каталась» бы каждый кадр. Ручка стоит, где её взяли, рядом — угол.
+        if (_dragging && _activeHandle == HandleKind.Rotate)
+        {
+            var handle = ToScreen(_rotateHandleWorld);
+            DrawRotateHandle(dc, handle, accent);
+            DrawAngleBadge(dc, handle, _rotateDeltaDegrees, accent);
+            return;
+        }
+
         var rect = SelectionScreenRect();
         dc.DrawRectangle(null, pen, rect);
 
@@ -635,8 +647,10 @@ public class BoardCanvas : FrameworkElement
         }
         else if (Selection.All(IsScalable))
         {
-            foreach (var (_, point) in HandlePositions(rect))
+            foreach (var (kind, point) in HandlePositions(rect))
             {
+                if (!HandleAllowed(kind))
+                    continue;
                 dc.DrawRectangle(handleFill, handlePen, new Rect(
                     point.X - HandleSizePx / 2, point.Y - HandleSizePx / 2,
                     HandleSizePx, HandleSizePx));
@@ -646,31 +660,61 @@ public class BoardCanvas : FrameworkElement
         // Вращать можно любое выделение — и линии, и штрихи, и несколько объектов.
         var rotate = RotateHandlePosition(rect);
         dc.DrawLine(new Pen(new SolidColorBrush(accent), 1.4),
-            new Point(rect.X + rect.Width / 2, rect.Y), rotate);
-
-        // Понятный значок вращения: закрученная стрелка вместо обычной точки.
-        var rotateGeometry = new StreamGeometry();
-        using (var g = rotateGeometry.Open())
-        {
-            var r = HandleSizePx * 1.15;
-            var cx = rotate.X;
-            var cy = rotate.Y;
-            g.BeginFigure(new Point(cx + r * 0.85, cy - r * 0.15), false, false);
-            g.BezierTo(
-                new Point(cx + r * 0.55, cy - r * 1.0),
-                new Point(cx - r * 0.75, cy - r * 0.95),
-                new Point(cx - r * 0.95, cy - r * 0.10), true, false);
-            g.BezierTo(
-                new Point(cx - r * 1.05, cy + r * 0.70),
-                new Point(cx - r * 0.05, cy + r * 1.05),
-                new Point(cx + r * 0.65, cy + r * 0.55), true, false);
-            g.BeginFigure(new Point(cx + r * 0.85, cy + r * 0.20), false, false);
-            g.LineTo(new Point(cx + r * 0.88, cy + r * 0.75), true, false);
-            g.LineTo(new Point(cx + r * 0.32, cy + r * 0.58), true, false);
-        }
-        rotateGeometry.Freeze();
-        dc.DrawGeometry(null, new Pen(new SolidColorBrush(accent), 2.0) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, rotateGeometry);
+            new Point(rect.X + rect.Width / 2, rect.Y), new Point(rotate.X, rotate.Y + RotateHandleRadiusPx));
+        DrawRotateHandle(dc, rotate, accent);
     }
+
+    private const double RotateHandleRadiusPx = 11;
+
+    /// <summary>
+    /// Ручка поворота: белый кружок с синей обводкой и стрелкой по часовой.
+    /// Рисуется в экранных координатах и сама никогда не поворачивается.
+    /// </summary>
+    private static void DrawRotateHandle(DrawingContext dc, Point c, Color accent)
+    {
+        dc.DrawEllipse(Brushes.White, new Pen(new SolidColorBrush(accent), 2), c,
+            RotateHandleRadiusPx, RotateHandleRadiusPx);
+
+        // Дуга ↻: от «9 часов» через верх к «5 часам», наконечник на конце.
+        var geometry = new StreamGeometry();
+        using (var g = geometry.Open())
+        {
+            const double r = 5.5;
+            g.BeginFigure(new Point(c.X - r, c.Y), false, false);
+            g.ArcTo(new Point(c.X + r * 0.5, c.Y + r * 0.87), new Size(r, r), 0,
+                    isLargeArc: true, SweepDirection.Clockwise, isStroked: true, isSmoothJoin: false);
+            g.BeginFigure(new Point(c.X + r * 0.5 + 3.4, c.Y + r * 0.87 - 0.6), false, false);
+            g.LineTo(new Point(c.X + r * 0.5, c.Y + r * 0.87), true, false);
+            g.LineTo(new Point(c.X + r * 0.5 + 0.4, c.Y + r * 0.87 - 3.6), true, false);
+        }
+        geometry.Freeze();
+        dc.DrawGeometry(null, new Pen(new SolidColorBrush(accent), 1.8)
+        {
+            LineJoin = PenLineJoin.Round,
+            StartLineCap = PenLineCap.Round,
+            EndLineCap = PenLineCap.Round
+        }, geometry);
+    }
+
+    /// <summary>Синяя плашка с текущим углом справа от ручки поворота.</summary>
+    private void DrawAngleBadge(DrawingContext dc, Point handle, double degrees, Color accent)
+    {
+        var value = ((int)Math.Round(degrees) % 360 + 360) % 360;
+        var text = new FormattedText($"{value}°",
+            System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+            new Typeface("Segoe UI"), 13, Brushes.White,
+            VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+        var box = new Rect(handle.X + RotateHandleRadiusPx + 8, handle.Y - text.Height / 2 - 4,
+                           text.Width + 16, text.Height + 8);
+        dc.DrawRoundedRectangle(new SolidColorBrush(accent), null, box, 8, 8);
+        dc.DrawText(text, new Point(box.X + 8, box.Y + 4));
+    }
+
+    /// <summary>Группа растягивается только за угловые ручки.</summary>
+    private bool HandleAllowed(HandleKind kind) =>
+        !Selection.Any(i => i.GroupId.Length > 0) ||
+        kind is HandleKind.NW or HandleKind.NE or HandleKind.SE or HandleKind.SW;
 
     private void DrawMarquee(DrawingContext dc)
     {
@@ -847,6 +891,8 @@ public class BoardCanvas : FrameworkElement
 
         foreach (var (kind, point) in HandlePositions(rect))
         {
+            if (!HandleAllowed(kind))
+                continue;
             if (Math.Abs(screen.X - point.X) <= HandleSizePx &&
                 Math.Abs(screen.Y - point.Y) <= HandleSizePx)
                 return kind;
@@ -930,7 +976,27 @@ public class BoardCanvas : FrameworkElement
             if (ItemRenderer.HitTestInterior(item, world))
                 return item;
         }
-        return null;
+
+        // Третий проход: группа берётся кликом в любую точку своей рамки,
+        // а не только по линиям. Из нескольких — верхняя.
+        BoardItem? best = null;
+        foreach (var group in Items.Where(i => i.GroupId.Length > 0).GroupBy(i => i.GroupId))
+        {
+            var bounds = Rect.Empty;
+            foreach (var member in group)
+            {
+                var r = ItemRenderer.RotatedBounds(member);
+                bounds = bounds.IsEmpty ? r : Rect.Union(bounds, r);
+            }
+
+            if (!bounds.Contains(world))
+                continue;
+
+            var top = group.MaxBy(i => i.Z)!;
+            if (best is null || top.Z > best.Z)
+                best = top;
+        }
+        return best;
     }
 
     // =====================================================================
@@ -1388,6 +1454,11 @@ public class BoardCanvas : FrameworkElement
         _dragOriginals = Selection.Select(i => i.Clone()).ToList();
         _dragOriginalBounds = SelectionWorldBounds();
 
+        // Ручка поворота остаётся там, где её взяли, до отпускания.
+        _rotateDeltaDegrees = 0;
+        if (handle == HandleKind.Rotate)
+            _rotateHandleWorld = ToWorld(RotateHandlePosition(SelectionScreenRect()));
+
         _lastAutoScrollTick = DateTime.Now;
         _autoScrollTimer.Start();
 
@@ -1496,7 +1567,10 @@ public class BoardCanvas : FrameworkElement
 
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
                 delta = Math.Round(delta / 15) * 15;
+            else
+                delta = Math.Round(delta);
 
+            _rotateDeltaDegrees = delta;
             for (var i = 0; i < Selection.Count; i++)
                 RotateItem(Selection[i], _dragOriginals[i], center, delta);
         }
@@ -1508,6 +1582,17 @@ public class BoardCanvas : FrameworkElement
                             Selection.Any(i => i.GroupId.Length > 0);
 
             var target = ResizeBounds(_dragOriginalBounds, _activeHandle, Snap(world), keepRatio);
+
+            // Группу нельзя сжать меньше 5 % — дальше она схлопнулась бы в точку.
+            var o = _dragOriginalBounds;
+            if (Selection.Any(i => i.GroupId.Length > 0) && target.Width < o.Width * 0.05)
+            {
+                var w = o.Width * 0.05;
+                var h = o.Height * 0.05;
+                var x = _activeHandle is HandleKind.NW or HandleKind.SW ? o.Right - w : o.Left;
+                var y = _activeHandle is HandleKind.NW or HandleKind.NE ? o.Bottom - h : o.Top;
+                target = new Rect(x, y, w, h);
+            }
 
             for (var i = 0; i < Selection.Count; i++)
                 ScaleItem(Selection[i], _dragOriginals[i], _dragOriginalBounds, target);
@@ -1578,7 +1663,7 @@ public class BoardCanvas : FrameworkElement
             return;
         }
 
-        target.Rotation = original.Rotation + degrees;
+        target.Rotation = ((original.Rotation + degrees) % 360 + 360) % 360;
 
         var center = original.Center;
         var dx = center.X - pivot.X;
@@ -1682,10 +1767,7 @@ public class BoardCanvas : FrameworkElement
                 p => new Point(to.X + (p.X - from.X) * sx, to.Y + (p.Y - from.Y) * sy),
                 (sx + sy) / 2);
 
-            // Толщину меняем только у рукописных штрихов: у фигур
-            // толщина контура задаётся отдельно и не должна «плыть».
-            if (original.Kind == ItemKind.Stroke)
-                target.Thickness = Math.Max(0.5, original.Thickness * (sx + sy) / 2);
+            // Толщина линий при масштабе не меняется — как у фигур.
             return;
         }
 
@@ -2440,6 +2522,7 @@ public class BoardCanvas : FrameworkElement
             copy.Z = NextZ();
             MoveItem(copy, source, shift, shift);
             copy.GroupId = RemapGroup(groupMap, source.GroupId);
+            copy.InnerGroupIds = source.InnerGroupIds.Select(g => RemapGroup(groupMap, g)).ToList();
 
             // Картинка, к которой был приклеен штрих, не входит в эту же
             // копию — связь рвётся. Иначе штрих неожиданно продолжил бы
@@ -2470,28 +2553,59 @@ public class BoardCanvas : FrameworkElement
     //  Группировка и зеркальное отражение
     // =====================================================================
     /// <summary>Группировать можно два и больше объектов, если они ещё не одна группа.</summary>
-    public bool CanGroup =>
-        Selection.Count >= 2 &&
-        !(Selection[0].GroupId.Length > 0 && Selection.All(i => i.GroupId == Selection[0].GroupId));
+    /// <summary>Число «единиц» в выделении: группа считается одной.</summary>
+    private int SelectionUnitCount =>
+        Selection.Select(i => i.GroupId.Length > 0 ? i.GroupId : "#" + i.Id).Distinct().Count();
 
-    public bool CanUngroup => Selection.Any(i => i.GroupId.Length > 0);
+    /// <summary>«Группа» — когда выделено два и больше объекта (группа считается за один).</summary>
+    public bool CanGroup => SelectionUnitCount >= 2;
+
+    /// <summary>«Разбить» — когда выделена ровно одна группа.</summary>
+    public bool CanUngroup =>
+        Selection.Count > 0 && Selection[0].GroupId.Length > 0 &&
+        Selection.All(i => i.GroupId == Selection[0].GroupId);
 
     public void GroupSelection()
     {
         if (!CanGroup)
             return;
 
-        // Выделение уже включает целые группы, поэтому вложенность не возникает:
-        // прежние группы растворяются в новой.
+        // Выделение всегда содержит целые группы. Их Id уходят во вложенные
+        // (InnerGroupIds) — «Разбить» потом вернёт эти группы как были.
         var id = Guid.NewGuid().ToString("N");
         BeginChange();
         foreach (var item in Selection)
+        {
+            if (item.GroupId.Length > 0)
+                item.InnerGroupIds.Add(item.GroupId);
             item.GroupId = id;
+        }
+
+        // Группа встаёт на слой самого верхнего из объединённых объектов,
+        // её части идут подряд в прежнем порядке.
+        var members = Selection.ToHashSet();
+        var ordered = Items.OrderBy(i => i.Z).ToList();
+        var topIndex = ordered.FindLastIndex(members.Contains);
+        var rest = new List<BoardItem>();
+        var insertAt = 0;
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (members.Contains(ordered[i]))
+                continue;
+            rest.Add(ordered[i]);
+            if (i < topIndex)
+                insertAt = rest.Count;
+        }
+        rest.InsertRange(insertAt, ordered.Where(members.Contains));
+        for (var i = 0; i < rest.Count; i++)
+            rest[i].Z = i;
+
         CommitChange();
         SelectionChanged?.Invoke();
         InvalidateVisual();
     }
 
+    /// <summary>Снимает один уровень группы: вложенные группы остаются группами.</summary>
     public void UngroupSelection()
     {
         if (!CanUngroup)
@@ -2499,11 +2613,25 @@ public class BoardCanvas : FrameworkElement
 
         BeginChange();
         foreach (var item in Selection)
-            item.GroupId = "";
+        {
+            if (item.InnerGroupIds.Count > 0)
+            {
+                item.GroupId = item.InnerGroupIds[^1];
+                item.InnerGroupIds.RemoveAt(item.InnerGroupIds.Count - 1);
+            }
+            else
+            {
+                item.GroupId = "";
+            }
+        }
         CommitChange();
         SelectionChanged?.Invoke();
         InvalidateVisual();
     }
+
+    /// <summary>Отражать есть что: несколько объектов или объект, который отражается сам.</summary>
+    public bool CanMirror =>
+        Selection.Count > 1 || (Selection.Count == 1 && Selection[0].Kind != ItemKind.Text);
 
     /// <summary>
     /// Отражает выделение. horizontal — слева направо (зеркало — вертикальная
@@ -2537,7 +2665,7 @@ public class BoardCanvas : FrameworkElement
             item.Y = center.Y - item.H / 2;
 
             // Отражение разворачивает поворот в обратную сторону.
-            item.Rotation = -item.Rotation;
+            item.Rotation = (360 - item.Rotation) % 360;
 
             // Надпись остаётся читаемой — зеркалится только её положение.
             if (item.Kind == ItemKind.Text)
@@ -2636,6 +2764,7 @@ public class BoardCanvas : FrameworkElement
             copy.Id = idMap[source.Id];
             MoveItem(copy, source, dx, dy);
             copy.GroupId = RemapGroup(groupMap, source.GroupId);
+            copy.InnerGroupIds = source.InnerGroupIds.Select(g => RemapGroup(groupMap, g)).ToList();
             copy.AttachedToId = idMap.TryGetValue(source.AttachedToId, out var mapped) ? mapped : "";
             created.Add(copy);
         }

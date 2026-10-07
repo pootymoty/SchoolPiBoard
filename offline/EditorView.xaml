@@ -93,7 +93,7 @@
 
                     <!-- Зеркало по горизонтали: треугольник, разделённый вертикальной осью -->
                     <Button x:Name="ObjectMirrorHButton" Style="{StaticResource IconButton}" Width="34"
-                            Click="ObjectMirrorH_Click" ToolTip="Отзеркалить по горизонтали">
+                            Click="ObjectMirrorH_Click" ToolTip="Отразить слева направо">
                         <Canvas Width="24" Height="24">
                             <Path Data="M12,4 L4,20 L12,20 Z" Fill="{DynamicResource TextPrimary}" Opacity="0.4"/>
                             <Path Data="M12,4 L4,20 L20,20 Z" Stroke="{DynamicResource TextPrimary}"
@@ -104,7 +104,7 @@
                     </Button>
                     <!-- Зеркало по вертикали: тот же треугольник, повёрнутый вершиной вправо, ось горизонтальная -->
                     <Button x:Name="ObjectMirrorVButton" Style="{StaticResource IconButton}" Width="34"
-                            Click="ObjectMirrorV_Click" ToolTip="Отзеркалить по вертикали">
+                            Click="ObjectMirrorV_Click" ToolTip="Отразить сверху вниз">
                         <Canvas Width="24" Height="24">
                             <Path Data="M4,4 L4,12 L20,12 Z" Fill="{DynamicResource TextPrimary}" Opacity="0.4"/>
                             <Path Data="M20,12 L4,4 L4,20 Z" Stroke="{DynamicResource TextPrimary}"
@@ -114,7 +114,7 @@
                         </Canvas>
                     </Button>
                     <Button x:Name="ObjectGroupButton" Style="{StaticResource IconButton}" Width="34"
-                            Click="ObjectGroup_Click" ToolTip="Сгруппировать (Ctrl+G)">
+                            Click="ObjectGroup_Click" ToolTip="Сгруппировать: сложить в один объект (Ctrl+G)">
                         <Canvas Width="24" Height="24">
                             <Rectangle Canvas.Left="2" Canvas.Top="2" Width="20" Height="20" RadiusX="3" RadiusY="3"
                                        Stroke="{DynamicResource TextPrimary}" StrokeThickness="1.4" StrokeDashArray="3,2"/>

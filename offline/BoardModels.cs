@@ -138,6 +138,13 @@ public class BoardItem
     public string GroupId { get; set; } = "";
 
     /// <summary>
+    /// Вложенные группы: Id групп, внутри которых объект лежал до того,
+    /// как его группу сгруппировали ещё раз (ближайшая — последняя).
+    /// «Разгруппировать» снимает один уровень: GroupId берётся отсюда.
+    /// </summary>
+    public List<string> InnerGroupIds { get; set; } = new();
+
+    /// <summary>
     /// Зеркальное отражение фигуры или картинки по горизонтали/вертикали
     /// (относительно центра, до поворота). У штрихов и прямых вместо этого
     /// зеркалятся сами точки.
@@ -157,6 +164,7 @@ public class BoardItem
         copy.Points = new List<double>(Points);
         copy.StrokeSegments = StrokeSegments.Select(segment => new List<double>(segment)).ToList();
         copy.ErasePoints = new List<double>(ErasePoints);
+        copy.InnerGroupIds = new List<string>(InnerGroupIds);
         return copy;
     }
 

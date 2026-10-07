@@ -70,6 +70,8 @@ public partial class EditorView
 
         ObjectGroupButton.Visibility = Canvas.CanGroup ? Visibility.Visible : Visibility.Collapsed;
         ObjectUngroupButton.Visibility = Canvas.CanUngroup ? Visibility.Visible : Visibility.Collapsed;
+        ObjectMirrorHButton.Visibility = Canvas.CanMirror ? Visibility.Visible : Visibility.Collapsed;
+        ObjectMirrorVButton.Visibility = Canvas.CanMirror ? Visibility.Visible : Visibility.Collapsed;
 
         FillSwatch.Background = string.IsNullOrEmpty(item.FillColor)
             ? System.Windows.Media.Brushes.Transparent
