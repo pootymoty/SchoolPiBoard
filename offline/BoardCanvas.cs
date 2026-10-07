@@ -1718,10 +1718,20 @@ public class BoardCanvas : FrameworkElement
         var width = Math.Max(2, Math.Abs(right - left));
         var height = Math.Max(2, Math.Abs(bottom - top));
 
+        var edgeX = handle is HandleKind.E or HandleKind.W;
+        var edgeY = handle is HandleKind.N or HandleKind.S;
+
         if (keepRatio && original.Width > 1e-6 && original.Height > 1e-6)
         {
             var ratio = original.Width / original.Height;
-            if (width / height > ratio)
+
+            // У боковых ручек меняется только одна сторона — вторую подгоняем
+            // под неё. Иначе пропорция «съела» бы движение и ручка не работала.
+            if (edgeX)
+                height = width / ratio;
+            else if (edgeY)
+                width = height * ratio;
+            else if (width / height > ratio)
                 width = height * ratio;
             else
                 height = width / ratio;
@@ -1729,6 +1739,12 @@ public class BoardCanvas : FrameworkElement
 
         var x = Math.Min(left, right);
         var y = Math.Min(top, bottom);
+
+        // Боковая ручка при сохранении пропорций растит вторую сторону от центра.
+        if (keepRatio && edgeY)
+            x = original.X + (original.Width - width) / 2;
+        if (keepRatio && edgeX)
+            y = original.Y + (original.Height - height) / 2;
 
         // Якорем остаётся противоположный маркеру угол.
         if (handle is HandleKind.NW or HandleKind.W or HandleKind.SW)

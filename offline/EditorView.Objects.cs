@@ -79,34 +79,41 @@ public partial class EditorView
             ? System.Windows.Media.Brushes.Transparent
             : ItemRenderer.ParseBrush(item.StrokeColor, System.Windows.Media.Brushes.Gray);
 
-        var isShape = item.Kind == ItemKind.Shape;
-        var isLineShape = isShape && (item.Shape == ShapeKind.Line || item.Shape == ShapeKind.Arrow);
-        var isStraightStroke = item.Kind == ItemKind.Stroke && item.IsStraightStroke;
+        static bool IsLineShape(BoardItem i) =>
+            i.Kind == ItemKind.Shape && (i.Shape == ShapeKind.Line || i.Shape == ShapeKind.Arrow);
+
+        // При нескольких объектах (и в группе) кнопка видна, если её
+        // настройка есть хотя бы у одного из них — применяется ко всем.
+        var selection = Canvas.Selection;
+        var anyFillable = selection.Any(i => i.Kind == ItemKind.Shape && !IsLineShape(i));
+        var lineStyleItem = selection.FirstOrDefault(i =>
+            i.Kind == ItemKind.Shape || (i.Kind == ItemKind.Stroke && i.IsStraightStroke));
+        var single = selection.Count == 1;
         var isImage = item.Kind == ItemKind.Image;
 
         // Заливка нужна только настоящим фигурам. Ни линии/стрелки, ни
         // рукописные штрихи пера/маркера не имеют параметра заливки.
-        ObjectFillButton.Visibility = isShape && !isLineShape
+        ObjectFillButton.Visibility = anyFillable
             ? Visibility.Visible
             : Visibility.Collapsed;
 
         // Тип линии доступен для фигур и для прямых, полученных пером/маркером.
-        ObjectLineStyleButton.Visibility = isShape || isStraightStroke
+        ObjectLineStyleButton.Visibility = lineStyleItem is not null
             ? Visibility.Visible
             : Visibility.Collapsed;
-        if (isShape || isStraightStroke)
-            SetLineStylePreview(ObjectLineStylePreview, item.LineStyle);
+        if (lineStyleItem is not null)
+            SetLineStylePreview(ObjectLineStylePreview, lineStyleItem.LineStyle);
 
-        // Текст внутри объекта не нужен для линий, стрелок, прямых штрихов
-        // и изображений. Для остальных редактируемых объектов кнопка остаётся.
+        // Текст внутри объекта — только для одного объекта, и не для линий,
+        // стрелок, штрихов и изображений.
         ObjectTextButton.Visibility =
-            isImage || item.Kind == ItemKind.Stroke || isLineShape
+            !single || isImage || item.Kind == ItemKind.Stroke || IsLineShape(item)
                 ? Visibility.Collapsed
                 : Visibility.Visible;
 
         // Изображение («Рисунок») не имеет отдельной границы, которой можно
         // управлять из панели объекта.
-        ObjectStrokeButton.Visibility = isImage
+        ObjectStrokeButton.Visibility = selection.All(i => i.Kind == ItemKind.Image)
             ? Visibility.Collapsed
             : Visibility.Visible;
     }
