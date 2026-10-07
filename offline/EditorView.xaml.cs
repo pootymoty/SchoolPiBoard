@@ -871,6 +871,10 @@ public partial class EditorView : UserControl
                 case Key.X: CutSelection(); return true;
                 case Key.V: PasteClipboard(); return true;
                 case Key.D: Canvas.DuplicateSelection(); return true;
+                case Key.G:
+                    if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) Canvas.UngroupSelection();
+                    else Canvas.GroupSelection();
+                    return true;
                 case Key.A: Canvas.SelectAll(); return true;
                 case Key.S: SaveIfDirty(); return true;
             }

@@ -392,6 +392,17 @@ public static class ItemRenderer
         };
     }
 
+    /// <summary>Включает зеркальное отражение объекта; true — после рисования нужен Pop().</summary>
+    private static bool PushFlip(DrawingContext dc, BoardItem item)
+    {
+        if (!item.FlipX && !item.FlipY)
+            return false;
+
+        var center = item.Center;
+        dc.PushTransform(new ScaleTransform(item.FlipX ? -1 : 1, item.FlipY ? -1 : 1, center.X, center.Y));
+        return true;
+    }
+
     private static void DrawStroke(DrawingContext dc, BoardItem item)
     {
         var color = ParseColor(item.StrokeColor) ?? Colors.Red;
@@ -470,8 +481,12 @@ public static class ItemRenderer
 
         // Фигуры и стрелки теперь не имеют частичного стирания: при касании
         // ластиком они удаляются целиком. Это существенно дешевле клип-масок.
+        var flipped = PushFlip(dc, item);
         dc.DrawGeometry(fill, pen, geometry);
+        if (flipped)
+            dc.Pop();
 
+        // Текст внутри фигуры не зеркалится — иначе его нельзя было бы читать.
         if (!string.IsNullOrEmpty(item.Text))
             DrawTextInside(dc, item, pixelsPerDip);
     }
@@ -607,8 +622,13 @@ public static class ItemRenderer
     private static void DrawImage(DrawingContext dc, BoardItem item)
     {
         var bitmap = GetImage(item);
-        if (bitmap is not null)
-            dc.DrawImage(bitmap, item.Bounds);
+        if (bitmap is null)
+            return;
+
+        var flipped = PushFlip(dc, item);
+        dc.DrawImage(bitmap, item.Bounds);
+        if (flipped)
+            dc.Pop();
     }
 
     // =====================================================================
@@ -617,17 +637,27 @@ public static class ItemRenderer
     /// <summary>Переводит мировую точку в систему координат объекта без поворота.</summary>
     public static Point ToLocal(BoardItem item, Point world)
     {
-        if (Math.Abs(item.Rotation) < 0.01)
-            return world;
-
         var center = item.Center;
-        var angle = -item.Rotation * Math.PI / 180;
-        var dx = world.X - center.X;
-        var dy = world.Y - center.Y;
+        var local = world;
 
-        return new Point(
-            dx * Math.Cos(angle) - dy * Math.Sin(angle) + center.X,
-            dx * Math.Sin(angle) + dy * Math.Cos(angle) + center.Y);
+        if (Math.Abs(item.Rotation) >= 0.01)
+        {
+            var angle = -item.Rotation * Math.PI / 180;
+            var dx = world.X - center.X;
+            var dy = world.Y - center.Y;
+
+            local = new Point(
+                dx * Math.Cos(angle) - dy * Math.Sin(angle) + center.X,
+                dx * Math.Sin(angle) + dy * Math.Cos(angle) + center.Y);
+        }
+
+        // Рисуется «отразить, потом повернуть», поэтому обратно — наоборот.
+        if (item.FlipX)
+            local = new Point(2 * center.X - local.X, local.Y);
+        if (item.FlipY)
+            local = new Point(local.X, 2 * center.Y - local.Y);
+
+        return local;
     }
 
     public static bool HitTest(BoardItem item, Point world, double tolerance)

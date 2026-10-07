@@ -130,6 +130,21 @@ public class BoardItem
     /// </summary>
     public string AttachedToId { get; set; } = "";
 
+    /// <summary>
+    /// Id группы: объекты с одинаковым непустым значением выделяются, двигаются,
+    /// масштабируются и вращаются как один объект, а ластик их не трогает.
+    /// Пустая строка — объект сам по себе.
+    /// </summary>
+    public string GroupId { get; set; } = "";
+
+    /// <summary>
+    /// Зеркальное отражение фигуры или картинки по горизонтали/вертикали
+    /// (относительно центра, до поворота). У штрихов и прямых вместо этого
+    /// зеркалятся сами точки.
+    /// </summary>
+    public bool FlipX { get; set; }
+    public bool FlipY { get; set; }
+
     [JsonIgnore]
     public Rect Bounds => new(X, Y, Math.Max(0.01, W), Math.Max(0.01, H));
 

@@ -91,6 +91,51 @@
 
                     <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="6,5"/>
 
+                    <!-- Зеркало по горизонтали: треугольник, разделённый вертикальной осью -->
+                    <Button x:Name="ObjectMirrorHButton" Style="{StaticResource IconButton}" Width="34"
+                            Click="ObjectMirrorH_Click" ToolTip="Отзеркалить по горизонтали">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M12,4 L4,20 L12,20 Z" Fill="{DynamicResource TextPrimary}" Opacity="0.4"/>
+                            <Path Data="M12,4 L4,20 L20,20 Z" Stroke="{DynamicResource TextPrimary}"
+                                  StrokeThickness="1.6" StrokeLineJoin="Round"/>
+                            <Path Data="M12,1.5 L12,22.5" Stroke="{DynamicResource TextPrimary}"
+                                  StrokeThickness="1.6" StrokeDashArray="2,1.6"/>
+                        </Canvas>
+                    </Button>
+                    <!-- Зеркало по вертикали: тот же треугольник, повёрнутый вершиной вправо, ось горизонтальная -->
+                    <Button x:Name="ObjectMirrorVButton" Style="{StaticResource IconButton}" Width="34"
+                            Click="ObjectMirrorV_Click" ToolTip="Отзеркалить по вертикали">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M4,4 L4,12 L20,12 Z" Fill="{DynamicResource TextPrimary}" Opacity="0.4"/>
+                            <Path Data="M20,12 L4,4 L4,20 Z" Stroke="{DynamicResource TextPrimary}"
+                                  StrokeThickness="1.6" StrokeLineJoin="Round"/>
+                            <Path Data="M1.5,12 L22.5,12" Stroke="{DynamicResource TextPrimary}"
+                                  StrokeThickness="1.6" StrokeDashArray="2,1.6"/>
+                        </Canvas>
+                    </Button>
+                    <Button x:Name="ObjectGroupButton" Style="{StaticResource IconButton}" Width="34"
+                            Click="ObjectGroup_Click" ToolTip="Сгруппировать (Ctrl+G)">
+                        <Canvas Width="24" Height="24">
+                            <Rectangle Canvas.Left="2" Canvas.Top="2" Width="20" Height="20" RadiusX="3" RadiusY="3"
+                                       Stroke="{DynamicResource TextPrimary}" StrokeThickness="1.4" StrokeDashArray="3,2"/>
+                            <Rectangle Canvas.Left="6" Canvas.Top="6" Width="7" Height="7"
+                                       Stroke="{DynamicResource TextPrimary}" StrokeThickness="1.6"/>
+                            <Rectangle Canvas.Left="11" Canvas.Top="11" Width="7" Height="7"
+                                       Fill="{DynamicResource TextPrimary}" Opacity="0.55"/>
+                        </Canvas>
+                    </Button>
+                    <Button x:Name="ObjectUngroupButton" Style="{StaticResource IconButton}" Width="34"
+                            Click="ObjectUngroup_Click" ToolTip="Разгруппировать (Ctrl+Shift+G)">
+                        <Canvas Width="24" Height="24">
+                            <Rectangle Canvas.Left="3" Canvas.Top="3" Width="8" Height="8"
+                                       Stroke="{DynamicResource TextPrimary}" StrokeThickness="1.6"/>
+                            <Rectangle Canvas.Left="13" Canvas.Top="13" Width="8" Height="8"
+                                       Fill="{DynamicResource TextPrimary}" Opacity="0.55"/>
+                        </Canvas>
+                    </Button>
+
+                    <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="6,5"/>
+
                     <Button Content="⧉" Style="{StaticResource IconButton}" Width="34"
                             Click="ObjectCopy_Click" ToolTip="Копировать (Ctrl+C)"/>
                     <Button Content="🗑" Style="{StaticResource DangerIconButton}" Width="34"

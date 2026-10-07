@@ -624,7 +624,7 @@ public class BoardCanvas : FrameworkElement
         if (Selection.Count == 1 && IsEndpointEditableLine(Selection[0]) &&
             TryGetLineEndpoints(Selection[0], out var lineStart, out var lineEnd))
         {
-            // У линии/стрелки только две ручки. Потянув одну, пользователь
+            // У линии/стрелки две ручки на концах. Потянув одну, пользователь
             // одновременно вращает и растягивает её вокруг второго конца.
             foreach (var point in new[] { ToScreen(lineStart), ToScreen(lineEnd) })
             {
@@ -632,19 +632,18 @@ public class BoardCanvas : FrameworkElement
                     point.X - HandleSizePx / 2, point.Y - HandleSizePx / 2,
                     HandleSizePx, HandleSizePx));
             }
-            return;
         }
-
-        if (!Selection.All(IsStandardTransformable))
-            return;
-
-        foreach (var (_, point) in HandlePositions(rect))
+        else if (Selection.All(IsScalable))
         {
-            dc.DrawRectangle(handleFill, handlePen, new Rect(
-                point.X - HandleSizePx / 2, point.Y - HandleSizePx / 2,
-                HandleSizePx, HandleSizePx));
+            foreach (var (_, point) in HandlePositions(rect))
+            {
+                dc.DrawRectangle(handleFill, handlePen, new Rect(
+                    point.X - HandleSizePx / 2, point.Y - HandleSizePx / 2,
+                    HandleSizePx, HandleSizePx));
+            }
         }
 
+        // Вращать можно любое выделение — и линии, и штрихи, и несколько объектов.
         var rotate = RotateHandlePosition(rect);
         dc.DrawLine(new Pen(new SolidColorBrush(accent), 1.4),
             new Point(rect.X + rect.Width / 2, rect.Y), rotate);
@@ -824,31 +823,27 @@ public class BoardCanvas : FrameworkElement
         // Для одиночной прямой/стрелки и для выпрямленного штриха пера/маркера
         // используются только два конца. Перетягивание одного конца автоматически
         // и вращает, и растягивает линию, оставляя второй конец неподвижным.
-        if (Selection.Count == 1 && IsEndpointEditableLine(Selection[0]))
+        var singleLine = Selection.Count == 1 && IsEndpointEditableLine(Selection[0]);
+        if (singleLine && TryGetLineEndpoints(Selection[0], out var start, out var end))
         {
-            var item = Selection[0];
-            if (TryGetLineEndpoints(item, out var start, out var end))
-            {
-                if (ItemRenderer.Distance(screen, ToScreen(start)) <= HandleSizePx * 1.8)
-                    return HandleKind.LineStart;
-                if (ItemRenderer.Distance(screen, ToScreen(end)) <= HandleSizePx * 1.8)
-                    return HandleKind.LineEnd;
-            }
-            return HandleKind.None;
+            if (ItemRenderer.Distance(screen, ToScreen(start)) <= HandleSizePx * 1.8)
+                return HandleKind.LineStart;
+            if (ItemRenderer.Distance(screen, ToScreen(end)) <= HandleSizePx * 1.8)
+                return HandleKind.LineEnd;
         }
-
-        // Масштабирование/вращение обычными ручками доступно только фигурам,
-        // изображениям и тексту. Рисованные штрихи не получают дорогую
-        // трансформацию через габаритную рамку.
-        if (!Selection.All(IsStandardTransformable))
-            return HandleKind.None;
 
         var rect = SelectionScreenRect();
         if (rect.IsEmpty)
             return HandleKind.None;
 
+        // Вращение доступно для любого выделения.
         if (ItemRenderer.Distance(screen, RotateHandlePosition(rect)) <= HandleSizePx * 1.6)
             return HandleKind.Rotate;
+
+        // Растягивание рамкой — фигурам, картинкам, тексту и сгруппированным
+        // объектам (одиночные рукописные штрихи так не масштабируются).
+        if (singleLine || !Selection.All(IsScalable))
+            return HandleKind.None;
 
         foreach (var (kind, point) in HandlePositions(rect))
         {
@@ -862,6 +857,13 @@ public class BoardCanvas : FrameworkElement
 
     private static bool IsStandardTransformable(BoardItem item) =>
         item.Kind is ItemKind.Shape or ItemKind.Image or ItemKind.Text;
+
+    private static bool IsScalable(BoardItem item) =>
+        IsStandardTransformable(item) || item.GroupId.Length > 0;
+
+    /// <summary>Прямая или стрелка: фигура из двух точек.</summary>
+    private static bool IsLineItem(BoardItem item) =>
+        item.Kind == ItemKind.Shape && item.Shape is ShapeKind.Line or ShapeKind.Arrow && item.Points.Count >= 4;
 
     /// <summary>
     /// Верхнее по Z изображение, под которым начата точка. Используется
@@ -1243,9 +1245,17 @@ public class BoardCanvas : FrameworkElement
             if (ctrl)
             {
                 if (Selection.Contains(hit))
-                    Selection.Remove(hit);
+                {
+                    if (hit.GroupId.Length > 0)
+                        Selection.RemoveAll(i => i.GroupId == hit.GroupId);
+                    else
+                        Selection.Remove(hit);
+                }
                 else
+                {
                     Selection.Add(hit);
+                    ExpandSelectionToGroups();
+                }
                 SelectionChanged?.Invoke();
                 InvalidateVisual();
                 return;
@@ -1255,6 +1265,7 @@ public class BoardCanvas : FrameworkElement
             {
                 Selection.Clear();
                 Selection.Add(hit);
+                ExpandSelectionToGroups();
                 SelectionChanged?.Invoke();
             }
 
@@ -1320,8 +1331,23 @@ public class BoardCanvas : FrameworkElement
         }
 
         _lassoPoints.Clear();
+        ExpandSelectionToGroups();
         SelectionChanged?.Invoke();
         InvalidateVisual();
+    }
+
+    /// <summary>Если выделен кто-то из группы — выделяется вся группа.</summary>
+    private void ExpandSelectionToGroups()
+    {
+        var groups = Selection.Where(i => i.GroupId.Length > 0).Select(i => i.GroupId).ToHashSet();
+        if (groups.Count == 0)
+            return;
+
+        foreach (var item in Items)
+        {
+            if (groups.Contains(item.GroupId) && !Selection.Contains(item))
+                Selection.Add(item);
+        }
     }
 
     private static bool PointInPolygon(List<Point> polygon, Point p)
@@ -1352,10 +1378,7 @@ public class BoardCanvas : FrameworkElement
             return;
 
         if (handle is not (HandleKind.None or HandleKind.LineStart or HandleKind.LineEnd or HandleKind.Rotate) &&
-            !Selection.All(IsStandardTransformable))
-            return;
-
-        if (handle == HandleKind.Rotate && !Selection.All(IsStandardTransformable))
+            !Selection.All(IsScalable))
             return;
 
         BeginChange();
@@ -1479,8 +1502,12 @@ public class BoardCanvas : FrameworkElement
         }
         else
         {
-            var target = ResizeBounds(_dragOriginalBounds, _activeHandle, Snap(world),
-                                       Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            // Группа растягивается только пропорционально — иначе рукописные
+            // части исказились бы; остальным выделениям это даёт Shift.
+            var keepRatio = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ||
+                            Selection.Any(i => i.GroupId.Length > 0);
+
+            var target = ResizeBounds(_dragOriginalBounds, _activeHandle, Snap(world), keepRatio);
 
             for (var i = 0; i < Selection.Count; i++)
                 ScaleItem(Selection[i], _dragOriginals[i], _dragOriginalBounds, target);
@@ -1520,15 +1547,38 @@ public class BoardCanvas : FrameworkElement
                 target.Points.Add(original.Points[i + 1] + dy);
             }
         }
+
+        // Следы ластика на прямой лежат в мировых координатах — едут вместе с ней.
+        if (original.ErasePoints.Count >= 3)
+        {
+            target.ErasePoints = new List<double>(original.ErasePoints);
+            for (var i = 0; i + 2 < target.ErasePoints.Count; i += 3)
+            {
+                target.ErasePoints[i] += dx;
+                target.ErasePoints[i + 1] += dy;
+            }
+        }
     }
 
     private static void RotateItem(BoardItem target, BoardItem original, Point pivot, double degrees)
     {
-        target.Rotation = original.Rotation + degrees;
-
         var angle = degrees * Math.PI / 180;
         var cos = Math.Cos(angle);
         var sin = Math.Sin(angle);
+
+        // Штрихи и прямые не хранят поворот отдельно — вращаются сами точки.
+        if (original.Kind == ItemKind.Stroke || IsLineItem(original))
+        {
+            MapItemPoints(target, original, p =>
+            {
+                var px = p.X - pivot.X;
+                var py = p.Y - pivot.Y;
+                return new Point(px * cos - py * sin + pivot.X, px * sin + py * cos + pivot.Y);
+            }, 1);
+            return;
+        }
+
+        target.Rotation = original.Rotation + degrees;
 
         var center = original.Center;
         var dx = center.X - pivot.X;
@@ -1540,18 +1590,85 @@ public class BoardCanvas : FrameworkElement
 
         target.X = newCenter.X - original.W / 2;
         target.Y = newCenter.Y - original.H / 2;
+    }
 
-        if (original.Points.Count >= 2)
+    /// <summary>
+    /// Применяет преобразование ко всем точкам штриха или прямой (и к следам
+    /// ластика на ней) и пересчитывает габариты. Читает из original, пишет
+    /// в target — они могут быть одним и тем же объектом.
+    /// </summary>
+    private static void MapItemPoints(BoardItem target, BoardItem original, Func<Point, Point> map, double radiusScale)
+    {
+        static List<double> MapList(List<double> source, Func<Point, Point> map)
         {
-            // Точки только сдвигаем вслед за центром: сам разворот выполняет
-            // поле Rotation при отрисовке, иначе поворот применился бы дважды.
-            target.Points.Clear();
-            for (var i = 0; i + 1 < original.Points.Count; i += 2)
+            var result = new List<double>(source.Count);
+            for (var i = 0; i + 1 < source.Count; i += 2)
             {
-                target.Points.Add(original.Points[i] + (target.X - original.X));
-                target.Points.Add(original.Points[i + 1] + (target.Y - original.Y));
+                var p = map(new Point(source[i], source[i + 1]));
+                result.Add(p.X);
+                result.Add(p.Y);
+            }
+            return result;
+        }
+
+        List<double>? erase = null;
+        if (original.ErasePoints.Count >= 3)
+        {
+            erase = new List<double>(original.ErasePoints.Count);
+            for (var i = 0; i + 2 < original.ErasePoints.Count; i += 3)
+            {
+                var p = map(new Point(original.ErasePoints[i], original.ErasePoints[i + 1]));
+                erase.Add(p.X);
+                erase.Add(p.Y);
+                erase.Add(original.ErasePoints[i + 2] * radiusScale);
             }
         }
+
+        if (original.Kind == ItemKind.Shape)
+        {
+            // Концы прямой с учётом поворота, который мог остаться от старых версий.
+            var a = new Point(original.Points[0], original.Points[1]);
+            var b = new Point(original.Points[2], original.Points[3]);
+            if (Math.Abs(original.Rotation) > 0.01)
+            {
+                a = RotateAround(a, original.Center, original.Rotation);
+                b = RotateAround(b, original.Center, original.Rotation);
+            }
+
+            a = map(a);
+            b = map(b);
+            target.Points = new List<double> { a.X, a.Y, b.X, b.Y };
+            target.Rotation = 0;
+            target.X = Math.Min(a.X, b.X);
+            target.Y = Math.Min(a.Y, b.Y);
+            target.W = Math.Max(0.01, Math.Abs(a.X - b.X));
+            target.H = Math.Max(0.01, Math.Abs(a.Y - b.Y));
+        }
+        else if (original.StrokeSegments.Count > 0)
+        {
+            target.StrokeSegments = original.StrokeSegments.Select(s => MapList(s, map)).ToList();
+            target.Points = new List<double>();
+            target.RecalculateBoundsFromSegments();
+        }
+        else
+        {
+            target.Points = MapList(original.Points, map);
+            target.StrokeSegments = new List<List<double>>();
+            target.RecalculateBoundsFromPoints();
+        }
+
+        if (erase is not null)
+            target.ErasePoints = erase;
+    }
+
+    private static Point RotateAround(Point p, Point pivot, double degrees)
+    {
+        var angle = degrees * Math.PI / 180;
+        var cos = Math.Cos(angle);
+        var sin = Math.Sin(angle);
+        var dx = p.X - pivot.X;
+        var dy = p.Y - pivot.Y;
+        return new Point(dx * cos - dy * sin + pivot.X, dx * sin + dy * cos + pivot.Y);
     }
 
     private static void ScaleItem(BoardItem target, BoardItem original, Rect from, Rect to)
@@ -1559,25 +1676,23 @@ public class BoardCanvas : FrameworkElement
         var sx = from.Width < 1e-6 ? 1 : to.Width / from.Width;
         var sy = from.Height < 1e-6 ? 1 : to.Height / from.Height;
 
-        target.X = to.X + (original.X - from.X) * sx;
-        target.Y = to.Y + (original.Y - from.Y) * sy;
-        target.W = Math.Max(1, original.W * sx);
-        target.H = Math.Max(1, original.H * sy);
-
-        if (original.Points.Count >= 2)
+        if (original.Kind == ItemKind.Stroke || IsLineItem(original))
         {
-            target.Points.Clear();
-            for (var i = 0; i + 1 < original.Points.Count; i += 2)
-            {
-                target.Points.Add(to.X + (original.Points[i] - from.X) * sx);
-                target.Points.Add(to.Y + (original.Points[i + 1] - from.Y) * sy);
-            }
+            MapItemPoints(target, original,
+                p => new Point(to.X + (p.X - from.X) * sx, to.Y + (p.Y - from.Y) * sy),
+                (sx + sy) / 2);
 
             // Толщину меняем только у рукописных штрихов: у фигур
             // толщина контура задаётся отдельно и не должна «плыть».
             if (original.Kind == ItemKind.Stroke)
                 target.Thickness = Math.Max(0.5, original.Thickness * (sx + sy) / 2);
+            return;
         }
+
+        target.X = to.X + (original.X - from.X) * sx;
+        target.Y = to.Y + (original.Y - from.Y) * sy;
+        target.W = Math.Max(1, original.W * sx);
+        target.H = Math.Max(1, original.H * sy);
 
         if (original.Kind == ItemKind.Text)
             target.FontSize = Math.Max(6, original.FontSize * sy);
@@ -2075,6 +2190,11 @@ public class BoardCanvas : FrameworkElement
             if (item.Kind == ItemKind.Image || item.Kind == ItemKind.Text)
                 continue;
 
+            // Сгруппированное ластик не трогает — как и фигуры. Стереть можно
+            // только то, что нарисовано поверх группы отдельно.
+            if (item.GroupId.Length > 0)
+                continue;
+
             if (item.Kind == ItemKind.Shape && item.Shape != ShapeKind.Line)
                 continue;
 
@@ -2294,6 +2414,8 @@ public class BoardCanvas : FrameworkElement
         foreach (var source in items)
             idMap[source.Id] = Guid.NewGuid().ToString("N");
 
+        var groupMap = new Dictionary<string, string>();
+
         var shift = offset ? 26 / Zoom : 0;
         foreach (var source in items)
         {
@@ -2301,6 +2423,7 @@ public class BoardCanvas : FrameworkElement
             copy.Id = idMap[source.Id];
             copy.Z = NextZ();
             MoveItem(copy, source, shift, shift);
+            copy.GroupId = RemapGroup(groupMap, source.GroupId);
 
             // Картинка, к которой был приклеен штрих, не входит в эту же
             // копию — связь рвётся. Иначе штрих неожиданно продолжил бы
@@ -2316,6 +2439,103 @@ public class BoardCanvas : FrameworkElement
     }
 
     public void DuplicateSelection() => PasteItems(CopySelection());
+
+    /// <summary>Копии группы получают свой новый Id — иначе копия слиплась бы с оригиналом.</summary>
+    private static string RemapGroup(Dictionary<string, string> map, string groupId)
+    {
+        if (groupId.Length == 0)
+            return "";
+        if (!map.TryGetValue(groupId, out var mapped))
+            map[groupId] = mapped = Guid.NewGuid().ToString("N");
+        return mapped;
+    }
+
+    // =====================================================================
+    //  Группировка и зеркальное отражение
+    // =====================================================================
+    /// <summary>Группировать можно два и больше объектов, если они ещё не одна группа.</summary>
+    public bool CanGroup =>
+        Selection.Count >= 2 &&
+        !(Selection[0].GroupId.Length > 0 && Selection.All(i => i.GroupId == Selection[0].GroupId));
+
+    public bool CanUngroup => Selection.Any(i => i.GroupId.Length > 0);
+
+    public void GroupSelection()
+    {
+        if (!CanGroup)
+            return;
+
+        // Выделение уже включает целые группы, поэтому вложенность не возникает:
+        // прежние группы растворяются в новой.
+        var id = Guid.NewGuid().ToString("N");
+        BeginChange();
+        foreach (var item in Selection)
+            item.GroupId = id;
+        CommitChange();
+        SelectionChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    public void UngroupSelection()
+    {
+        if (!CanUngroup)
+            return;
+
+        BeginChange();
+        foreach (var item in Selection)
+            item.GroupId = "";
+        CommitChange();
+        SelectionChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Отражает выделение. horizontal — слева направо (зеркало — вертикальная
+    /// ось через центр выделения), иначе сверху вниз. Для нескольких
+    /// объектов ось одна общая.
+    /// </summary>
+    public void MirrorSelection(bool horizontal)
+    {
+        if (Selection.Count == 0)
+            return;
+
+        var bounds = SelectionWorldBounds();
+        if (bounds.IsEmpty)
+            return;
+
+        var cx = bounds.X + bounds.Width / 2;
+        var cy = bounds.Y + bounds.Height / 2;
+        Point Map(Point p) => horizontal ? new Point(2 * cx - p.X, p.Y) : new Point(p.X, 2 * cy - p.Y);
+
+        BeginChange();
+        foreach (var item in Selection)
+        {
+            if (item.Kind == ItemKind.Stroke || IsLineItem(item))
+            {
+                MapItemPoints(item, item, Map, 1);
+                continue;
+            }
+
+            var center = Map(item.Center);
+            item.X = center.X - item.W / 2;
+            item.Y = center.Y - item.H / 2;
+
+            // Отражение разворачивает поворот в обратную сторону.
+            item.Rotation = -item.Rotation;
+
+            // Надпись остаётся читаемой — зеркалится только её положение.
+            if (item.Kind == ItemKind.Text)
+                continue;
+
+            if (horizontal)
+                item.FlipX = !item.FlipX;
+            else
+                item.FlipY = !item.FlipY;
+        }
+        CommitChange();
+        SelectionChanged?.Invoke();
+        InvalidateVisual();
+    }
 
     // =====================================================================
     //  Заготовки
@@ -2392,12 +2612,14 @@ public class BoardCanvas : FrameworkElement
         foreach (var source in template.Items)
             idMap[source.Id] = Guid.NewGuid().ToString("N");
 
+        var groupMap = new Dictionary<string, string>();
         var created = new List<BoardItem>();
         foreach (var source in template.Items.OrderBy(i => i.Z))
         {
             var copy = source.Clone();
             copy.Id = idMap[source.Id];
             MoveItem(copy, source, dx, dy);
+            copy.GroupId = RemapGroup(groupMap, source.GroupId);
             copy.AttachedToId = idMap.TryGetValue(source.AttachedToId, out var mapped) ? mapped : "";
             created.Add(copy);
         }

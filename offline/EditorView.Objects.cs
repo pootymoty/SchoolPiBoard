@@ -68,6 +68,9 @@ public partial class EditorView
         if (item is null)
             return;
 
+        ObjectGroupButton.Visibility = Canvas.CanGroup ? Visibility.Visible : Visibility.Collapsed;
+        ObjectUngroupButton.Visibility = Canvas.CanUngroup ? Visibility.Visible : Visibility.Collapsed;
+
         FillSwatch.Background = string.IsNullOrEmpty(item.FillColor)
             ? System.Windows.Media.Brushes.Transparent
             : ItemRenderer.ParseBrush(item.FillColor, System.Windows.Media.Brushes.Transparent);
@@ -236,6 +239,14 @@ public partial class EditorView
         if (item is not null)
             BeginTextEdit(item);
     }
+
+    private void ObjectMirrorH_Click(object sender, RoutedEventArgs e) => Canvas.MirrorSelection(horizontal: true);
+
+    private void ObjectMirrorV_Click(object sender, RoutedEventArgs e) => Canvas.MirrorSelection(horizontal: false);
+
+    private void ObjectGroup_Click(object sender, RoutedEventArgs e) => Canvas.GroupSelection();
+
+    private void ObjectUngroup_Click(object sender, RoutedEventArgs e) => Canvas.UngroupSelection();
 
     private void ObjectCopy_Click(object sender, RoutedEventArgs e) => CopySelection();
 
