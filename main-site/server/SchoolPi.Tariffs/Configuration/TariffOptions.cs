@@ -106,4 +106,21 @@ public static class TariffPlans
     };
 
     public static TariffPlan? Find(string key) => All.FirstOrDefault(plan => plan.Key == key);
+
+    /// <summary>
+    /// Линейка тарифа: у преподавателей своя лестница (Базовый → Стандарт
+    /// → Профи), у обучающихся — своя. Сравнивать уровни имеет смысл только
+    /// внутри одной линейки.
+    /// </summary>
+    public static string Line(string key) => key.StartsWith("tutor_", StringComparison.Ordinal) ? "tutor" : "student";
+
+    /// <summary>Уровень внутри линейки — по порядку в All (выше индекс — выше тариф).</summary>
+    public static int Rank(string key)
+    {
+        for (var i = 0; i < All.Count; i++)
+        {
+            if (All[i].Key == key) return i;
+        }
+        return -1;
+    }
 }
