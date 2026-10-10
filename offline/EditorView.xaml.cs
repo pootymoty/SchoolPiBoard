@@ -679,7 +679,8 @@ public partial class EditorView : UserControl
             (ShapeKind.Cylinder, "Цилиндр"),
             (ShapeKind.Cone, "Конус"),
             (ShapeKind.Sphere, "Шар"),
-            (ShapeKind.Pyramid, "Пирамида")
+            (ShapeKind.Pyramid, "Пирамида"),
+            (ShapeKind.Tetrahedron, "Тетраэдр")
         };
 
         foreach (var (kind, tip) in shapes)
@@ -736,7 +737,33 @@ public partial class EditorView : UserControl
         };
         path.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "TextPrimary");
 
-        return path;
+        // Задние рёбра — пунктиром, как на холсте.
+        var hiddenGeometry = ItemRenderer.BuildHiddenEdges(kind, new Rect(2, 2, size - 4, size - 4));
+        if (hiddenGeometry is null)
+            return path;
+
+        var hidden = new System.Windows.Shapes.Path
+        {
+            Data = hiddenGeometry,
+            StrokeThickness = 1.2,
+            StrokeDashArray = new DoubleCollection { 2, 1.5 },
+            Width = size,
+            Height = size,
+            Stretch = Stretch.None,
+            Opacity = 0.8
+        };
+        hidden.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "TextPrimary");
+
+        var icon = new Grid
+        {
+            Width = size,
+            Height = size,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        icon.Children.Add(hidden);
+        icon.Children.Add(path);
+        return icon;
     }
 
     private void HighlightVolumeShapeButtons()

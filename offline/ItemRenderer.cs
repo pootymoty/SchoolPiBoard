@@ -119,6 +119,9 @@ public static class ItemRenderer
             case ShapeKind.Pyramid:
                 return BuildPyramid(x, y, w, h);
 
+            case ShapeKind.Tetrahedron:
+                return BuildTetrahedron(x, y, w, h);
+
             default:
                 return new RectangleGeometry(new Rect(x, y, w, h));
         }
@@ -155,12 +158,22 @@ public static class ItemRenderer
 
         var group = new GeometryGroup();
         group.Children.Add(Polygon(frontTL, frontTR, frontBR, frontBL));
-        group.Children.Add(Polygon(backTL, backTR, backBR, backBL));
+        // Видимая часть задней грани — верх и правый край; три ребра из
+        // задней нижней левой вершины закрыты кубом (см. BuildHiddenEdges).
+        group.Children.Add(Polyline(backTL, backTR, backBR));
         group.Children.Add(new LineGeometry(frontTL, backTL));
         group.Children.Add(new LineGeometry(frontTR, backTR));
         group.Children.Add(new LineGeometry(frontBR, backBR));
-        group.Children.Add(new LineGeometry(frontBL, backBL));
         return group;
+    }
+
+    private static (Point TL, Point TR, Point BR, Point BL, Point FrontBL) CubeHiddenCorner(double x, double y, double w, double h)
+    {
+        var d = Math.Min(w, h) * 0.30;
+        var faceW = w - d;
+        var faceH = h - d;
+        return (new Point(x + d, y), new Point(x + d + faceW, y), new Point(x + d + faceW, y + faceH),
+                new Point(x + d, y + faceH), new Point(x, y + h));
     }
 
     private static Geometry BuildCylinder(double x, double y, double w, double h)
@@ -169,7 +182,8 @@ public static class ItemRenderer
 
         var group = new GeometryGroup();
         group.Children.Add(new EllipseGeometry(new Rect(x, y, w, ellipseHeight)));
-        group.Children.Add(new EllipseGeometry(new Rect(x, y + h - ellipseHeight, w, ellipseHeight)));
+        // У нижнего основания видна только передняя половина.
+        group.Children.Add(HalfEllipse(new Rect(x, y + h - ellipseHeight, w, ellipseHeight), top: false));
         group.Children.Add(new LineGeometry(
             new Point(x, y + ellipseHeight / 2), new Point(x, y + h - ellipseHeight / 2)));
         group.Children.Add(new LineGeometry(
@@ -183,7 +197,7 @@ public static class ItemRenderer
         var apex = new Point(x + w / 2, y);
 
         var group = new GeometryGroup();
-        group.Children.Add(new EllipseGeometry(new Rect(x, y + h - ellipseHeight, w, ellipseHeight)));
+        group.Children.Add(HalfEllipse(new Rect(x, y + h - ellipseHeight, w, ellipseHeight), top: false));
         group.Children.Add(new LineGeometry(apex, new Point(x, y + h - ellipseHeight / 2)));
         group.Children.Add(new LineGeometry(apex, new Point(x + w, y + h - ellipseHeight / 2)));
         return group;
@@ -196,32 +210,125 @@ public static class ItemRenderer
 
         var group = new GeometryGroup();
         group.Children.Add(new EllipseGeometry(new Rect(x, y, w, h)));
-        group.Children.Add(new EllipseGeometry(new Rect(x, midY - equatorHeight / 2, w, equatorHeight)));
+        group.Children.Add(HalfEllipse(new Rect(x, midY - equatorHeight / 2, w, equatorHeight), top: false));
         return group;
     }
 
     private static Geometry BuildPyramid(double x, double y, double w, double h)
     {
-        // Основание — ромб (квадрат в той же условной проекции, что и грани
-        // куба), вершина — точка над его центром.
-        var backY = y + h * 0.45;
-        var sideY = y + h * 0.72;
-        var frontY = y + h;
-        var cx = x + w / 2;
-
-        var back = new Point(cx, backY);
-        var left = new Point(x, sideY);
-        var front = new Point(cx, frontY);
-        var right = new Point(x + w, sideY);
-        var apex = new Point(cx, y);
+        // Основание — квадрат в учебной косоугольной проекции (параллелограмм),
+        // чуть повёрнутый, чтобы задняя вершина не пряталась за передним
+        // ребром. Вершина пирамиды — над центром основания.
+        var (frontLeft, frontRight, backRight, _, apex) = PyramidPoints(x, y, w, h);
 
         var group = new GeometryGroup();
-        group.Children.Add(Polygon(back, right, front, left));
-        group.Children.Add(new LineGeometry(apex, back));
+        group.Children.Add(Polyline(frontLeft, frontRight, backRight));
+        group.Children.Add(new LineGeometry(apex, frontLeft));
+        group.Children.Add(new LineGeometry(apex, frontRight));
+        group.Children.Add(new LineGeometry(apex, backRight));
+        return group;
+    }
+
+    private static (Point FrontLeft, Point FrontRight, Point BackRight, Point BackLeft, Point Apex)
+        PyramidPoints(double x, double y, double w, double h)
+    {
+        var frontLeft = new Point(x, y + h);
+        var frontRight = new Point(x + w * 0.70, y + h);
+        var backRight = new Point(x + w, y + h * 0.76);
+        var backLeft = new Point(x + w * 0.30, y + h * 0.76);
+        var apex = new Point(x + w * 0.5, y);
+        return (frontLeft, frontRight, backRight, backLeft, apex);
+    }
+
+    private static Geometry BuildTetrahedron(double x, double y, double w, double h)
+    {
+        var (left, front, right, apex) = TetrahedronPoints(x, y, w, h);
+
+        // Заднее ребро основания (left—right) закрыто передними гранями.
+        var group = new GeometryGroup();
+        group.Children.Add(Polyline(left, front, right));
         group.Children.Add(new LineGeometry(apex, left));
         group.Children.Add(new LineGeometry(apex, front));
         group.Children.Add(new LineGeometry(apex, right));
         return group;
+    }
+
+    private static (Point Left, Point Front, Point Right, Point Apex)
+        TetrahedronPoints(double x, double y, double w, double h) =>
+        (new Point(x, y + h * 0.80), new Point(x + w * 0.42, y + h),
+         new Point(x + w, y + h * 0.74), new Point(x + w * 0.46, y));
+
+    /// <summary>
+    /// Невидимые (задние) рёбра объёмной фигуры — рисуются пунктиром, как в
+    /// учебнике. null — у фигуры таких рёбер нет.
+    /// </summary>
+    public static Geometry? BuildHiddenEdges(ShapeKind kind, Rect r)
+    {
+        var w = Math.Max(0.01, r.Width);
+        var h = Math.Max(0.01, r.Height);
+        var x = r.X;
+        var y = r.Y;
+        var ellipseHeight = Math.Min(h * 0.22, h / 2);
+
+        switch (kind)
+        {
+            case ShapeKind.Cube:
+            {
+                var (tl, _, br, bl, frontBl) = CubeHiddenCorner(x, y, w, h);
+                var group = new GeometryGroup();
+                group.Children.Add(Polyline(tl, bl, br));
+                group.Children.Add(new LineGeometry(bl, frontBl));
+                return group;
+            }
+
+            case ShapeKind.Cylinder:
+            case ShapeKind.Cone:
+                return HalfEllipse(new Rect(x, y + h - ellipseHeight, w, ellipseHeight), top: true);
+
+            case ShapeKind.Sphere:
+                return HalfEllipse(new Rect(x, y + h / 2 - ellipseHeight / 2, w, ellipseHeight), top: true);
+
+            case ShapeKind.Pyramid:
+            {
+                var (frontLeft, _, backRight, backLeft, apex) = PyramidPoints(x, y, w, h);
+                var group = new GeometryGroup();
+                group.Children.Add(Polyline(frontLeft, backLeft, backRight));
+                group.Children.Add(new LineGeometry(apex, backLeft));
+                return group;
+            }
+
+            case ShapeKind.Tetrahedron:
+            {
+                var (left, _, right, _) = TetrahedronPoints(x, y, w, h);
+                return new LineGeometry(left, right);
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>Половина эллипса: верхняя (задняя) или нижняя (передняя).</summary>
+    private static Geometry HalfEllipse(Rect r, bool top)
+    {
+        var cy = r.Y + r.Height / 2;
+        var figure = new PathFigure { StartPoint = new Point(r.X, cy), IsClosed = false, IsFilled = false };
+        figure.Segments.Add(new ArcSegment(new Point(r.Right, cy), new Size(r.Width / 2, r.Height / 2), 0,
+            isLargeArc: false, top ? SweepDirection.Clockwise : SweepDirection.Counterclockwise, isStroked: true));
+        var geometry = new PathGeometry();
+        geometry.Figures.Add(figure);
+        return geometry;
+    }
+
+    private static Geometry Polyline(params Point[] points)
+    {
+        var figure = new PathFigure { StartPoint = points[0], IsClosed = false, IsFilled = false };
+        for (var i = 1; i < points.Length; i++)
+            figure.Segments.Add(new LineSegment(points[i], true));
+
+        var geometry = new PathGeometry();
+        geometry.Figures.Add(figure);
+        return geometry;
     }
 
     private static Geometry Polygon(params Point[] points)
@@ -373,6 +480,7 @@ public static class ItemRenderer
 
     private static readonly DashStyle DashPattern = Frozen(new DashStyle(new[] { 4.0, 3.0 }, 0));
     private static readonly DashStyle DashDotPattern = Frozen(new DashStyle(new[] { 4.0, 2.0, 1.0, 2.0 }, 0));
+    private static readonly DashStyle HiddenEdgePattern = Frozen(new DashStyle(new[] { 2.5, 2.0 }, 0));
     private static readonly DashStyle DotPattern = Frozen(new DashStyle(new[] { 1.0, 2.5 }, 0));
 
     private static DashStyle Frozen(DashStyle style)
@@ -483,6 +591,16 @@ public static class ItemRenderer
         // ластиком они удаляются целиком. Это существенно дешевле клип-масок.
         var flipped = PushFlip(dc, item);
         dc.DrawGeometry(fill, pen, geometry);
+
+        // Задние рёбра объёмных фигур — пунктиром.
+        if (pen is not null && BuildHiddenEdges(item.Shape, item.Bounds) is { } hidden)
+        {
+            var hiddenPen = pen.Clone();
+            hiddenPen.DashStyle = HiddenEdgePattern;
+            hiddenPen.DashCap = PenLineCap.Flat;
+            dc.DrawGeometry(null, hiddenPen, hidden);
+        }
+
         if (flipped)
             dc.Pop();
 
@@ -733,7 +851,7 @@ public static class ItemRenderer
         // Объёмные фигуры — каркас из линий, у них нет площади для FillContains:
         // ловим по габаритам. Плоские — по настоящей геометрии (эллипс, треугольник).
         if (item.Shape is ShapeKind.Cube or ShapeKind.Cylinder or ShapeKind.Cone or
-            ShapeKind.Sphere or ShapeKind.Pyramid)
+            ShapeKind.Sphere or ShapeKind.Pyramid or ShapeKind.Tetrahedron)
             return true;
 
         return BuildShapeGeometry(item.Shape, item.Bounds).FillContains(local);

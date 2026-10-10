@@ -39,7 +39,8 @@ public enum ShapeKind
     Cylinder,
     Cone,
     Sphere,
-    Pyramid
+    Pyramid,
+    Tetrahedron
 }
 
 /// <summary>Стиль фоновой сетки доски (названия соответствуют панели «Форматирование фона»).</summary>
