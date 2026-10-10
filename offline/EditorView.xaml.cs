@@ -78,6 +78,7 @@ public partial class EditorView : UserControl
         {
             try
             {
+                Canvas.AutoInkColors = _shell.Settings.SmartBoardFormat;
                 Canvas.LoadBoard(board);
                 // Доска могла подменить умолчательный цвет пера/текста под свой фон
                 // (белый на тёмной, чёрный на светлой) — точки на панели должны это показать.
@@ -259,6 +260,11 @@ public partial class EditorView : UserControl
     private void RememberBoardFormat(Board board)
     {
         var settings = _shell.Settings;
+
+        // Без «умного фона» формат не запоминается: новые доски всегда белые.
+        if (!settings.SmartBoardFormat)
+            return;
+
         settings.NewBoardBackgroundColor = board.BackgroundColor;
         settings.NewBoardGrid = board.Grid;
         settings.NewBoardGridColor = board.GridColor;

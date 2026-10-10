@@ -228,6 +228,45 @@ public class SettingsDialog : Window
 
         root.Children.Add(BuildThemeChooser());
 
+        // ============ Холст новых досок ============
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "Холст новых досок",
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 26, 0, 0)
+        });
+
+        var smart = new CheckBox
+        {
+            Content = "Умный фон",
+            IsChecked = _shell.Settings.SmartBoardFormat,
+            Margin = new Thickness(0, 10, 0, 0)
+        };
+        smart.Click += (_, _) =>
+        {
+            // Действует сразу, без перезапуска: со следующей созданной
+            // или открытой доски.
+            _shell.Settings.SmartBoardFormat = smart.IsChecked == true;
+            _shell.Settings.Save();
+        };
+        root.Children.Add(smart);
+
+        root.Children.Add(new TextBlock
+        {
+            Text = "Включено: новая доска повторяет последний настроенный фон и разлиновку " +
+                   "(пока фон не меняли — тёмный при тёмной теме, белый при светлой), " +
+                   "а белое и чёрное перо подстраиваются под фон доски.\n" +
+                   "Выключено: каждая новая доска — белый лист без разлиновки, перо " +
+                   "чёрное, ничего не подстраивается.",
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0)
+        });
+
         // ============ Лицензия ============
 
         root.Children.Add(new TextBlock

@@ -211,7 +211,8 @@ public class BoardCanvas : FrameworkElement
     public void LoadBoard(Board board)
     {
         Board = board;
-        AdjustDefaultInkColors(board);
+        if (AutoInkColors)
+            AdjustDefaultInkColors(board);
         Items = board.Items.Select(i => i.Clone()).ToList();
         Selection.Clear();
         _undo.Clear();
@@ -227,6 +228,9 @@ public class BoardCanvas : FrameworkElement
     /// на тёмной доске берём белые, на светлой — чёрные. Другие цвета,
     /// выбранные пользователем, не трогаем.
     /// </summary>
+    /// <summary>Подстраивать белое/чёрное перо и текст под фон доски («умный фон»).</summary>
+    public bool AutoInkColors { get; set; } = true;
+
     private void AdjustDefaultInkColors(Board board)
     {
         var background = (Color)ColorConverter.ConvertFromString(board.BackgroundColor)!;

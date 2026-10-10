@@ -95,14 +95,24 @@ public class BoardStore
         var board = new Board
         {
             Name = string.IsNullOrWhiteSpace(name) ? "Новая доска" : name.Trim(),
-            // Формат — как у последнего изменённого холста, а при первом запуске:
-            // тёмная тема — тёмный холст, светлая — белый, оба без разлиновки.
-            // Умолчания класса Board не трогаем: от них зависит чтение старых досок.
-            BackgroundColor = settings?.NewBoardBackgroundColor ?? (darkTheme ? "#FF1B1B1F" : "#FFFFFFFF"),
-            Grid = settings?.NewBoardGrid ?? GridStyle.Solid,
-            GridColor = settings?.NewBoardGridColor ?? "",
-            GridOpacity = settings?.NewBoardGridOpacity ?? 1.0
+            // Белый лист без разлиновки. Умолчания класса Board не трогаем:
+            // от них зависит чтение старых досок.
+            BackgroundColor = "#FFFFFFFF",
+            Grid = GridStyle.Solid,
+            GridColor = "",
+            GridOpacity = 1.0
         };
+
+        // «Умный фон»: формат последнего изменённого холста, а пока его не меняли —
+        // по теме (тёмная — тёмный холст). Выключен — остаётся простой белый лист.
+        if (settings is { SmartBoardFormat: true })
+        {
+            board.BackgroundColor = settings.NewBoardBackgroundColor ?? (darkTheme ? "#FF1B1B1F" : "#FFFFFFFF");
+            board.Grid = settings.NewBoardGrid ?? GridStyle.Solid;
+            board.GridColor = settings.NewBoardGridColor ?? "";
+            board.GridOpacity = settings.NewBoardGridOpacity ?? 1.0;
+        }
+
         Boards.Add(board);
         Save();
         return board;
