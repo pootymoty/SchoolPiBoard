@@ -79,6 +79,9 @@ public partial class EditorView : UserControl
             try
             {
                 Canvas.LoadBoard(board);
+                // Доска могла подменить умолчательный цвет пера/текста под свой фон
+                // (белый на тёмной, чёрный на светлой) — точки на панели должны это показать.
+                UpdateToolColorDots();
                 _dirty = false;
                 SaveIndicator.Text = "";
 
