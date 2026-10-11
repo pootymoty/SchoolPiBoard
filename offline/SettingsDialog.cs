@@ -28,7 +28,12 @@ public class SettingsDialog : Window
         Width = 560;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        ResizeMode = ResizeMode.NoResize;
+        // Окно растягивается и не выходит за рабочую область экрана:
+        // на невысоких экранах содержимое прокручивается.
+        ResizeMode = ResizeMode.CanResize;
+        MinWidth = 460;
+        MinHeight = 320;
+        MaxHeight = SystemParameters.WorkArea.Height - 24;
         Owner = shell;
         ShowInTaskbar = false;
         Background = (Brush)Application.Current.Resources["AppBg"];
@@ -316,7 +321,12 @@ public class SettingsDialog : Window
         close.Click += (_, _) => Close();
         root.Children.Add(close);
 
-        return root;
+        return new ScrollViewer
+        {
+            Content = root,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
     }
 
     /// <summary>Короткая строка о состоянии лицензии для раздела настроек.</summary>
