@@ -33,7 +33,20 @@ public class SettingsDialog : Window
         ResizeMode = ResizeMode.CanResize;
         MinWidth = 460;
         MinHeight = 320;
-        MaxHeight = SystemParameters.WorkArea.Height - 24;
+
+        // При открытии окно подстраивается под содержимое, но не выше
+        // экрана. Жёсткого MaxHeight нет — растянуть руками можно до самой
+        // панели задач, как и главное окно.
+        Loaded += (_, _) =>
+        {
+            var area = SystemParameters.WorkArea;
+            if (ActualHeight <= area.Height - 24)
+                return;
+
+            SizeToContent = SizeToContent.Manual;
+            Height = area.Height - 24;
+            Top = area.Top + 12;
+        };
         Owner = shell;
         ShowInTaskbar = false;
         Background = (Brush)Application.Current.Resources["AppBg"];
