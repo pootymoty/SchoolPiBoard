@@ -132,13 +132,14 @@ public partial class EditorView : UserControl
     }
 
     /// <summary>Показывает или прячет индикатор загрузки с вращающейся дугой.</summary>
-    private void ShowLoading(bool visible)
+    private void ShowLoading(bool visible, string text = "Загрузка доски…")
     {
         if (LoadingOverlay is null)
             return;
 
         if (visible)
         {
+            LoadingText.Text = text;
             LoadingOverlay.Visibility = Visibility.Visible;
 
             var spin = new DoubleAnimation(0, 360, TimeSpan.FromSeconds(0.9))

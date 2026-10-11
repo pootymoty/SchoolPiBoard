@@ -728,9 +728,11 @@ public partial class EditorView
     // =====================================================================
     //  Экспорт в PNG
     // =====================================================================
-    private void ExportPng_Click(object sender, RoutedEventArgs e)
+    private bool _exporting;
+
+    private async void ExportPng_Click(object sender, RoutedEventArgs e)
     {
-        if (_board is null)
+        if (_board is null || _exporting)
             return;
 
         var bounds = Canvas.ContentBounds();
@@ -754,7 +756,21 @@ public partial class EditorView
             for (var n = 2; File.Exists(path); n++)
                 path = Path.Combine(directory, $"{baseName} ({n}).png");
 
-            ExportToPng(bounds, path);
+            // Большая доска рисуется в картинку и сжимается в PNG несколько
+            // секунд. Делаем это в отдельном потоке, а здесь показываем
+            // индикатор — окно не «зависает» и Windows не пишет «Не отвечает».
+            _exporting = true;
+            ShowLoading(true, "Сохранение картинки…");
+            try
+            {
+                await ExportToPngAsync(bounds, path);
+            }
+            finally
+            {
+                ShowLoading(false);
+                _exporting = false;
+            }
+
             ConfirmDialog.Info(Window.GetWindow(this)!, "Экспорт завершён", path);
         }
         catch (Exception ex)
@@ -764,7 +780,7 @@ public partial class EditorView
     }
 
     /// <summary>Экспортируется всё содержимое доски, а не видимая область экрана.</summary>
-    private void ExportToPng(Rect bounds, string path)
+    private Task ExportToPngAsync(Rect bounds, string path)
     {
         const double padding = 48;
         bounds.Inflate(padding, padding);
@@ -778,8 +794,11 @@ public partial class EditorView
         var background = ItemRenderer.ParseColor(_board!.BackgroundColor)
                           ?? Color.FromRgb(0x1B, 0x1B, 0x1F);
 
-        var visual = new DrawingVisual();
-        using (var dc = visual.RenderOpen())
+        // Сама «запись» рисунка дешёвая и идёт здесь, в потоке окна: объекты
+        // доски читаются только отсюда. Дорогое — растеризация и сжатие PNG —
+        // уходит в отдельный поток, получив замороженную (потокобезопасную) копию.
+        var drawing = new DrawingGroup();
+        using (var dc = drawing.Open())
         {
             dc.DrawRectangle(new SolidColorBrush(background), null,
                 new Rect(0, 0, bounds.Width, bounds.Height));
@@ -797,15 +816,46 @@ public partial class EditorView
             dc.Pop();
         }
 
-        var target = new RenderTargetBitmap(pixelWidth, pixelHeight,
-                                             96 * scale, 96 * scale, PixelFormats.Pbgra32);
-        target.Render(visual);
+        drawing.Freeze();
+        var dpi = 96 * scale;
 
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(target));
+        var done = new TaskCompletionSource();
+        var thread = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                var visual = new DrawingVisual();
+                using (var dc = visual.RenderOpen())
+                    dc.DrawDrawing(drawing);
 
-        using var stream = File.Create(path);
-        encoder.Save(stream);
+                var target = new RenderTargetBitmap(pixelWidth, pixelHeight, dpi, dpi, PixelFormats.Pbgra32);
+                target.Render(visual);
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(target));
+
+                using (var stream = File.Create(path))
+                    encoder.Save(stream);
+
+                done.SetResult();
+            }
+            catch (Exception ex)
+            {
+                done.SetException(ex);
+            }
+            finally
+            {
+                // У потока появился свой диспетчер WPF — закрываем, чтобы не держать его.
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown();
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "PngExport"
+        };
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+        return done.Task;
     }
 
     private static string SanitizeFileName(string name)

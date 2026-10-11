@@ -401,7 +401,7 @@
                             </Path.RenderTransform>
                         </Path>
                     </Canvas>
-                    <TextBlock Text="Загрузка доски…" Foreground="White"
+                    <TextBlock x:Name="LoadingText" Text="Загрузка доски…" Foreground="White"
                                FontSize="13" HorizontalAlignment="Center"
                                Margin="0,14,0,0"/>
                 </StackPanel>
