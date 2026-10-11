@@ -76,6 +76,12 @@ OutputDir=..\dist
 ; от выпуска к выпуску. Версия видна в свойствах файла и в мастере.
 OutputBaseFilename=SchoolPiBoardSetup
 SetupIconFile=..\doskapi.ico
+; Картинки мастера с логотипом вместо стандартной коробки с диском:
+; маленькая — в правом верхнем углу страниц, большая — слева на первой
+; и последней. Несколько размеров — Inno сам берёт подходящий под масштаб
+; экрана. Сделаны из doskapi.ico (белый фон, 24-битный BMP).
+WizardSmallImageFile=wizard-small-55.bmp,wizard-small-64.bmp,wizard-small-83.bmp,wizard-small-110.bmp,wizard-small-138.bmp
+WizardImageFile=wizard-large-164.bmp,wizard-large-328.bmp
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
