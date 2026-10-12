@@ -18,7 +18,15 @@ public partial class MainWindow : Window
         Settings = AppSettings.Load();
         Store = new BoardStore(Settings);
         Store.Load();
-        Store.AutoArchive();
+        try
+        {
+            Store.AutoArchive();
+        }
+        catch
+        {
+            // Не удалось записать пометки архива — не повод падать на старте:
+            // они сохранятся при следующей записи досок.
+        }
         Store.CleanupArchiveFolder();
 
         HomeScreen.Initialize(this);

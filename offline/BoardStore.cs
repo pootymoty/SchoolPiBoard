@@ -67,27 +67,73 @@ public class BoardStore
     /// Запись снимка. Статический метод без обращения к состоянию хранилища:
     /// его безопасно вызывать из фонового потока.
     /// </summary>
+    /// <summary>
+    /// Одна запись за раз: фоновое сохранение из редактора и обычное
+    /// (выход к списку, переименование, архив) иначе могли бы писать
+    /// один и тот же .tmp одновременно.
+    /// </summary>
+    private static readonly object WriteLock = new();
+
     public static void WriteSnapshot(BoardStoreFile snapshot, string folder, string dataFile, string backupFile)
     {
-        Directory.CreateDirectory(folder);
-
         var json = JsonSerializer.Serialize(snapshot, JsonOptions);
-        var tmp = dataFile + ".tmp";
-        File.WriteAllText(tmp, json);
 
-        if (File.Exists(dataFile))
+        lock (WriteLock)
+        {
+            Directory.CreateDirectory(folder);
+
+            var tmp = dataFile + ".tmp";
+            File.WriteAllText(tmp, json);
+
+            if (File.Exists(dataFile))
+            {
+                try
+                {
+                    File.Copy(dataFile, backupFile, overwrite: true);
+                }
+                catch
+                {
+                    // Резервная копия необязательна.
+                }
+            }
+
+            ReplaceWithRetry(tmp, dataFile);
+        }
+    }
+
+    /// <summary>
+    /// Подмена основного файла новым. Антивирус, OneDrive или поиск Windows
+    /// часто держат только что прочитанный файл долю секунды — тогда замена
+    /// падает с «Отказано в доступе». Пробуем ещё несколько раз, снимаем
+    /// «только чтение», а в крайнем случае переписываем содержимое поверх.
+    /// </summary>
+    private static void ReplaceWithRetry(string tmp, string dataFile)
+    {
+        const int attempts = 8;
+        for (var i = 1; ; i++)
         {
             try
             {
-                File.Copy(dataFile, backupFile, overwrite: true);
+                if (File.Exists(dataFile) &&
+                    File.GetAttributes(dataFile).HasFlag(FileAttributes.ReadOnly))
+                    File.SetAttributes(dataFile, FileAttributes.Normal);
+
+                File.Move(tmp, dataFile, overwrite: true);
+                return;
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && i < attempts)
             {
-                // Резервная копия необязательна.
+                System.Threading.Thread.Sleep(60 * i);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Переименовать не дают — пробуем записать содержимое поверх
+                // (для этого не нужно право удалять файл, которое и держат).
+                File.Copy(tmp, dataFile, overwrite: true);
+                try { File.Delete(tmp); } catch { /* останется до следующей записи */ }
+                return;
             }
         }
-
-        File.Move(tmp, dataFile, overwrite: true);
     }
 
     public Board CreateBoard(string name, AppSettings? settings = null, bool darkTheme = true)
