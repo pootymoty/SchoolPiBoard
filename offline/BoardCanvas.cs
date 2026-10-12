@@ -94,7 +94,7 @@ public class BoardCanvas : FrameworkElement
     public Color Pen2CustomColor { get; set; } = Colors.Red;
     public Color MarkerColor { get; set; } = Color.FromRgb(0x1E, 0x88, 0xE5);
     public Color MarkerCustomColor { get; set; } = Color.FromRgb(0x1E, 0x88, 0xE5);
-    public Color ShapeColor { get; set; } = Color.FromRgb(0x4D, 0xD0, 0xE1);
+    public Color ShapeColor { get; set; } = Colors.Black;
     public Color TextColor { get; set; } = Colors.Black;
 
     // Значения по умолчанию совпадают с шагами ползунков,
@@ -242,6 +242,7 @@ public class BoardCanvas : FrameworkElement
         if (IsPlain(PenColor)) PenColor = ink;
         if (IsPlain(PenCustomColor)) PenCustomColor = ink;
         if (IsPlain(TextColor)) TextColor = ink;
+        if (IsPlain(ShapeColor)) ShapeColor = ink;
     }
 
     public void CommitToBoard()
