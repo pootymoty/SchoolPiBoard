@@ -395,7 +395,10 @@
                               Stroke="{DynamicResource Accent}"
                               StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                               Data="M 27,2 A 25,25 0 0 1 52,27"
-                              RenderTransformOrigin="0.5,0.5">
+                              Width="54" Height="54">
+                            <!-- Центр вращения — центр круга (27,27) в координатах
+                                 самого Path, без RenderTransformOrigin: вместе они
+                                 складывались и дуга крутилась вокруг своего конца. -->
                             <Path.RenderTransform>
                                 <RotateTransform x:Name="LoadingRotation" CenterX="27" CenterY="27"/>
                             </Path.RenderTransform>
