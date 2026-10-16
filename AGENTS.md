@@ -47,6 +47,14 @@
 Подробности продукта, история версий — `offline/README.md`.
 Пошаговый запуск с нуля — `offline/docs/runbook.md`.
 
+### `apple/` — «Доска Пи» для iPad и Mac
+
+Нативное приложение на Swift (iPad + Mac через Mac Catalyst), набор
+возможностей — как у `offline/`. Формат досок общий с Windows-версией.
+Продажа — разовая встроенная покупка в App Store (сервер ключей не нужен).
+Проект Xcode генерируется XcodeGen из `apple/project.yml`. Подробности,
+этапы и запуск на своём устройстве — `apple/README.md`.
+
 ### `online/` — онлайн-доска по подписке
 
 | Подпапка | Что там |
@@ -111,6 +119,7 @@ github.event.repository.default_branch` в workflow-файлах. Значит, 
 
 | Workflow | Реагирует на пуш в | Что делает | Публикует релиз? |
 |---|---|---|---|
+| `apple-build.yml` | `apple/**` | Тесты ядра и сборка под симулятор iPad и Mac Catalyst без подписи (macOS-раннер) | Нет — это просто проверка |
 | `desktop-build.yml` | `offline/**.cs`, `offline/**.xaml`, `offline/SchoolPiBoard.csproj` | **Только проверяет**, что приложение компилируется (Windows-раннер) | Нет — это просто проверка |
 | `license-server.yml` | `offline/server/**` | Собирает сервер лицензий, упаковывает | Да — `license-server-latest` (только с default-ветки) |
 | `tariffs-server.yml` | `main-site/server/**` | Собирает сервис тарифов, упаковывает | Да — `tariffs-server-latest` (только с default-ветки) |
