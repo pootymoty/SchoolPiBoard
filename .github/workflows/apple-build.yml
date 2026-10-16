@@ -1,0 +1,46 @@
+# Сборка «Доски Пи» для iPad и Mac (папка apple/).
+#
+# Собрать приложение Apple можно только на macOS с Xcode, поэтому здесь
+# macOS-машина GitHub: тесты общего ядра (формат досок, совместимость
+# с Windows-версией) и сборка приложения под симулятор iPad и под Mac
+# (Mac Catalyst) без подписи. Подпись и TestFlight — следующий этап.
+name: apple-build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apple/**'
+      - '.github/workflows/apple-build.yml'
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Core tests (board format)
+        run: swift test --package-path apple/Packages/DoskaPiCore
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          cd apple && xcodegen generate
+
+      - name: Build for iPad simulator
+        run: |
+          xcodebuild -project apple/DoskaPi.xcodeproj -scheme DoskaPi \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+          exit ${PIPESTATUS[0]}
+
+      - name: Build for Mac (Catalyst)
+        run: |
+          xcodebuild -project apple/DoskaPi.xcodeproj -scheme DoskaPi \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+          exit ${PIPESTATUS[0]}

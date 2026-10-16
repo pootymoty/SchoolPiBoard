@@ -1,0 +1,8 @@
+# Генерируется XcodeGen из project.yml
+DoskaPi.xcodeproj/
+App/Info.plist
+build/
+DerivedData/
+.build/
+.swiftpm/
+*.xcuserstate
