@@ -109,7 +109,7 @@ public static class BoardTemplateLibrary
                 var x = ax + sign * i * unit;
                 items.Add(Line(f, x, ay - tick, x, ay + tick));
                 if (labels)
-                    items.Add(Caption(f, x, ay + tick + small * 0.3, (sign * i).ToString(), small));
+                    items.Add(Caption(f, x, ay + tick + small * 0.3, Number(sign * i), small));
             }
 
         return items;
@@ -141,19 +141,25 @@ public static class BoardTemplateLibrary
             Caption(f, cx + small * 0.9, cy - reach - small * 1.4, "y", small)
         };
 
+        // Ноль — в левом нижнем углу от начала координат, чтобы не лечь на оси.
+        if (labels)
+            items.Add(CaptionRight(f, cx - tick - small * 0.2, cy + tick + small * 0.3, "0", small));
+
         for (var i = 1; i <= n; i++)
             foreach (var sign in new[] { 1, -1 })
             {
                 var x = cx + sign * i * unit;
                 items.Add(Line(f, x, cy - tick, x, cy + tick));
                 if (labels)
-                    items.Add(Caption(f, x, cy + tick + small * 0.3, (sign * i).ToString(), small));
+                    items.Add(Caption(f, x, cy + tick + small * 0.3, Number(sign * i), small));
 
                 // Экранные Y растут вниз — положительные деления оси Y идут вверх.
                 var y = cy - sign * i * unit;
                 items.Add(Line(f, cx - tick, y, cx + tick, y));
+                // Подписи оси Y начинаются справа от деления (выравнивание по левому
+                // краю): по центру знак минуса ложился прямо на ось и пропадал.
                 if (labels)
-                    items.Add(Caption(f, cx + tick + small * 0.3, y - small * 0.65, (sign * i).ToString(), small));
+                    items.Add(CaptionLeft(f, cx + tick + small * 0.3, y - small * 0.65, Number(sign * i), small));
             }
 
         return items;
@@ -183,6 +189,25 @@ public static class BoardTemplateLibrary
             Opacity = 1.0
         };
         item.SetPoints(new[] { new Point(x1, y1), new Point(x2, y2) });
+        return item;
+    }
+
+    /// <summary>Типографский минус «−»: дефис «-» слишком короткий и теряется у оси.</summary>
+    private static string Number(int value) => value < 0 ? "−" + (-value) : value.ToString();
+
+    /// <summary>Надпись, начинающаяся в точке (leftX, topY).</summary>
+    private static BoardItem CaptionLeft(TemplateFrame f, double leftX, double topY, string text, double fontSize)
+    {
+        var item = Caption(f, leftX, topY, text, fontSize);
+        item.X = leftX;
+        return item;
+    }
+
+    /// <summary>Надпись, заканчивающаяся в точке (rightX, topY).</summary>
+    private static BoardItem CaptionRight(TemplateFrame f, double rightX, double topY, string text, double fontSize)
+    {
+        var item = Caption(f, rightX, topY, text, fontSize);
+        item.X = rightX - item.W;
         return item;
     }
 

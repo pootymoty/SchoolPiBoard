@@ -2172,11 +2172,19 @@ public class BoardCanvas : FrameworkElement
             Selection.Clear();
             Selection.Add(created);
             SelectionChanged?.Invoke();
+            ItemsInserted?.Invoke();
         }
 
         _draft = null;
         InvalidateVisual();
     }
+
+    /// <summary>
+    /// Вставлен готовый объект (фигура, заготовка, знак, картинка) и он
+    /// выделен. Редактор переключается на курсор, не снимая выделения,
+    /// чтобы вставленное сразу можно было двигать и растягивать.
+    /// </summary>
+    public event Action? ItemsInserted;
 
     public int NextZ() => Items.Count == 0 ? 0 : Items.Max(i => i.Z) + 1;
 
@@ -2726,6 +2734,7 @@ public class BoardCanvas : FrameworkElement
         Selection.Clear();
         Selection.AddRange(created);
         SelectionChanged?.Invoke();
+        ItemsInserted?.Invoke();
         InvalidateVisual();
     }
 
@@ -2785,6 +2794,7 @@ public class BoardCanvas : FrameworkElement
         Selection.Clear();
         Selection.AddRange(created);
         SelectionChanged?.Invoke();
+        ItemsInserted?.Invoke();
         InvalidateVisual();
     }
 
@@ -2817,6 +2827,7 @@ public class BoardCanvas : FrameworkElement
         Selection.Clear();
         Selection.Add(item);
         SelectionChanged?.Invoke();
+        ItemsInserted?.Invoke();
         InvalidateVisual();
     }
 
@@ -2872,6 +2883,7 @@ public class BoardCanvas : FrameworkElement
             Selection.Clear();
             Selection.Add(item);
             SelectionChanged?.Invoke();
+            ItemsInserted?.Invoke();
         }
     }
 

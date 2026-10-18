@@ -40,6 +40,13 @@ public partial class EditorView : UserControl
 
         Canvas.Changed += OnCanvasChanged;
         Canvas.SelectionChanged += OnSelectionChanged;
+        Canvas.ItemsInserted += () =>
+        {
+            // После вставки — сразу курсор; выделение остаётся на вставленном.
+            if (Canvas.Tool != BoardTool.Cursor)
+                SelectTool(BoardTool.Cursor);
+            OnSelectionChanged();
+        };
         Canvas.ViewChanged += OnViewChanged;
         Canvas.EditTextRequested += BeginTextEdit;
         Canvas.SizeChanged += (_, _) => UpdateObjectPanelPosition();
