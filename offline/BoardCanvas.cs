@@ -157,6 +157,7 @@ public class BoardCanvas : FrameworkElement
 
     private HandleKind _activeHandle = HandleKind.None;
     private Point _rotateHandleWorld;
+    private Point _dragStartScreen;
     private double _rotateDeltaDegrees;
     private bool _dragging;
     private Point _dragStartWorld;
@@ -424,7 +425,9 @@ public class BoardCanvas : FrameworkElement
     /// </summary>
     private void TickAutoScroll()
     {
-        if (!_dragging || _toolCursorScreen is not { } screen)
+        // Только при переносе объекта: растягивание и поворот у края
+        // не должны уводить холст из-под руки.
+        if (!_dragging || _activeHandle != HandleKind.None || _toolCursorScreen is not { } screen)
             return;
 
         var now = DateTime.Now;
@@ -438,8 +441,13 @@ public class BoardCanvas : FrameworkElement
         if (width < 1 || height < 1)
             return;
 
+        // Едем к краю, только если объект и правда тянут в его сторону:
+        // просто взятый у края объект (курсор с места почти не сдвинулся
+        // или ведётся от края) холст не прокручивает.
         var speedX = EdgeSpeed(screen.X, width);
         var speedY = EdgeSpeed(screen.Y, height);
+        if (!MovedToward(speedX, screen.X - _dragStartScreen.X)) speedX = 0;
+        if (!MovedToward(speedY, screen.Y - _dragStartScreen.Y)) speedY = 0;
         if (speedX == 0 && speedY == 0)
             return;
 
@@ -457,6 +465,13 @@ public class BoardCanvas : FrameworkElement
     /// с захваченным объектом может выйти за пределы окна, курсор при этом
     /// удержан захватом).
     /// </summary>
+    private const double AutoScrollIntentPx = 8;
+
+    private static bool MovedToward(double speed, double moved) =>
+        speed < 0 ? moved < -AutoScrollIntentPx :
+        speed > 0 ? moved > AutoScrollIntentPx :
+        false;
+
     private static double EdgeSpeed(double position, double length)
     {
         if (length <= 0)
@@ -1456,6 +1471,7 @@ public class BoardCanvas : FrameworkElement
         _dragging = true;
         _activeHandle = handle;
         _dragStartWorld = world;
+        _dragStartScreen = ToScreen(world);
         _dragOriginals = Selection.Select(i => i.Clone()).ToList();
         _dragOriginalBounds = SelectionWorldBounds();
 
