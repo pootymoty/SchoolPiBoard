@@ -434,7 +434,7 @@
                     <ToggleButton x:Name="HandTool" Content="✋" Style="{StaticResource ToolButton}"
                                   Click="Tool_Click" Tag="Hand" ToolTip="Рука — перемещение холста"/>
                     <ToggleButton x:Name="PenTool" Style="{StaticResource ToolButton}"
-                                  Click="Tool_Click" Tag="Pen" ToolTip="Перо 1">
+                                  Click="Tool_Click" Tag="Pen" ToolTip="Перо 1 (P)">
                         <Grid>
                             <TextBlock Text="✏" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Ellipse x:Name="PenColorDot" Width="9" Height="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -442,7 +442,7 @@
                         </Grid>
                     </ToggleButton>
                     <ToggleButton x:Name="Pen2Tool" Style="{StaticResource ToolButton}"
-                                  Click="Tool_Click" Tag="Pen2" ToolTip="Перо 2">
+                                  Click="Tool_Click" Tag="Pen2" ToolTip="Перо 2 (P ещё раз)">
                         <Grid>
                             <TextBlock Text="✏" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Ellipse x:Name="Pen2ColorDot" Width="9" Height="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -450,7 +450,7 @@
                         </Grid>
                     </ToggleButton>
                     <ToggleButton x:Name="MarkerTool" Style="{StaticResource ToolButton}"
-                                  Click="Tool_Click" Tag="Marker" ToolTip="Маркер">
+                                  Click="Tool_Click" Tag="Marker" ToolTip="Маркер (M)">
                         <Grid>
                             <TextBlock Text="🖍" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Ellipse x:Name="MarkerColorDot" Width="9" Height="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -458,7 +458,7 @@
                         </Grid>
                     </ToggleButton>
                     <ToggleButton x:Name="EraserTool" Content="🧽" Style="{StaticResource ToolButton}"
-                                  Click="Tool_Click" Tag="Eraser" ToolTip="Ластик"/>
+                                  Click="Tool_Click" Tag="Eraser" ToolTip="Ластик (E)"/>
                     <ToggleButton x:Name="TextTool" Content="T" Style="{StaticResource ToolButton}"
                                   Click="Tool_Click" Tag="Text" ToolTip="Текст"/>
                     <ToggleButton x:Name="ShapeTool" Content="▭" Style="{StaticResource ToolButton}"

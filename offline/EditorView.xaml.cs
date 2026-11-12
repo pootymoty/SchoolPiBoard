@@ -924,6 +924,26 @@ public partial class EditorView : UserControl
             }
         }
 
+        // Инструменты одной клавишей — удобно назначить на кнопки ручки
+        // графического планшета. Клавиша физическая, раскладка не важна:
+        // на русской это З, Ь и У.
+        if (Keyboard.Modifiers == ModifierKeys.None)
+        {
+            switch (e.Key)
+            {
+                case Key.P:
+                    // Повторное нажатие переключает перо 1 ↔ перо 2.
+                    SelectTool(Canvas.Tool == BoardTool.Pen ? BoardTool.Pen2 : BoardTool.Pen);
+                    return true;
+                case Key.M:
+                    SelectTool(BoardTool.Marker);
+                    return true;
+                case Key.E:
+                    SelectTool(BoardTool.Eraser);
+                    return true;
+            }
+        }
+
         switch (e.Key)
         {
             case Key.Space:
