@@ -193,7 +193,20 @@ systemctl restart schoolpiboardoff
 
 ### 1.8. Проверка
 
-Тестовый ключ без оплаты:
+Ключ без оплаты (подарок, замена, проверка) — скрипт `offline/server/tools/issue-key.sh`.
+Один раз установить на сервер ключей:
+
+```bash
+curl -sL -o /usr/local/bin/doskapi-key https://raw.githubusercontent.com/pootymoty/SchoolPiBoard/claude/insert-archive-files-f0rzcg/offline/server/tools/issue-key.sh
+chmod +x /usr/local/bin/doskapi-key
+```
+
+Дальше каждый раз: `doskapi-key` → ввести почту → подтвердить `y`. Скрипт
+создаёт ключ прямо в базе (тот же алфавит и формат, что у купленных),
+показывает его и все ключи этой почты. Письмо не отправляет, сервис не
+перезапускает. Ключ сразу активируется в программе, лимит — те же 2 устройства.
+
+Вручную, одной командой SQL:
 
 ```bash
 cd /tmp
