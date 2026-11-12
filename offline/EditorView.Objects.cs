@@ -771,7 +771,8 @@ public partial class EditorView
                 _exporting = false;
             }
 
-            ConfirmDialog.Info(Window.GetWindow(this)!, "Экспорт завершён", path);
+            ConfirmDialog.Info(Window.GetWindow(this)!, "Экспорт завершён", path,
+                "Перейти в папку", () => ShowInExplorer(path));
         }
         catch (Exception ex)
         {
@@ -856,6 +857,19 @@ public partial class EditorView
         thread.SetApartmentState(System.Threading.ApartmentState.STA);
         thread.Start();
         return done.Task;
+    }
+
+    /// <summary>Открывает проводник с выделенным файлом картинки.</summary>
+    private static void ShowInExplorer(string path)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+        }
+        catch
+        {
+            // Не критично: путь всё равно показан в окне.
+        }
     }
 
     private static string SanitizeFileName(string name)

@@ -182,8 +182,12 @@ public static class ConfirmDialog
         return result;
     }
 
-    /// <summary>Информационное сообщение в том же оформлении.</summary>
-    public static void Info(Window owner, string title, string message)
+    /// <summary>
+    /// Информационное сообщение в том же оформлении. extraText/extraAction —
+    /// необязательная вторая кнопка слева от «Хорошо» (например, «Перейти в папку»).
+    /// </summary>
+    public static void Info(Window owner, string title, string message,
+                            string? extraText = null, Action? extraAction = null)
     {
         var window = new Window
         {
@@ -219,18 +223,42 @@ public static class ConfirmDialog
             LineHeight = 19
         });
 
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 22, 0, 0)
+        };
+
+        if (extraText is not null && extraAction is not null)
+        {
+            var extra = new Button
+            {
+                Content = extraText,
+                Style = (Style)Application.Current.Resources["TextButton"],
+                MinWidth = 140,
+                Margin = new Thickness(0, 0, 10, 0),
+                HorizontalContentAlignment = HorizontalAlignment.Center
+            };
+            extra.Click += (_, _) =>
+            {
+                extraAction();
+                window.Close();
+            };
+            buttons.Children.Add(extra);
+        }
+
         var ok = new Button
         {
             Content = "Хорошо",
             Style = (Style)Application.Current.Resources["AccentButton"],
             MinWidth = 120,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 22, 0, 0),
             IsDefault = true,
             IsCancel = true
         };
         ok.Click += (_, _) => window.Close();
-        root.Children.Add(ok);
+        buttons.Children.Add(ok);
+        root.Children.Add(buttons);
 
         window.Content = root;
         window.ShowDialog();
