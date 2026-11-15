@@ -22,6 +22,8 @@
   <ItemGroup>
     <!-- Та же иконка как ресурс — чтобы задать её окнам через Icon="..." -->
     <Resource Include="doskapi.ico" />
+    <!-- Фирменный шрифт заголовков и кнопок «Круг и число» (OFL, Fonts/Manrope-OFL.txt). -->
+    <Resource Include="Fonts\Manrope-Bold.ttf" />
   </ItemGroup>
 
   <ItemGroup>

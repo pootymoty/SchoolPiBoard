@@ -34,7 +34,8 @@ public static class ConfirmDialog
             Text = title,
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 17,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             TextWrapping = TextWrapping.Wrap
         });
 
@@ -75,7 +76,7 @@ public static class ConfirmDialog
             Margin = new Thickness(10, 0, 0, 0),
             IsDefault = true,
             Style = (Style)Application.Current.Resources[
-                danger ? "DangerButton" : "AccentButton"]
+                danger ? "DangerButton" : "CtaButton"]
         };
 
         confirm.Click += (_, _) =>
@@ -119,7 +120,8 @@ public static class ConfirmDialog
             Text = title,
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 17,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             TextWrapping = TextWrapping.Wrap
         });
 
@@ -167,7 +169,7 @@ public static class ConfirmDialog
         var first = new Button
         {
             Content = firstText,
-            Style = (Style)Application.Current.Resources["AccentButton"],
+            Style = (Style)Application.Current.Resources["CtaButton"],
             MinWidth = 150,
             Margin = new Thickness(8, 0, 0, 0),
             IsDefault = true
@@ -209,7 +211,8 @@ public static class ConfirmDialog
             Text = title,
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 17,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             TextWrapping = TextWrapping.Wrap
         });
 

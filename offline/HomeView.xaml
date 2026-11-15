@@ -26,7 +26,7 @@
                 <Button Content="⚙" FontSize="17" Style="{StaticResource IconButton}"
                         Click="Settings_Click" ToolTip="Настройки"/>
                 <Button Content="+  Новая доска"
-                        Style="{StaticResource AccentButton}"
+                        Style="{StaticResource CtaButton}"
                         Click="NewBoard_Click" Margin="8,0,0,0"/>
             </StackPanel>
         </Grid>

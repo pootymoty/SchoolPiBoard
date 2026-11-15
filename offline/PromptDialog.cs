@@ -38,12 +38,7 @@ public static class PromptDialog
         {
             Text = initialValue,
             FontSize = 14,
-            Padding = new Thickness(8, 6, 8, 6),
-            Background = (Brush)Application.Current.Resources["AppBg2"],
-            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
-            BorderBrush = (Brush)Application.Current.Resources["Accent"],
-            BorderThickness = new Thickness(1),
-            CaretBrush = (Brush)Application.Current.Resources["TextPrimary"]
+            Style = (Style)Application.Current.Resources["InputBox"]
         };
         root.Children.Add(input);
 
@@ -68,7 +63,7 @@ public static class PromptDialog
         var ok = new Button
         {
             Content = "OK",
-            Style = (Style)Application.Current.Resources["AccentButton"],
+            Style = (Style)Application.Current.Resources["CtaButton"],
             MinWidth = 92,
             Margin = new Thickness(10, 0, 0, 0),
             IsDefault = true

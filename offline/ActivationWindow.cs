@@ -78,7 +78,8 @@ public class ActivationWindow : Window
         {
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 19,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             TextWrapping = TextWrapping.Wrap
         };
         root.Children.Add(_title);
@@ -105,11 +106,7 @@ public class ActivationWindow : Window
             HorizontalContentAlignment = HorizontalAlignment.Center,
             Padding = new Thickness(10, 10, 10, 10),
             MaxLength = LicenseKeyFormat.Length + LicenseKeyFormat.GroupCount - 1,
-            Background = (Brush)Application.Current.Resources["AppBg2"],
-            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
-            BorderBrush = (Brush)Application.Current.Resources["Accent"],
-            BorderThickness = new Thickness(1),
-            CaretBrush = (Brush)Application.Current.Resources["TextPrimary"]
+            Style = (Style)Application.Current.Resources["InputBox"]
         };
         _keyBox.TextChanged += OnKeyTextChanged;
         _keyPane.Children.Add(_keyBox);
@@ -135,11 +132,7 @@ public class ActivationWindow : Window
             FontSize = 16,
             Padding = new Thickness(10, 9, 10, 9),
             MaxLength = 254,
-            Background = (Brush)Application.Current.Resources["AppBg2"],
-            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
-            BorderBrush = (Brush)Application.Current.Resources["Accent"],
-            BorderThickness = new Thickness(1),
-            CaretBrush = (Brush)Application.Current.Resources["TextPrimary"]
+            Style = (Style)Application.Current.Resources["InputBox"]
         };
         _trialPane.Children.Add(_emailBox);
 
@@ -197,7 +190,7 @@ public class ActivationWindow : Window
 
         _primaryButton = new Button
         {
-            Style = (Style)Application.Current.Resources["AccentButton"],
+            Style = (Style)Application.Current.Resources["CtaButton"],
             MinWidth = 150,
             Margin = new Thickness(10, 0, 0, 0),
             IsDefault = true

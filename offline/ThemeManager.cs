@@ -21,6 +21,10 @@ public static class ThemeManager
 
     public static bool IsDark { get; private set; } = true;
 
+    /// <summary>Фирменный шрифт заголовков и кнопок (Manrope, встроен в программу).</summary>
+    public static FontFamily HeadingFont =>
+        Application.Current?.Resources["HeadingFont"] as FontFamily ?? new FontFamily("Segoe UI");
+
     /// <summary>Тема сменилась: окна, собранные кодом, могут перестроиться.</summary>
     public static event Action? ThemeChanged;
 
@@ -163,19 +167,36 @@ public static class ThemeManager
         if (Application.Current is null)
             return;
 
-        //        ключ              тёмная       светлая
-        SetBrush("AppBg", "#FF1B1B1F", "#FFF3F3F6");
-        SetBrush("AppBg2", "#FF26262C", "#FFFFFFFF");
-        SetBrush("AppBg3", "#FF32323A", "#FFE8E8EE");
-        SetBrush("Surface", "#FF26262C", "#FFFFFFFF");
-        SetBrush("SurfaceHover", "#FF34343D", "#FFEDEDF2");
-        SetBrush("SurfaceActive", "#FF3D3F5C", "#FFE0E2FF");
-        SetBrush("TextPrimary", "#FFECECF1", "#FF1F1F26");
-        SetBrush("TextSecondary", "#FF9B9BAA", "#FF6A6A78");
-        SetBrush("BorderBrushColor", "#FF3A3A44", "#FFDDDDE5");
-        SetBrush("DangerBg", "#FF5A2B2B", "#FFFFE0E0");
-        SetBrush("DangerText", "#FFFF8A8A", "#FFC62828");
-        SetBrush("DangerButtonBg", "#FFC62828", "#FFC62828");
-        SetBrush("DangerButtonHover", "#FFA91B1B", "#FFA91B1B");
+        // Фирменный стиль «Круг и число» — те же токены, что у school-pi.online.
+        //        ключ               тёмная       светлая         (токен сайта)
+        SetBrush("AppBg", "#FF0B1622", "#FFF3F7F9");             // --background
+        SetBrush("AppBg2", "#FF132233", "#FFFFFFFF");            // --surface (поля, списки)
+        SetBrush("AppBg3", "#FF1B2E43", "#FFE8EFF4");            // --surface-2
+        SetBrush("Surface", "#FF132233", "#FFFFFFFF");           // --surface (панели)
+        SetBrush("SurfaceHover", "#FF1B2E43", "#FFE8EFF4");      // --surface-2
+        SetBrush("Surface3", "#FF243A52", "#FFDAE5EC");          // --surface-3
+        SetBrush("SurfaceActive", "#FF12303D", "#FFE1F2F7");     // --accent-soft
+        SetBrush("TextPrimary", "#FFEAF1F7", "#FF0C1E33");       // --text
+        SetBrush("TextSecondary", "#FFA3B5C6", "#FF4F6278");     // --text-muted
+        SetBrush("BorderBrushColor", "#FF24384D", "#FFDDE5EB");  // --line
+        SetBrush("LineStrong", "#FF7088A0", "#FF6F8498");        // --line-strong
+        SetBrush("Accent", "#FF5CC3DC", "#FF0A6F8A");            // --accent
+        SetBrush("AccentHover", "#FF7FD3E7", "#FF075268");       // --accent-hover
+        SetBrush("AccentText", "#FF06202A", "#FFFFFFFF");        // --text-on-accent
+        SetBrush("HeaderBg", "#FF132233", "#FF0C1E33");          // --header-bg
+        SetBrush("TextOnDark", "#FFF1F6FA", "#FFF1F6FA");        // --text-on-dark
+        SetBrush("Amber", "#FFF5B93F", "#FFF5B93F");             // --amber
+        SetBrush("AmberStrong", "#FFC98F1E", "#FFC98F1E");       // --amber-strong
+        SetBrush("AmberInk", "#FF3B2A00", "#FF3B2A00");          // --amber-ink
+        SetBrush("Pi", "#FF1295B3", "#FF1295B3");                // --pi
+        SetBrush("PiDeep", "#FF0A6680", "#FF0A6680");            // --pi-deep
+        SetBrush("DangerBg", "#FF3B1F1D", "#FFFBE7E5");          // --danger-soft
+        SetBrush("DangerText", "#FFF08A7C", "#FFB3261E");        // --danger
+        SetBrush("DangerButtonBg", "#FFB3261E", "#FFB3261E");
+        SetBrush("DangerButtonHover", "#FF8F1E18", "#FF8F1E18");
+        SetBrush("Success", "#FF7FCB9B", "#FF1E7A4C");           // --success
+        SetBrush("SuccessSoft", "#FF16352A", "#FFE2F4EA");       // --success-soft
+        SetBrush("Warning", "#FFF0BD5A", "#FF8A5A00");           // --warning
+        SetBrush("WarningSoft", "#FF3A2E12", "#FFFFF4D9");       // --warning-soft
     }
 }

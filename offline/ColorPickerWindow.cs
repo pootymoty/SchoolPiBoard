@@ -49,7 +49,8 @@ public sealed class ColorPickerWindow : Window
         {
             Text = "Выберите цвет",
             FontSize = 18,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 0, 0, 12)
         });
 

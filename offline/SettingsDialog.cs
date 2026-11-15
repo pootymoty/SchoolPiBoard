@@ -80,7 +80,8 @@ public class SettingsDialog : Window
             Text = "Хранение данных",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 16,
-            FontWeight = FontWeights.SemiBold
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont
         });
 
         root.Children.Add(new TextBlock
@@ -155,7 +156,8 @@ public class SettingsDialog : Window
             Text = "Экспорт изображений",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 26, 0, 0)
         });
 
@@ -230,7 +232,8 @@ public class SettingsDialog : Window
             Text = "Тема оформления",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 26, 0, 0)
         });
 
@@ -253,7 +256,8 @@ public class SettingsDialog : Window
             Text = "Холст новых досок",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 26, 0, 0)
         });
 
@@ -292,7 +296,8 @@ public class SettingsDialog : Window
             Text = "Лицензия",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 26, 0, 0)
         });
 

@@ -39,7 +39,8 @@ public class LicenseInfoDialog : Window
             Text = version is null ? "Доска Пи" : $"Доска Пи {version.ToString(3)}",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 19,
-            FontWeight = FontWeights.SemiBold
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont
         });
 
         root.Children.Add(new TextBlock
@@ -47,7 +48,8 @@ public class LicenseInfoDialog : Window
             Text = "Лицензия",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 14,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 20, 0, 8)
         });
 
@@ -77,7 +79,8 @@ public class LicenseInfoDialog : Window
             Text = Eula.Title,
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 14,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 20, 0, 8)
         });
 

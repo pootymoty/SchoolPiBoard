@@ -50,7 +50,8 @@ public class TemplateLibraryPanel : UserControl
             Text = "Заготовки",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 18,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 0, 0, 4)
         });
 
@@ -156,7 +157,8 @@ public class TemplateLibraryPanel : UserControl
             Text = template.Title,
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 14,
-            FontWeight = FontWeights.SemiBold
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont
         });
 
         stack.Children.Add(new TextBlock
@@ -328,6 +330,9 @@ public class TemplateLibraryPanel : UserControl
             {
                 Content = formula,
                 Style = (Style)Application.Current.Resources["TextButton"],
+                // Формулы — обычным шрифтом: в Manrope нет части математических знаков.
+                FontFamily = new FontFamily("Segoe UI"),
+                FontWeight = FontWeights.Normal,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 0, 0, 4),
                 Padding = new Thickness(10, 8, 10, 8)
@@ -388,7 +393,8 @@ public class TemplateLibraryPanel : UserControl
             Text = template.Title,
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 14,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = TextWrapping.Wrap
         };

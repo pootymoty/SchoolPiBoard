@@ -22,20 +22,44 @@
         <SolidColorBrush x:Key="DangerButtonBg" Color="#FFC62828"/>
         <SolidColorBrush x:Key="DangerButtonHover" Color="#FFA91B1B"/>
 
-        <SolidColorBrush x:Key="Accent" Color="#FF5B6CF7"/>
-        <SolidColorBrush x:Key="AccentHover" Color="#FF4A59E0"/>
+        <SolidColorBrush x:Key="Accent" Color="#FF5CC3DC"/>
+        <SolidColorBrush x:Key="AccentHover" Color="#FF7FD3E7"/>
+
+        <!-- Фирменный стиль «Круг и число» (как на school-pi.online). -->
+        <SolidColorBrush x:Key="AccentText" Color="#FF06202A"/>
+        <SolidColorBrush x:Key="Surface3" Color="#FF243A52"/>
+        <SolidColorBrush x:Key="LineStrong" Color="#FF7088A0"/>
+        <SolidColorBrush x:Key="Amber" Color="#FFF5B93F"/>
+        <SolidColorBrush x:Key="AmberStrong" Color="#FFC98F1E"/>
+        <SolidColorBrush x:Key="AmberInk" Color="#FF3B2A00"/>
+        <SolidColorBrush x:Key="Pi" Color="#FF1295B3"/>
+        <SolidColorBrush x:Key="PiDeep" Color="#FF0A6680"/>
+        <SolidColorBrush x:Key="HeaderBg" Color="#FF132233"/>
+        <SolidColorBrush x:Key="TextOnDark" Color="#FFF1F6FA"/>
+        <SolidColorBrush x:Key="Success" Color="#FF7FCB9B"/>
+        <SolidColorBrush x:Key="SuccessSoft" Color="#FF16352A"/>
+        <SolidColorBrush x:Key="Warning" Color="#FFF0BD5A"/>
+        <SolidColorBrush x:Key="WarningSoft" Color="#FF3A2E12"/>
+
+        <!-- Заголовки и кнопки — Manrope (встроен в программу, интернет не нужен);
+             если в шрифте нет знака (∑, √ и т. п.), берётся Segoe UI. -->
+        <FontFamily x:Key="HeadingFont">pack://application:,,,/Fonts/#Manrope, Segoe UI</FontFamily>
+        <FontFamily x:Key="MonoFont">Consolas, Courier New</FontFamily>
+
+        <!-- Нажатая кнопка чуть «проседает». -->
+        <ScaleTransform x:Key="PressedScale" ScaleX="0.98" ScaleY="0.98"/>
 
         <!-- ======================= Плавающая панель ======================= -->
         <Style x:Key="FloatingPanel" TargetType="{x:Type Border}">
             <Setter Property="Background" Value="{DynamicResource Surface}"/>
-            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="CornerRadius" Value="22"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="24" ShadowDepth="4" Direction="270"
-                                      Opacity="0.32" Color="#FF000000"/>
+                    <DropShadowEffect BlurRadius="36" ShadowDepth="10" Direction="270"
+                                      Opacity="0.16" Color="#FF0C1E33"/>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -43,7 +67,8 @@
         <!-- ======================= Кнопка-переключатель инструмента ======================= -->
         <Style x:Key="ToolButton" TargetType="{x:Type ToggleButton}">
             <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -53,11 +78,14 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ToggleButton}">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="10" SnapsToDevicePixels="True">
+                                CornerRadius="20" SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{DynamicResource SurfaceHover}"/>
@@ -76,7 +104,8 @@
         <!-- ======================= Иконочная кнопка ======================= -->
         <Style x:Key="IconButton" TargetType="{x:Type Button}">
             <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -86,11 +115,14 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="10" SnapsToDevicePixels="True">
+                                CornerRadius="20" SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{DynamicResource SurfaceHover}"/>
@@ -110,11 +142,14 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="10" SnapsToDevicePixels="True">
+                                CornerRadius="20" SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{DynamicResource DangerBg}"/>
@@ -195,7 +230,12 @@
         <Style x:Key="TextButton" TargetType="{x:Type Button}">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="Padding" Value="14,8"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -206,12 +246,15 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="9" Padding="{TemplateBinding Padding}"
+                                CornerRadius="999" Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{DynamicResource SurfaceHover}"/>
@@ -226,9 +269,11 @@
         </Style>
 
         <Style x:Key="AccentButton" TargetType="{x:Type Button}">
-            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
             <Setter Property="Background" Value="{DynamicResource Accent}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="18,9"/>
             <Setter Property="Margin" Value="2"/>
@@ -237,12 +282,15 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="10" Padding="{TemplateBinding Padding}"
+                                CornerRadius="999" Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{DynamicResource AccentHover}"/>
@@ -259,7 +307,9 @@
         <Style x:Key="DangerButton" TargetType="{x:Type Button}">
             <Setter Property="Foreground" Value="#FFFFFFFF"/>
             <Setter Property="Background" Value="{DynamicResource DangerButtonBg}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="18,9"/>
             <Setter Property="Margin" Value="2"/>
@@ -269,13 +319,16 @@
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="Bd"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="10"
+                                CornerRadius="999"
                                 Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{DynamicResource DangerButtonHover}"/>
@@ -294,6 +347,79 @@
         </Style>
 
 
+        <!-- Главная (янтарная) кнопка — одна на экран: «Новая доска», главное
+             действие диалога. Под ней «подложка» на 3 px темнее — как на сайте. -->
+        <Style x:Key="CtaButton" TargetType="{x:Type Button}">
+            <Setter Property="Foreground" Value="{DynamicResource AmberInk}"/>
+            <Setter Property="Background" Value="{DynamicResource Amber}"/>
+            <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,9"/>
+            <Setter Property="Margin" Value="2,2,2,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Grid>
+                            <Border Background="{DynamicResource AmberStrong}" CornerRadius="999" Margin="0,3,0,-3"/>
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                    CornerRadius="999" Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform" Value="{StaticResource PressedScale}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Поле ввода в диалогах: высота от 44, скругление 14, граница LineStrong,
+             в фокусе — акцентная рамка в 2 px. -->
+        <Style x:Key="InputBox" TargetType="{x:Type TextBox}">
+            <Setter Property="Background" Value="{DynamicResource AppBg2}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource LineStrong}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="MinHeight" Value="44"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"
+                                          Focusable="False" HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ======================= Выбор вариантов ======================= -->
         <Style x:Key="ChoiceButton" TargetType="{x:Type ToggleButton}">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -308,12 +434,12 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="9" Padding="4">
+                                CornerRadius="999" Padding="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface3}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceActive}"/>
@@ -443,7 +569,7 @@
                             <Border x:Name="Box" Width="20" Height="20" CornerRadius="5"
                                     Background="{DynamicResource AppBg2}"
                                     BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1.5">
-                                <Path x:Name="Mark" Data="M4.5,10 L8.5,14 L15.5,6" Stroke="#FFFFFFFF"
+                                <Path x:Name="Mark" Data="M4.5,10 L8.5,14 L15.5,6" Stroke="{DynamicResource AccentText}"
                                       StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                                       StrokeLineJoin="Round" Visibility="Collapsed"/>
                             </Border>
@@ -558,7 +684,8 @@
 
         <Style x:Key="SectionTitle" TargetType="{x:Type TextBlock}">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
+            <Setter Property="FontSize" Value="25"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
 

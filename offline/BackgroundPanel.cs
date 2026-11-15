@@ -41,7 +41,8 @@ public class BackgroundPanel : UserControl
             Text = "Форматирование фона",
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             FontSize = 18,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SchoolPiBoard.Services.ThemeManager.HeadingFont,
             Margin = new Thickness(0, 0, 0, 4)
         });
 
