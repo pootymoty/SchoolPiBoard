@@ -14,9 +14,16 @@
 
         <!-- ============ Заголовок ============ -->
         <Grid Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock x:Name="TitleText" Text="Мои доски"
+            <StackPanel Orientation="Horizontal">
+                <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource PiDeep}"
+                        BorderBrush="{DynamicResource Amber}" BorderThickness="3" Margin="0,0,12,0">
+                    <TextBlock Text="π" FontFamily="{StaticResource HeadingFont}" FontSize="24"
+                               Foreground="{DynamicResource TextOnDark}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock x:Name="TitleText" Text="Мои доски"
                        Style="{StaticResource SectionTitle}"
                        VerticalAlignment="Center"/>
+            </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="ArchiveToggleButton" Content="Архив"
@@ -40,10 +47,19 @@
             </Grid.ColumnDefinitions>
 
             <!-- Поле поиска -->
-            <Border Grid.Column="0" CornerRadius="10" Height="40"
+            <Border Grid.Column="0" CornerRadius="22" Height="44"
                     Background="{DynamicResource AppBg2}"
-                    BorderBrush="{DynamicResource BorderBrushColor}"
                     BorderThickness="1">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource LineStrong}"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -100,8 +116,8 @@
         </Grid>
 
         <!-- ============ Шапка таблицы ============ -->
-        <Border Grid.Row="2" CornerRadius="10,10,0,0"
-                Background="{DynamicResource AppBg3}" Padding="20,9">
+        <Border Grid.Row="2" CornerRadius="14,14,0,0"
+                Background="{DynamicResource HeaderBg}" Padding="20,9">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -110,13 +126,13 @@
                     <ColumnDefinition Width="46"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="Название" FontWeight="SemiBold"
-                           FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                           FontSize="12" Foreground="{DynamicResource TextOnDark}"/>
                 <TextBlock Grid.Column="1" Text="Создана" FontWeight="SemiBold"
                            FontSize="12" HorizontalAlignment="Center"
-                           Foreground="{DynamicResource TextSecondary}"/>
+                           Foreground="{DynamicResource TextOnDark}"/>
                 <TextBlock Grid.Column="2" Text="Изменена" FontWeight="SemiBold"
                            FontSize="12" HorizontalAlignment="Center"
-                           Foreground="{DynamicResource TextSecondary}"/>
+                           Foreground="{DynamicResource TextOnDark}"/>
             </Grid>
         </Border>
 
@@ -129,8 +145,8 @@
                 <ItemsControl x:Name="BoardList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border x:Name="RowBorder" CornerRadius="8" Margin="2,1"
-                                    Padding="14,11" Background="Transparent"
+                            <Border x:Name="RowBorder" CornerRadius="14" Margin="2,3" BorderThickness="1" BorderBrush="{DynamicResource BorderBrushColor}"
+                                    Padding="14,11" Background="{DynamicResource Surface}"
                                     Cursor="Hand"
                                     MouseLeftButtonUp="Row_Click">
                                 <Grid>
@@ -146,12 +162,12 @@
                                                FontSize="14" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"/>
 
-                                    <TextBlock Grid.Column="1" Text="{Binding CreatedText}"
+                                    <TextBlock Grid.Column="1" Text="{Binding CreatedText}" FontFamily="Consolas"
                                                Foreground="{DynamicResource TextSecondary}"
                                                FontSize="12" VerticalAlignment="Center"
                                                HorizontalAlignment="Center"/>
 
-                                    <TextBlock Grid.Column="2" Text="{Binding ModifiedText}"
+                                    <TextBlock Grid.Column="2" Text="{Binding ModifiedText}" FontFamily="Consolas"
                                                Foreground="{DynamicResource TextSecondary}"
                                                FontSize="12" VerticalAlignment="Center"
                                                HorizontalAlignment="Center"/>
@@ -167,8 +183,8 @@
 
                             <DataTemplate.Triggers>
                                 <Trigger SourceName="RowBorder" Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="RowBorder" Property="Background"
-                                            Value="{DynamicResource SurfaceHover}"/>
+                                    <Setter TargetName="RowBorder" Property="BorderBrush"
+                                            Value="{DynamicResource Accent}"/>
                                 </Trigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>

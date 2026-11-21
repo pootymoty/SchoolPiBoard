@@ -22,6 +22,8 @@ public partial class EditorView : UserControl
 
     private readonly DispatcherTimer _autoSave = new();
     private List<BoardItem> _clipboard = new();
+    private DataObject? _clipboardOwner;
+    private string? _clipboardBoardId;
     private BoardItem? _editingItem;
     private bool _objectPanelAbove;
     private Popup? _activeObjectPalettePopup;

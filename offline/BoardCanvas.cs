@@ -1472,7 +1472,7 @@ public class BoardCanvas : FrameworkElement
         _activeHandle = handle;
         _dragStartWorld = world;
         _dragStartScreen = ToScreen(world);
-        _dragOriginals = Selection.Select(i => i.Clone()).ToList();
+        _dragOriginals = Selection.OrderBy(i => i.Z).Select(i => i.Clone()).ToList();
         _dragOriginalBounds = SelectionWorldBounds();
 
         // Ручка поворота остаётся там, где её взяли, до отпускания.
@@ -2524,9 +2524,9 @@ public class BoardCanvas : FrameworkElement
     }
 
     public List<BoardItem> CopySelection() =>
-        Selection.Select(i => i.Clone()).ToList();
+        Selection.OrderBy(i => i.Z).Select(i => i.Clone()).ToList();
 
-    public void PasteItems(List<BoardItem> items, bool offset = true)
+    public void PasteItems(List<BoardItem> items, bool offset = true, bool centerInView = false)
     {
         if (items.Count == 0)
             return;
@@ -2543,13 +2543,23 @@ public class BoardCanvas : FrameworkElement
 
         var groupMap = new Dictionary<string, string>();
 
-        var shift = offset ? 26 / Zoom : 0;
+        var dx = offset ? 26 / Zoom : 0;
+        var dy = dx;
+        if (centerInView)
+        {
+            var bounds = Rect.Empty;
+            foreach (var item in items)
+                bounds.Union(ItemRenderer.RotatedBounds(item));
+            var center = ToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
+            dx = center.X - bounds.X - bounds.Width / 2;
+            dy = center.Y - bounds.Y - bounds.Height / 2;
+        }
         foreach (var source in items)
         {
             var copy = source.Clone();
             copy.Id = idMap[source.Id];
             copy.Z = NextZ();
-            MoveItem(copy, source, shift, shift);
+            MoveItem(copy, source, dx, dy);
             copy.GroupId = RemapGroup(groupMap, source.GroupId);
             copy.InnerGroupIds = source.InnerGroupIds.Select(g => RemapGroup(groupMap, g)).ToList();
 

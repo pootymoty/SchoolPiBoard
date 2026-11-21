@@ -19,7 +19,7 @@
                 <Border Width="1" Background="{DynamicResource BorderBrushColor}" Margin="8,12"/>
                 <TextBlock x:Name="BoardTitle" Text="Доска"
                            Foreground="{DynamicResource TextPrimary}"
-                           FontSize="15" FontWeight="SemiBold"
+                           FontSize="16" FontFamily="{StaticResource HeadingFont}" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="8,0"/>
                 <Button Content="✎" Style="{StaticResource IconButton}" Width="34"
                         Click="Rename_Click" ToolTip="Переименовать доску"/>
@@ -30,6 +30,8 @@
                 <TextBlock x:Name="SaveIndicator" Foreground="{DynamicResource TextSecondary}"
                            FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
+                <Button Content="⋯" FontSize="20" Style="{StaticResource IconButton}"
+                        Click="BoardMore_Click" ToolTip="Действия с буфером обмена"/>
                 <Button x:Name="TimerButton" Content="⏱" FontSize="17"
                         Style="{StaticResource IconButton}"
                         Click="TimerButton_Click" ToolTip="Таймер"/>
@@ -317,7 +319,7 @@
                     <Grid Margin="0,0,0,8">
                         <TextBlock Text="Справка по действиям"
                                    Foreground="{DynamicResource TextPrimary}"
-                                   FontSize="15" FontWeight="SemiBold"
+                                   FontSize="16" FontFamily="{StaticResource HeadingFont}" FontWeight="Bold"
                                    VerticalAlignment="Center"/>
                         <Button Content="✕" Style="{StaticResource IconButton}"
                                 Width="28" Height="26" HorizontalAlignment="Right"
@@ -341,12 +343,12 @@
                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                            <TextBlock x:Name="TimerMinutes" Text="05" FontSize="44"
+                            <TextBlock x:Name="TimerMinutes" Text="05" FontSize="44" FontFamily="Consolas"
                                        Foreground="{DynamicResource TextPrimary}"
                                        Cursor="Hand" MouseLeftButtonUp="TimerMinutes_Click"/>
-                            <TextBlock Text=":" FontSize="44"
+                            <TextBlock Text=":" FontSize="44" FontFamily="Consolas"
                                        Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock x:Name="TimerSeconds" Text="00" FontSize="44"
+                            <TextBlock x:Name="TimerSeconds" Text="00" FontSize="44" FontFamily="Consolas"
                                        Foreground="{DynamicResource TextPrimary}"
                                        Cursor="Hand" MouseLeftButtonUp="TimerSeconds_Click"/>
                         </StackPanel>

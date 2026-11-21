@@ -272,6 +272,8 @@ public partial class EditorView
             Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
         };
 
+        AddClipboardCommands(menu);
+        menu.Items.Add(new Separator());
         menu.Items.Add(MakeMenuItem("На передний план", () => Canvas.BringToFront()));
         menu.Items.Add(MakeMenuItem("На задний план", () => Canvas.SendToBack()));
         menu.Items.Add(new Separator());
@@ -371,40 +373,74 @@ public partial class EditorView
     // =====================================================================
     //  Буфер обмена
     // =====================================================================
-    private void CopySelection()
+    private void AddClipboardCommands(ContextMenu menu)
+    {
+        var copy = MakeMenuItem("Скопировать", CopySelection);
+        copy.InputGestureText = "Ctrl+C";
+        copy.IsEnabled = Canvas.Selection.Count > 0;
+        menu.Items.Add(copy);
+        var paste = MakeMenuItem("Вставить", PasteClipboard);
+        paste.InputGestureText = "Ctrl+V";
+        menu.Items.Add(paste);
+    }
+
+    private void BoardMore_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = (Button)sender,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        AddClipboardCommands(menu);
+        menu.IsOpen = true;
+    }
+
+    private void CopySelection() => TryCopySelection();
+
+    private bool TryCopySelection()
     {
         if (Canvas.Selection.Count == 0)
-            return;
+            return false;
 
-        _clipboard = Canvas.CopySelection();
+        var items = Canvas.CopySelection();
+        var owner = new DataObject("DoskaPi.BoardSelection", Guid.NewGuid().ToString("N"));
+        try
+        {
+            Clipboard.SetDataObject(owner, false);
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            MessageBox.Show("Буфер обмена занят. Попробуйте скопировать ещё раз.", "Доска Пи");
+            return false;
+        }
+
+        _clipboardOwner = owner;
+        _clipboardBoardId = _board?.Id;
+        _clipboard = items;
+        return true;
     }
 
     private void CutSelection()
     {
-        if (Canvas.Selection.Count == 0)
-            return;
-
-        _clipboard = Canvas.CopySelection();
-        Canvas.DeleteSelection();
+        if (TryCopySelection())
+            Canvas.DeleteSelection();
     }
 
-    /// <summary>
-    /// Ctrl+V: сначала картинка из системного буфера, затем текст,
-    /// затем то, что было скопировано внутри доски.
-    /// </summary>
     private void PasteClipboard()
     {
-        if (TryPasteImage())
-            return;
-
-        if (TryPasteText())
-            return;
-
-        if (_clipboard.Count > 0)
+        try
         {
-            Canvas.PasteItems(_clipboard);
-            SelectTool(BoardTool.Cursor);
+            if (_clipboardOwner != null && Clipboard.IsCurrent(_clipboardOwner))
+            {
+                Canvas.PasteItems(_clipboard, centerInView: _clipboardBoardId != _board?.Id);
+                SelectTool(BoardTool.Cursor);
+                return;
+            }
         }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            return;
+        }
+
+        if (!TryPasteImage())
+            TryPasteText();
     }
 
     private bool TryPasteImage()
