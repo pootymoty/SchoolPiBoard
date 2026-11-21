@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'tests/offline-desktop/**'
       - 'offline/**.cs'
       - 'offline/**.xaml'
       - 'offline/SchoolPiBoard.csproj'
@@ -28,3 +29,6 @@ jobs:
 
       - name: Build
         run: dotnet build offline/SchoolPiBoard.csproj -c Release
+
+      - name: Test desktop persistence
+        run: dotnet run --project tests/offline-desktop/Regression.csproj -c Debug

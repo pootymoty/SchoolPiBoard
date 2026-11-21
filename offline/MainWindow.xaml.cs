@@ -113,6 +113,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!EditorScreen.SaveIfDirty())
+            return;
         EditorScreen.LoadBoard(board);
         HomeScreen.Visibility = Visibility.Collapsed;
         EditorScreen.Visibility = Visibility.Visible;
@@ -121,7 +123,8 @@ public partial class MainWindow : Window
 
     public void ShowHome()
     {
-        EditorScreen.SaveIfDirty();
+        if (!EditorScreen.SaveIfDirty())
+            return;
         EditorScreen.Visibility = Visibility.Collapsed;
         HomeScreen.Visibility = Visibility.Visible;
         HomeScreen.RefreshList();
@@ -160,7 +163,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        EditorScreen.SaveIfDirty();
         base.OnClosing(e);
+        if (!e.Cancel && !EditorScreen.SaveIfDirty())
+            e.Cancel = true;
     }
 }

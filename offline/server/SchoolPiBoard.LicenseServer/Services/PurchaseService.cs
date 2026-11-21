@@ -132,6 +132,23 @@ public sealed class PurchaseService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> LockDeliveryAsync(
+        long invoiceId, CancellationToken cancellationToken)
+    {
+        var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT invoice_id FROM payments WHERE invoice_id = {invoiceId} FOR UPDATE", cancellationToken);
+            return tx;
+        }
+        catch
+        {
+            await tx.DisposeAsync();
+            throw;
+        }
+    }
+
     public Task<Payment?> FindByInvoiceAsync(long invoiceId, CancellationToken cancellationToken)
         => _db.Payments.FirstOrDefaultAsync(x => x.InvoiceId == invoiceId, cancellationToken);
 

@@ -140,10 +140,11 @@ public static class PurchaseEndpoints
                 return Results.Text("bad sign", "text/plain", null, StatusCodes.Status400BadRequest);
             }
 
-            // Подпись уже подтвердила сумму, но расхождение с ценой стоит
-            // увидеть в логе: значит, цену поменяли в одном месте из двух.
             if (!RobokassaService.IsExpectedAmount(outSum, payment.Amount))
-                logger.LogWarning("Счёт {InvoiceId} оплачен на сумму {Sum}, ожидалась другая.", invoiceId, outSum);
+            {
+                logger.LogWarning("Сумма уведомления по счёту {InvoiceId} отличается от суммы счёта.", invoiceId);
+                return Results.BadRequest("amount mismatch");
+            }
 
             // Повторное уведомление о том же счёте: всё уже сделано.
             if (payment.Status == Payment.StatusPaid)
@@ -188,6 +189,8 @@ public static class PurchaseEndpoints
             var license = await licenses.IssueForPaymentAsync(
                 payment.Email, PaymentHash.ForRobokassa(invoiceId), cancellationToken);
 
+            await using var delivery = await purchases.LockDeliveryAsync(invoiceId, cancellationToken);
+            await licenses.RefreshAsync(license, cancellationToken);
             if (license.EmailSentAt is null)
             {
                 var sent = await emails.SendLicenseKeyAsync(license.Email, license.Key, cancellationToken);
@@ -204,6 +207,8 @@ public static class PurchaseEndpoints
             }
 
             await purchases.MarkPaidAsync(payment, license.Id, cancellationToken);
+
+            await delivery.CommitAsync(cancellationToken);
 
             logger.LogInformation("Счёт {InvoiceId} оплачен, выпущена лицензия {LicenseId}.", invoiceId, license.Id);
             return Results.Text($"OK{invoiceId}", "text/plain");

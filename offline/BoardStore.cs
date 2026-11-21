@@ -35,7 +35,9 @@ public class BoardStore
 
     public void Load()
     {
-        Boards = ReadFile(DataFile) ?? ReadFile(BackupFile) ?? new List<Board>();
+        var primary = ReadFile(DataFile);
+        _preserveBackup = primary is null;
+        Boards = primary ?? ReadFile(BackupFile) ?? new List<Board>();
     }
 
     private static List<Board>? ReadFile(string path)
@@ -53,39 +55,37 @@ public class BoardStore
         }
     }
 
-    public void Save() => WriteSnapshot(CreateSnapshot(), DataFolder, DataFile, BackupFile);
+    private readonly object _writeLock = new();
+    private long _nextRevision;
+    private long _writtenRevision;
+    private bool _preserveBackup;
 
-    /// <summary>
-    /// Снимок для сохранения. Делается в потоке интерфейса и стоит одного
-    /// прохода по списку досок; всё дорогое — сериализация и запись —
-    /// происходит потом в фоне и уже не может помешать рисованию.
-    /// </summary>
-    public BoardStoreFile CreateSnapshot() =>
-        new() { Boards = Boards.Select(board => board.SnapshotCopy()).ToList() };
+    public void Save() => PrepareSave()();
 
-    /// <summary>
-    /// Запись снимка. Статический метод без обращения к состоянию хранилища:
-    /// его безопасно вызывать из фонового потока.
-    /// </summary>
-    /// <summary>
-    /// Одна запись за раз: фоновое сохранение из редактора и обычное
-    /// (выход к списку, переименование, архив) иначе могли бы писать
-    /// один и тот же .tmp одновременно.
-    /// </summary>
-    private static readonly object WriteLock = new();
+    // Снимок создаётся в потоке интерфейса, запись может выполняться в фоне.
+    public Action PrepareSave()
+    {
+        var snapshot = new BoardStoreFile { Boards = Boards.Select(board => board.SnapshotCopy()).ToList() };
+        var revision = ++_nextRevision;
+        var folder = DataFolder;
+        return () => WriteSnapshot(snapshot, revision, folder);
+    }
 
-    public static void WriteSnapshot(BoardStoreFile snapshot, string folder, string dataFile, string backupFile)
+    private void WriteSnapshot(BoardStoreFile snapshot, long revision, string folder)
     {
         var json = JsonSerializer.Serialize(snapshot, JsonOptions);
-
-        lock (WriteLock)
+        var dataFile = Path.Combine(folder, FileName);
+        var backupFile = Path.Combine(folder, "boards.backup.json");
+        lock (_writeLock)
         {
+            if (revision <= _writtenRevision)
+                return;
             Directory.CreateDirectory(folder);
 
             var tmp = dataFile + ".tmp";
             File.WriteAllText(tmp, json);
 
-            if (File.Exists(dataFile))
+            if (!_preserveBackup && File.Exists(dataFile))
             {
                 try
                 {
@@ -98,6 +98,8 @@ public class BoardStore
             }
 
             ReplaceWithRetry(tmp, dataFile);
+            _writtenRevision = revision;
+            _preserveBackup = false;
         }
     }
 
@@ -307,6 +309,8 @@ public class BoardStore
 
         if (moveExisting)
         {
+            if (_preserveBackup && File.Exists(oldBackup))
+                Save();
             var target = Path.Combine(newFolder, FileName);
             if (File.Exists(oldFile))
                 File.Copy(oldFile, target, overwrite: true);

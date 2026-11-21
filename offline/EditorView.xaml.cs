@@ -17,7 +17,7 @@ public partial class EditorView : UserControl
     private MainWindow _shell = null!;
     private Board? _board;
     private bool _dirty;
-    private bool _saving;
+    private Task? _pendingWrite;
     private bool _saveQueued;
 
     private readonly DispatcherTimer _autoSave = new();
@@ -75,8 +75,6 @@ public partial class EditorView : UserControl
     // =====================================================================
     public void LoadBoard(Board board)
     {
-        SaveIfDirty();
-
         _board = board;
         BoardTitle.Text = board.Name;
 
@@ -181,12 +179,12 @@ public partial class EditorView : UserControl
     /// в потоке интерфейса остаётся только снимок, а сериализация и запись
     /// уходят в фон. Плюс сохранение не начинается, пока рука на кнопке мыши.
     /// </summary>
-    private void SaveInBackground()
+    private async void SaveInBackground()
     {
         if (_board is null || !_dirty || Canvas.IsInteracting)
             return;
 
-        if (_saving)
+        if (_pendingWrite != null)
         {
             // Пока идёт запись, новая не начинается: изменения попадут
             // в следующую, сразу после завершения текущей.
@@ -194,52 +192,39 @@ public partial class EditorView : UserControl
             return;
         }
 
-        _saving = true;
         _saveQueued = false;
 
         Canvas.CommitToBoard();
         _shell.Store.TouchModified(_board);
 
-        var store = _shell.Store;
-        var snapshot = store.CreateSnapshot();
-        var folder = store.DataFolder;
-        var dataFile = store.DataFile;
-        var backupFile = store.BackupFile;
-
+        var write = _shell.Store.PrepareSave();
         _dirty = false;
         SaveIndicator.Text = "сохранение…";
 
-        Task.Run(() =>
+        var pending = _pendingWrite = Task.Run(write);
+        try
         {
-            try
-            {
-                BoardStore.WriteSnapshot(snapshot, folder, dataFile, backupFile);
-                return (string?)null;
-            }
-            catch (Exception ex)
-            {
-                return ex.Message;
-            }
-        }).ContinueWith(task =>
+            await pending;
+        }
+        catch (Exception ex)
         {
-            _saving = false;
-
-            if (task.Result is { } error)
+            if (_pendingWrite == pending)
             {
-                // Сохранить не удалось — доска снова считается изменённой,
-                // следующая попытка произойдёт на очередном тике.
+                _pendingWrite = null;
                 _dirty = true;
                 SaveIndicator.Text = "не удалось сохранить";
-                SaveIndicator.ToolTip = error;
-                return;
+                SaveIndicator.ToolTip = ex.Message;
             }
+            return;
+        }
 
-            SaveIndicator.Text = "сохранено";
-            SaveIndicator.ToolTip = null;
-
-            if (_saveQueued || _dirty)
-                SaveInBackground();
-        }, TaskScheduler.FromCurrentSynchronizationContext());
+        if (_pendingWrite != pending)
+            return; // Выход из редактора уже дождался этой записи.
+        _pendingWrite = null;
+        SaveIndicator.Text = "сохранено";
+        SaveIndicator.ToolTip = null;
+        if (_saveQueued || _dirty)
+            SaveInBackground();
     }
 
     /// <summary>
@@ -247,18 +232,34 @@ public partial class EditorView : UserControl
     /// и сразу. Используется при переходе к списку досок, закрытии окна
     /// и по Ctrl+S — там короткая задержка допустима, а потеря данных нет.
     /// </summary>
-    public void SaveIfDirty()
+    public bool SaveIfDirty()
     {
+        if (_pendingWrite != null)
+        {
+            try { _pendingWrite.GetAwaiter().GetResult(); }
+            catch (Exception) { _dirty = true; } // Повторяем с актуальным снимком.
+            _pendingWrite = null;
+        }
         if (_board is null || !_dirty)
-            return;
+            return true;
 
         Canvas.CommitToBoard();
         _shell.Store.TouchModified(_board);
-        _shell.Store.Save();
-
+        try
+        {
+            _shell.Store.Save();
+        }
+        catch (Exception ex)
+        {
+            SaveIndicator.Text = "не удалось сохранить";
+            ConfirmDialog.Info(_shell, "Не удалось сохранить доску", ex.Message);
+            return false;
+        }
         _dirty = false;
         _saveQueued = false;
         SaveIndicator.Text = "сохранено";
+        SaveIndicator.ToolTip = null;
+        return true;
     }
 
     private void UpdateUndoRedoState()

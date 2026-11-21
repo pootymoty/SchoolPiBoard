@@ -221,6 +221,9 @@ public sealed class LicenseService
         return license;
     }
 
+    public Task RefreshAsync(License license, CancellationToken cancellationToken)
+        => _db.Entry(license).ReloadAsync(cancellationToken);
+
     public async Task MarkEmailSentAsync(License license, CancellationToken cancellationToken)
     {
         license.EmailSentAt = DateTime.UtcNow;

@@ -19,6 +19,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: schoolpiboard_licenses
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 3s --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +40,25 @@ jobs:
         run: >
           dotnet publish offline/server/SchoolPiBoard.LicenseServer/SchoolPiBoard.LicenseServer.csproj
           -c Release -o publish
+
+      - name: Test payment callbacks
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5017
+          Robokassa__MerchantLogin: test
+          Robokassa__Password1: test-form
+          Robokassa__Password2: test-result
+          Smtp__Host: ''
+          Smtp__FromEmail: ''
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: schoolpiboard_licenses
+        run: |
+          (cd publish && exec dotnet SchoolPiBoard.LicenseServer.dll) >/tmp/license-regression.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          python3 offline/server/tests/payments.py
 
       - name: Pack
         run: tar -czf license-server.tar.gz -C publish .
