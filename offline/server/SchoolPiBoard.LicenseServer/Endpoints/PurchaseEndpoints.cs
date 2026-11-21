@@ -189,7 +189,9 @@ public static class PurchaseEndpoints
             var license = await licenses.IssueForPaymentAsync(
                 payment.Email, PaymentHash.ForRobokassa(invoiceId), cancellationToken);
 
-            await using var delivery = await purchases.LockDeliveryAsync(invoiceId, cancellationToken);
+            await using var delivery = await purchases.LockDeliveryAsync(payment, cancellationToken);
+            if (payment.Status == Payment.StatusPaid)
+                return Results.Text($"OK{invoiceId}", "text/plain");
             await licenses.RefreshAsync(license, cancellationToken);
             if (license.EmailSentAt is null)
             {

@@ -133,13 +133,14 @@ public sealed class PurchaseService
     }
 
     public async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> LockDeliveryAsync(
-        long invoiceId, CancellationToken cancellationToken)
+        Payment payment, CancellationToken cancellationToken)
     {
         var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             await _db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT invoice_id FROM payments WHERE invoice_id = {invoiceId} FOR UPDATE", cancellationToken);
+                $"SELECT invoice_id FROM payments WHERE invoice_id = {payment.InvoiceId} FOR UPDATE", cancellationToken);
+            await _db.Entry(payment).ReloadAsync(cancellationToken);
             return tx;
         }
         catch

@@ -9,7 +9,21 @@ using SchoolPiBoard.Views;
 internal static class Regression
 {
     [STAThread]
-    public static void Main()
+    public static int Main()
+    {
+        try
+        {
+            Run();
+            return 0;
+        }
+        catch (Exception error)
+        {
+            Console.Error.WriteLine(error);
+            return 1;
+        }
+    }
+
+    private static void Run()
     {
         var folder = Directory.CreateTempSubdirectory().FullName;
         try
@@ -42,6 +56,7 @@ internal static class Regression
             store.Load();
             Check(store.Boards.Single().Name == "первый", "восстановленный файл");
 
+            Application.ResourceAssembly = typeof(App).Assembly;
             var app = new App();
             app.InitializeComponent();
             var window = new MainWindow();
