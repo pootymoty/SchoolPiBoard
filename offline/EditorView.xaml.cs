@@ -40,6 +40,7 @@ public partial class EditorView : UserControl
         BuildHelpContent();
         InitializeTimer();
 
+        Canvas.ClipboardMenuRequested += OpenCanvasClipboardMenu;
         Canvas.Changed += OnCanvasChanged;
         Canvas.SelectionChanged += OnSelectionChanged;
         Canvas.ItemsInserted += () =>

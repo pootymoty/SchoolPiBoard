@@ -126,6 +126,7 @@ public class BoardCanvas : FrameworkElement
     // ---- события для оболочки ----
     public event Action? Changed;             // документ изменён (нужно сохранить)
     public event Action? SelectionChanged;    // изменился состав выделения
+    public event Action<Point, bool>? ClipboardMenuRequested;
     public event Action? ViewChanged;         // изменился масштаб или сдвиг
     public event Action<BoardItem>? EditTextRequested;
 
@@ -1071,6 +1072,22 @@ public class BoardCanvas : FrameworkElement
             (_spaceHeld && e.ChangedButton == MouseButton.Right))
         {
             StartPan(screen);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.ChangedButton == MouseButton.Right && !IsInteracting)
+        {
+            var hit = HitItem(world);
+            if (hit != null && !Selection.Contains(hit))
+            {
+                Selection.Clear();
+                Selection.Add(hit);
+                ExpandSelectionToGroups();
+                SelectionChanged?.Invoke();
+                InvalidateVisual();
+            }
+            ClipboardMenuRequested?.Invoke(world, hit != null);
             e.Handled = true;
             return;
         }
@@ -2526,7 +2543,7 @@ public class BoardCanvas : FrameworkElement
     public List<BoardItem> CopySelection() =>
         Selection.OrderBy(i => i.Z).Select(i => i.Clone()).ToList();
 
-    public void PasteItems(List<BoardItem> items, bool offset = true, bool centerInView = false)
+    public void PasteItems(List<BoardItem> items, bool offset = true, bool centerInView = false, Point? target = null)
     {
         if (items.Count == 0)
             return;
@@ -2545,12 +2562,12 @@ public class BoardCanvas : FrameworkElement
 
         var dx = offset ? 26 / Zoom : 0;
         var dy = dx;
-        if (centerInView)
+        if (centerInView || target.HasValue)
         {
             var bounds = Rect.Empty;
             foreach (var item in items)
                 bounds.Union(ItemRenderer.RotatedBounds(item));
-            var center = ToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
+            var center = target ?? ToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
             dx = center.X - bounds.X - bounds.Width / 2;
             dy = center.Y - bounds.Y - bounds.Height / 2;
         }

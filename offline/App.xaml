@@ -50,6 +50,44 @@
         <ScaleTransform x:Key="PressedScale" ScaleX="0.98" ScaleY="0.98"/>
 
         <!-- ======================= Плавающая панель ======================= -->
+        <Style x:Key="ClipboardMenu" TargetType="ContextMenu">
+            <Style.Resources>
+                <Style TargetType="MenuItem">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="MenuItem">
+                                <Border x:Name="Row" Background="Transparent" Padding="12,6" CornerRadius="6">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{TemplateBinding InputGestureText}"
+                                                   Margin="16,0,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                                        <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                                          TextElement.Foreground="{DynamicResource TextPrimary}"/>
+                                    </DockPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter TargetName="Row" Property="Background" Value="{DynamicResource SurfaceHover}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Style.Resources>
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}" Padding="4" CornerRadius="8"
+                                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1">
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FloatingPanel" TargetType="{x:Type Border}">
             <Setter Property="Background" Value="{DynamicResource Surface}"/>
             <Setter Property="CornerRadius" Value="22"/>

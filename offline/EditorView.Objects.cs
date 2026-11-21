@@ -268,6 +268,7 @@ public partial class EditorView
 
         var menu = new ContextMenu
         {
+            Style = (Style)FindResource("ClipboardMenu"),
             PlacementTarget = button,
             Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
         };
@@ -373,22 +374,28 @@ public partial class EditorView
     // =====================================================================
     //  Буфер обмена
     // =====================================================================
-    private void AddClipboardCommands(ContextMenu menu)
+    private void AddClipboardCommands(ContextMenu menu, bool includeCopy = true, Point? target = null)
     {
-        var copy = MakeMenuItem("Скопировать", CopySelection);
-        copy.InputGestureText = "Ctrl+C";
-        copy.IsEnabled = Canvas.Selection.Count > 0;
-        menu.Items.Add(copy);
-        var paste = MakeMenuItem("Вставить", PasteClipboard);
+        if (includeCopy)
+        {
+            var copy = MakeMenuItem("Скопировать", CopySelection);
+            copy.InputGestureText = "Ctrl+C";
+            menu.Items.Add(copy);
+        }
+        var paste = MakeMenuItem("Вставить", () => PasteClipboard(target));
         paste.InputGestureText = "Ctrl+V";
         menu.Items.Add(paste);
     }
 
-    private void BoardMore_Click(object sender, RoutedEventArgs e)
+    private void OpenCanvasClipboardMenu(Point world, bool hitObject)
     {
-        var menu = new ContextMenu { PlacementTarget = (Button)sender,
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-        AddClipboardCommands(menu);
+        var menu = new ContextMenu
+        {
+            Style = (Style)FindResource("ClipboardMenu"),
+            PlacementTarget = Canvas,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint
+        };
+        AddClipboardCommands(menu, hitObject, world);
         menu.IsOpen = true;
     }
 
@@ -423,13 +430,13 @@ public partial class EditorView
             Canvas.DeleteSelection();
     }
 
-    private void PasteClipboard()
+    private void PasteClipboard(Point? target = null)
     {
         try
         {
             if (_clipboardOwner != null && Clipboard.IsCurrent(_clipboardOwner))
             {
-                Canvas.PasteItems(_clipboard, centerInView: _clipboardBoardId != _board?.Id);
+                Canvas.PasteItems(_clipboard, centerInView: _clipboardBoardId != _board?.Id, target: target);
                 SelectTool(BoardTool.Cursor);
                 return;
             }
@@ -439,11 +446,11 @@ public partial class EditorView
             return;
         }
 
-        if (!TryPasteImage())
-            TryPasteText();
+        if (!TryPasteImage(target))
+            TryPasteText(target);
     }
 
-    private bool TryPasteImage()
+    private bool TryPasteImage(Point? target)
     {
         try
         {
@@ -458,7 +465,7 @@ public partial class EditorView
             {
                 if (TryDecodeClipboardObject(data.GetData(DataFormats.Bitmap), out var bitmap))
                 {
-                    AddImage(bitmap);
+                    AddImage(bitmap, target);
                     return true;
                 }
             }
@@ -469,7 +476,7 @@ public partial class EditorView
                     continue;
                 if (TryDecodeClipboardObject(data.GetData(format), out var bitmap))
                 {
-                    AddImage(bitmap);
+                    AddImage(bitmap, target);
                     return true;
                 }
             }
@@ -480,7 +487,7 @@ public partial class EditorView
                     continue;
                 if (TryDecodeDib(data.GetData(format), out var bitmap))
                 {
-                    AddImage(bitmap);
+                    AddImage(bitmap, target);
                     return true;
                 }
             }
@@ -492,7 +499,7 @@ public partial class EditorView
                     if (file is null || !IsImageFile(file))
                         continue;
 
-                    AddImage(LoadBitmap(file));
+                    AddImage(LoadBitmap(file), target);
                     return true;
                 }
             }
@@ -656,7 +663,7 @@ public partial class EditorView
         return ms.ToArray();
     }
 
-    private bool TryPasteText()
+    private bool TryPasteText(Point? target)
     {
         try
         {
@@ -667,7 +674,7 @@ public partial class EditorView
             if (string.IsNullOrWhiteSpace(text))
                 return false;
 
-            var center = ViewportCenterWorld();
+            var center = target ?? ViewportCenterWorld();
             var size = ItemRenderer.MeasureText(text.Trim(), 20, 1.0, 700);
 
             Canvas.AddItem(new BoardItem
@@ -735,7 +742,7 @@ public partial class EditorView
         return bitmap;
     }
 
-    private void AddImage(BitmapSource bitmap)
+    private void AddImage(BitmapSource bitmap, Point? target = null)
     {
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -746,7 +753,7 @@ public partial class EditorView
         var scale = Math.Min(1.0, 460.0 / Math.Max(bitmap.PixelWidth, bitmap.PixelHeight));
         var width = bitmap.PixelWidth * scale / Canvas.Zoom;
         var height = bitmap.PixelHeight * scale / Canvas.Zoom;
-        var center = ViewportCenterWorld();
+        var center = target ?? ViewportCenterWorld();
 
         Canvas.AddItem(new BoardItem
         {

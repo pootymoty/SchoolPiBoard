@@ -30,8 +30,6 @@
                 <TextBlock x:Name="SaveIndicator" Foreground="{DynamicResource TextSecondary}"
                            FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
-                <Button Content="⋯" FontSize="20" Style="{StaticResource IconButton}"
-                        Click="BoardMore_Click" ToolTip="Действия с буфером обмена"/>
                 <Button x:Name="TimerButton" Content="⏱" FontSize="17"
                         Style="{StaticResource IconButton}"
                         Click="TimerButton_Click" ToolTip="Таймер"/>
