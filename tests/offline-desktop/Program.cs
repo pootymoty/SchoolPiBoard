@@ -56,7 +56,6 @@ internal static class Regression
             store.Load();
             Check(store.Boards.Single().Name == "первый", "восстановленный файл");
 
-            Application.ResourceAssembly = typeof(App).Assembly;
             var app = new App();
             app.InitializeComponent();
             var window = new MainWindow();
