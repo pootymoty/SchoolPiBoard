@@ -64,5 +64,12 @@ public class Payment
     public bool AutoRenew { get; set; }
 
     /// <summary>Счёт, по которому Робокасса списывает повторно.</summary>
+    public DateTime? RenewalEnd { get; set; }
+    public DateTime? NextStatusCheck { get; set; }
+    public string? DeclineReason { get; set; }
+    public bool RetryEligible { get; set; }
+    public DateTime? FailureNoticeEnd { get; set; }
+    public DateTime? AdvanceNoticeEnd { get; set; }
+
     public long? PreviousInvoiceId { get; set; }
 }

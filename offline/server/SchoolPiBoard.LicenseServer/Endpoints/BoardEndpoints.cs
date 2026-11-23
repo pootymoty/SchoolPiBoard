@@ -23,7 +23,7 @@ public sealed record RecurringRequest(
     string? PlanName,
     int Days,
     decimal Amount,
-    long PreviousInvoiceId);
+    long PreviousInvoiceId, DateTimeOffset? EndsAt = null);
 
 /// <summary>
 /// Подписка на онлайн-доску.
@@ -126,14 +126,20 @@ public static class BoardEndpoints
             var payment = await purchases.CreateForBoardAsync(
                 request.UserId, first.Email, request.PlanCode ?? string.Empty,
                 request.Days, request.Amount, description,
-                autoRenew: true, previousInvoiceId: request.PreviousInvoiceId, ct);
+                autoRenew: true, previousInvoiceId: request.PreviousInvoiceId, ct, request.EndsAt?.UtcDateTime);
 
             var charged = await payments.ChargeRecurringAsync(
                 clients.CreateClient(), payment.InvoiceId, request.PreviousInvoiceId,
                 request.Amount, description, ct);
 
-            if (!charged)
+            if (!charged.Accepted)
             {
+                payment.RetryEligible = true;
+                payment.DeclineReason = charged.Decline;
+                if (charged.Decline != null) payment.NextStatusCheck = DateTime.UtcNow;
+                await purchases.SaveAsync(ct);
+                logger.LogWarning("Счёт {Invoice}: {Reason}.", payment.InvoiceId,
+                    charged.Decline ?? "запрос не принят, причина отказа банка не подтверждена");
                 logger.LogWarning("Повторное списание по счёту {InvoiceId} не прошло.", payment.InvoiceId);
                 return Results.Json(new { message = "Списание не прошло." }, statusCode: 402);
             }

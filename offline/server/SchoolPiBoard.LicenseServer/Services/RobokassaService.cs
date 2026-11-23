@@ -185,18 +185,18 @@ public sealed class RobokassaService
     /// он платил в первый раз, и присылает обычное уведомление на ResultURL —
     /// дальше всё идёт по общему пути.
     /// </summary>
-    public Task<bool> ChargeRecurringAsync(
+    public Task<(bool Accepted, string? Decline)> ChargeRecurringAsync(
         HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
         CancellationToken cancellationToken)
         => ChargeRecurringAsync(http, _board, invoiceId, previousInvoiceId, amount, description, cancellationToken);
 
     /// <summary>То же самое, но по счёту, выставленному магазином тарифов основного сайта.</summary>
-    public Task<bool> ChargeTariffsRecurringAsync(
+    public Task<(bool Accepted, string? Decline)> ChargeTariffsRecurringAsync(
         HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
         CancellationToken cancellationToken)
         => ChargeRecurringAsync(http, _tariffs, invoiceId, previousInvoiceId, amount, description, cancellationToken);
 
-    private static async Task<bool> ChargeRecurringAsync(
+    private static async Task<(bool Accepted, string? Decline)> ChargeRecurringAsync(
         HttpClient http, RobokassaOptions shop, long invoiceId, long previousInvoiceId, decimal amount,
         string description, CancellationToken cancellationToken)
     {
@@ -236,8 +236,13 @@ public sealed class RobokassaService
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         // Робокасса отвечает строкой: OK при успехе, иначе описание ошибки.
-        return response.IsSuccessStatusCode
-            && body.TrimStart().StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+        var accepted = response.IsSuccessStatusCode && body.TrimStart().StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+        var decline = body.Trim().ToLowerInvariant() switch
+        {
+            "недостаточно средств" or "insufficient funds" => "недостаточно средств",
+            _ => null
+        };
+        return (accepted, (response.IsSuccessStatusCode || (int)response.StatusCode == 402) ? decline : null);
     }
 
     public static string FormatSum(decimal amount) => amount.ToString("0.00", CultureInfo.InvariantCulture);

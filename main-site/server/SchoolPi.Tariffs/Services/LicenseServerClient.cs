@@ -87,7 +87,7 @@ public sealed class LicenseServerClient
 
     /// <summary>Просит списать повторно по ранее оплаченному счёту.</summary>
     public Task<Invoice?> ChargeRecurringAsync(
-        long userId, string planKey, string planName, int days, decimal amount, long previousInvoiceId,
+        long userId, string planKey, string planName, int days, decimal amount, long previousInvoiceId, DateTime endsAt,
         CancellationToken cancellationToken)
         => SendAsync<Invoice>("/tariffs/recurring", new
         {
@@ -96,8 +96,17 @@ public sealed class LicenseServerClient
             planName,
             days,
             amount,
-            previousInvoiceId
+            endsAt, previousInvoiceId
         }, cancellationToken);
+
+    private sealed record NoticeResult(bool Sent);
+
+    public async Task<bool> SendNoticeAsync(long userId, string planCode, string planName, decimal amount,
+        long previousInvoiceId, DateTime endsAt, CancellationToken ct)
+        => (await SendAsync<NoticeResult>("/tariffs/renewal-notice", new
+        {
+            userId, planCode, planName, amount, previousInvoiceId, endsAt, days = TariffPlans.PeriodDays
+        }, ct))?.Sent == true;
 
     private async Task<T?> SendAsync<T>(string path, object payload, CancellationToken cancellationToken)
         where T : class

@@ -37,6 +37,9 @@ builder.Services.AddScoped<TariffsNotifier>();
 // потому, что деньги уже взяты: получатель мог быть недоступен ровно
 // в ту минуту, когда пришла оплата.
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("operation-state", c => c.Timeout = TimeSpan.FromSeconds(10)).RemoveAllLoggers();
+builder.Services.AddScoped<RenewalNotices>();
+builder.Services.AddHostedService<RenewalStatusWorker>();
 builder.Services.AddHostedService<BoardNotifyRetryService>();
 builder.Services.AddHostedService<TariffsNotifyRetryService>();
 

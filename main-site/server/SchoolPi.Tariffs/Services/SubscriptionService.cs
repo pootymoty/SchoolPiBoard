@@ -363,6 +363,12 @@ public sealed class SubscriptionService
     }
 
     /// <summary>Подписки, которые пора продлевать: с автопродлением, кончающиеся в ближайшие сутки.</summary>
+    public async Task MarkNoticeAsync(Subscription subscription, CancellationToken ct)
+    {
+        subscription.RenewalNoticeAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+
     public Task<List<Subscription>> DueForRenewalAsync(TimeSpan ahead, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;

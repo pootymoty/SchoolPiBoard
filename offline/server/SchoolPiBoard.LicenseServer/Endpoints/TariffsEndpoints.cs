@@ -23,7 +23,7 @@ public sealed record TariffRecurringRequest(
     string? PlanName,
     int Days,
     decimal Amount,
-    long PreviousInvoiceId);
+    long PreviousInvoiceId, DateTimeOffset? EndsAt = null);
 
 /// <summary>
 /// Подписка на тарифы ИИ-функций основного сайта — копия <see cref="BoardEndpoints"/>
@@ -85,6 +85,18 @@ public static class TariffsEndpoints
             });
         });
 
+        app.MapPost("/tariffs/renewal-notice", async (HttpRequest http, TariffsOptions tariffs,
+            RenewalNotices notices, CancellationToken ct) =>
+        {
+            var (ok, body, error) = await ReadSignedAsync(http, tariffs, ct);
+            if (!ok) return error!;
+            var request = Parse<TariffRecurringRequest>(body);
+            if (request?.EndsAt is null || !IsSane(request.UserId, request.Days, request.Amount))
+                return Results.BadRequest();
+            var sent = await notices.AdvanceAsync(request, ct);
+            return sent ? Results.Ok(new { sent }) : Results.StatusCode(503);
+        });
+
         // Автопродление: сервис тарифов сам решает, когда пора — сроки
         // знает он. Здесь только списание по счёту, к которому привязана
         // карта.
@@ -118,14 +130,20 @@ public static class TariffsEndpoints
             var payment = await purchases.CreateForTariffsAsync(
                 request.UserId, first.Email, request.PlanCode ?? string.Empty,
                 request.Days, request.Amount, description,
-                autoRenew: true, previousInvoiceId: request.PreviousInvoiceId, ct);
+                autoRenew: true, previousInvoiceId: request.PreviousInvoiceId, ct, request.EndsAt?.UtcDateTime);
 
             var charged = await payments.ChargeTariffsRecurringAsync(
                 clients.CreateClient(), payment.InvoiceId, request.PreviousInvoiceId,
                 request.Amount, description, ct);
 
-            if (!charged)
+            if (!charged.Accepted)
             {
+                payment.RetryEligible = true;
+                payment.DeclineReason = charged.Decline;
+                if (charged.Decline != null) payment.NextStatusCheck = DateTime.UtcNow;
+                await purchases.SaveAsync(ct);
+                logger.LogWarning("Счёт {Invoice}: {Reason}.", payment.InvoiceId,
+                    charged.Decline ?? "запрос не принят, причина отказа банка не подтверждена");
                 logger.LogWarning("Повторное списание по счёту {InvoiceId} не прошло.", payment.InvoiceId);
                 return Results.Json(new { message = "Списание не прошло." }, statusCode: 402);
             }
