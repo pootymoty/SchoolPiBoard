@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using SchoolPiBoard;
 using SchoolPiBoard.Services;
 using SchoolPiBoard.Views;
@@ -98,6 +100,24 @@ internal static class Regression
             Check(start.X + sort.ActualWidth < home.RenderSize.Width, "правая граница сортировки");
             var border = (System.Windows.Controls.Border)sort.Template.FindName("Bd", sort);
             Check(border.CornerRadius.TopRight == 9 && border.BorderThickness.Right == 1, "контур сортировки");
+            foreach (var scale in new[] { 1.0, 1.25, 1.5 })
+            {
+                var image = new RenderTargetBitmap((int)(860 * scale), (int)(560 * scale),
+                    96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                image.Render(home);
+                var expected = ((SolidColorBrush)border.BorderBrush).Color;
+                var edge = (start.X + sort.ActualWidth) * scale;
+                // На каждом ряду прямого участка должен быть пиксель обводки
+                // (на дробном масштабе цвет смешивается с соседним фоном).
+                for (var y = (int)((start.Y + 11) * scale); y < (start.Y + sort.ActualHeight - 11) * scale; y++)
+                {
+                    var pixels = new byte[16];
+                    image.CopyPixels(new Int32Rect((int)edge - 2, y, 4, 1), pixels, 16, 0);
+                    Check(Enumerable.Range(0, 4).Any(i => Math.Abs(pixels[4*i] - expected.B) < 48
+                        && Math.Abs(pixels[4*i+1] - expected.G) < 48
+                        && Math.Abs(pixels[4*i+2] - expected.R) < 48), $"контур {theme} {scale} y={y}");
+                }
+            }
             var label = (System.Windows.Controls.TextBlock)home.FindName("SortText");
             var previous = label.Text;
             sort.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
