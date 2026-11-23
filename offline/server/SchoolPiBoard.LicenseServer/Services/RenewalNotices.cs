@@ -128,7 +128,8 @@ public sealed class RenewalStatusWorker(IServiceScopeFactory scopes, ILogger<Ren
             {
                 using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<LicenseDbContext>();
-                var due = await db.Payments.Where(p => p.Status == Payment.StatusPending && p.NextStatusCheck <= DateTime.UtcNow)
+                var due = await db.Payments.Where(p => p.Status == Payment.StatusPending && p.RenewalEnd != null
+                        && p.PreviousInvoiceId != null && p.NextStatusCheck <= DateTime.UtcNow)
                     .OrderBy(p => p.NextStatusCheck).Take(100).Select(p => p.InvoiceId).ToListAsync(ct);
                 foreach (var invoice in due)
                 {

@@ -76,6 +76,13 @@ jobs:
       - name: Pack
         run: tar -czf license-server.tar.gz -C publish .
 
+      - name: Save tested package
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-server-${{ github.sha }}
+          path: license-server.tar.gz
+          if-no-files-found: error
+
       # Готовый архив кладём в релиз: по такой ссылке его можно забрать
       # обычным curl, без токенов и без установки чего-либо на сервер.
       # Только с основной ветки. Иначе сборка из любой ветки заменяла бы

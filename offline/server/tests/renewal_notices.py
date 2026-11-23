@@ -56,6 +56,25 @@ def period(days):
 
 server = ThreadingHTTPServer(("127.0.0.1", 5018), Provider)
 threading.Thread(target=server.serve_forever, daemon=True).start()
+# Старые клиенты обоих магазинов ещё не передают endsAt.
+for shop in ("board", "tariffs"):
+    payload = dict(userId=42, planCode="test", planName="Тест", days=30, amount=100,
+                   autoRenew=True, email="legacy@example.org")
+    status, result = call(shop + "/invoice", payload)
+    assert status == 200
+    parent = int(result["invoiceId"])
+    sql(f"UPDATE payments SET status='paid' WHERE invoice_id={parent}")
+    payload["previousInvoiceId"] = parent
+    reject = True
+    assert call(shop + "/recurring", payload)[0] == 402
+    assert sql(f"SELECT next_status_check IS NULL FROM payments WHERE previous_invoice_id={parent}") == "t"
+
+# Полная пачка старых записей, оставшихся от предыдущей реализации.
+sql(f"""INSERT INTO payments(id, invoice_id, email, amount, provider, status, created_at,
+    previous_invoice_id, next_status_check)
+    SELECT gen_random_uuid(),nextval('payments_invoice_id_seq'),'legacy@example.org',100,
+    'robokassa','pending',now(),{parent},now()-interval '1 day' FROM generate_series(1,100)""")
+
 for uid, (shop, scenario) in enumerate([("board", "immediate"), ("tariffs", "late"),
                                         ("board", "pending"), ("tariffs", "paid"),
                                         ("board", "late"), ("tariffs", "refund"), ("tariffs", "unavailable")], start=10):

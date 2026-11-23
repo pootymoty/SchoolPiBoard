@@ -136,7 +136,8 @@ public static class BoardEndpoints
             {
                 payment.RetryEligible = true;
                 payment.DeclineReason = charged.Decline;
-                if (charged.Decline != null) payment.NextStatusCheck = DateTime.UtcNow;
+                if (charged.Decline != null && payment.RenewalEnd.HasValue)
+                    payment.NextStatusCheck = DateTime.UtcNow;
                 await purchases.SaveAsync(ct);
                 logger.LogWarning("Счёт {Invoice}, {Diagnostic}: {Reason}.", payment.InvoiceId, charged.Diagnostic,
                     charged.Decline ?? "запрос не принят, причина отказа банка не подтверждена");

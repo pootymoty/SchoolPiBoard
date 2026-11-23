@@ -58,3 +58,21 @@ assert sql("SELECT count(*) FROM licenses WHERE email_sent_at IS NOT NULL") == "
 assert sql(f"SELECT status FROM payments WHERE invoice_id={invoice}") == "paid"
 assert Path("/tmp/license-regression.log").read_text().count("получил бы ключ") == 1
 print("Payment amount, concurrent delivery and retry regressions passed.")
+
+def post_json(route, body):
+    req = urllib.request.Request(BASE + route, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req) as reply:
+        return json.load(reply)
+
+device = {"hardwareId": "ci-desktop", "key": sql("SELECT key FROM licenses")}
+assert post_json("/license/activate", device)["devicesUsed"] == 1
+assert post_json("/license/validate", device)["valid"]
+assert post_json("/license/deactivate", device)["ok"]
+assert not post_json("/license/validate", device)["valid"]
+trial = {"hardwareId": "ci-trial", "email": "trial@example.org"}
+started = post_json("/trial/start", trial)
+resumed = post_json("/trial/start", trial)
+assert started["status"] == "started" and resumed["status"] == "resumed"
+assert started["expiresAt"] == resumed["expiresAt"]
+print("Desktop activation, validation, deactivation and trial checks passed.")
