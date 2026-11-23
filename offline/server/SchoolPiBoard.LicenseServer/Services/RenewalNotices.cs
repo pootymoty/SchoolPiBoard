@@ -45,7 +45,7 @@ public sealed class RenewalNotices(LicenseDbContext db, PurchaseService purchase
         if (payment?.RenewalEnd is not DateTime end || payment.PreviousInvoiceId is not long parentId) return;
         // Переносим повтор до сетевого запроса, чтобы недоступный магазин не задерживал очередь.
         var now = DateTime.UtcNow;
-        var next = now.AddMinutes(15);
+        var next = now - payment.CreatedAt < TimeSpan.FromDays(2) ? now.AddMinutes(15) : now.AddDays(1);
         var claimed = await db.Payments.Where(p => p.Id == payment.Id && p.Status == Payment.StatusPending
                 && p.NextStatusCheck <= now)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.NextStatusCheck, next), ct);
@@ -55,7 +55,12 @@ public sealed class RenewalNotices(LicenseDbContext db, PurchaseService purchase
         if (reason == null)
         {
             var shop = gateway.ShopFor(payment.Kind);
-            if (!shop.IsConfigured || shop.IsTest) return;
+            if (shop.IsTest)
+            {
+                await StopCheckingAsync(invoice, ct); // OpStateExt не поддерживает тестовые платежи.
+                return;
+            }
+            if (!shop.IsConfigured) return;
             var signature = Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(
                 FormattableString.Invariant($"{shop.MerchantLogin}:{invoice}:{shop.Password2}"))));
             var endpoint = config["Robokassa:StatusUrl"] ?? "https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt";

@@ -138,9 +138,9 @@ public static class BoardEndpoints
                 payment.DeclineReason = charged.Decline;
                 if (charged.Decline != null) payment.NextStatusCheck = DateTime.UtcNow;
                 await purchases.SaveAsync(ct);
-                logger.LogWarning("Счёт {Invoice}: {Reason}.", payment.InvoiceId,
+                logger.LogWarning("Счёт {Invoice}, {Diagnostic}: {Reason}.", payment.InvoiceId, charged.Diagnostic,
                     charged.Decline ?? "запрос не принят, причина отказа банка не подтверждена");
-                logger.LogWarning("Повторное списание по счёту {InvoiceId} не прошло.", payment.InvoiceId);
+
                 return Results.Json(new { message = "Списание не прошло." }, statusCode: 402);
             }
 

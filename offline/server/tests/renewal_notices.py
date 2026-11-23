@@ -29,6 +29,9 @@ class Provider(BaseHTTPRequestHandler):
         assert query["Signature"][0].lower() == expected
         state = states[invoice]
         checked.add(invoice)
+        if state == "unavailable":
+            self.send_error(503)
+            return
         self.send_response(200)
         self.end_headers()
         self.wfile.write(f"<OperationStateResponse><Result><Code>0</Code></Result><State><Code>{state}</Code></State></OperationStateResponse>".encode())
@@ -55,7 +58,7 @@ server = ThreadingHTTPServer(("127.0.0.1", 5018), Provider)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 for uid, (shop, scenario) in enumerate([("board", "immediate"), ("tariffs", "late"),
                                         ("board", "pending"), ("tariffs", "paid"),
-                                        ("board", "late")], start=10):
+                                        ("board", "late"), ("tariffs", "refund"), ("tariffs", "unavailable")], start=10):
     payload = dict(userId=uid, planCode="test", planName="Тест", days=30, amount=100,
                    autoRenew=True, email=f"buyer{uid}@example.org")
     status, result = call(shop + "/invoice", payload)
@@ -74,20 +77,21 @@ for uid, (shop, scenario) in enumerate([("board", "immediate"), ("tariffs", "lat
             assert status == 402
         else:
             assert status == 200
-            states[result["invoiceId"]] = {"late": 10, "pending": 5, "paid": 100}[scenario]
+            states[result["invoiceId"]] = {"late": 10, "pending": 5, "paid": 100, "refund": 60, "unavailable": "unavailable"}[scenario]
 
 sql("UPDATE payments SET next_status_check=now() WHERE renewal_end IS NOT NULL")
 for _ in range(90):
     log = Path("/tmp/license-regression.log").read_text()
-    if checked == set(states) and log.count("— автопродление не прошло.") == 3:
+    if checked == set(states) and log.count("— автопродление не прошло.") == 4:
         break
     time.sleep(1)
 assert checked == set(states), (checked, states)
-assert log.count("— автопродление не прошло.") == 3
+assert log.count("— автопродление не прошло.") == 4
 assert log.count("— предстоящее продление тарифа.") == 1
 assert "https://school-pi.online/billing/my" in log
 assert "https://board.school-pi.online/plan" in log
 assert "Причина: недостаточно средств" in log
+assert "деньги возвращены (статус 60)" in log
 assert "По этому счёту повторного списания не будет" in log
-assert int(sql("SELECT count(*) FROM payments WHERE failure_notice_end IS NOT NULL")) == 3
+assert int(sql("SELECT count(*) FROM payments WHERE failure_notice_end IS NOT NULL")) == 4
 print("Advance, immediate, late, pending, successful and duplicate notice checks passed.")
