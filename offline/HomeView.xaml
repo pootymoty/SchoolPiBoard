@@ -17,8 +17,9 @@
             <StackPanel Orientation="Horizontal">
                 <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource PiDeep}"
                         BorderBrush="{DynamicResource Amber}" BorderThickness="3" Margin="0,0,12,0">
-                    <TextBlock Text="π" FontFamily="{StaticResource HeadingFont}" FontSize="24"
-                               Foreground="{DynamicResource TextOnDark}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Image x:Name="BrandMark" Width="30" Height="32" Stretch="Uniform"
+                           Source="/DoskaPi;component/Images/LOGO_PM.png"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
                 </Border>
                 <TextBlock x:Name="TitleText" Text="Мои доски"
                        Style="{StaticResource SectionTitle}"
@@ -47,7 +48,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Поле поиска -->
-            <Border Grid.Column="0" CornerRadius="22" Height="44"
+            <Border Grid.Column="0" CornerRadius="10" Height="40"
                     Background="{DynamicResource AppBg2}"
                     BorderThickness="1">
                 <Border.Style>
@@ -95,14 +96,15 @@
 
             <!-- Фильтр по дате -->
             <ComboBox x:Name="DateFilter" Grid.Column="1" Width="180" Height="40"
-                      Margin="10,0,0,0" VerticalContentAlignment="Center"
+                      Margin="12,0,0,0" BorderBrush="{DynamicResource LineStrong}" VerticalContentAlignment="Center"
                       FontSize="13"
                       SelectionChanged="DateFilter_Changed"/>
 
             <!-- Направление сортировки -->
             <Button x:Name="SortDirectionButton" Grid.Column="2"
                     Style="{StaticResource TextButton}"
-                    Height="40" Margin="10,0,0,0" MinWidth="150"
+                    Height="40" Margin="12,0,2,0" MinWidth="132" Padding="12,0"
+                    BorderBrush="{DynamicResource LineStrong}" Background="{DynamicResource Surface}"
                     HorizontalContentAlignment="Center"
                     Click="SortDirection_Click"
                     ToolTip="Сменить порядок сортировки">

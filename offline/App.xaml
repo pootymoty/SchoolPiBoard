@@ -273,7 +273,7 @@
             <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Padding" Value="12,7"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -284,8 +284,8 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="999" Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
+                                CornerRadius="9" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="False">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="Center"/>
                         </Border>
@@ -313,15 +313,15 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="18,9"/>
+            <Setter Property="Padding" Value="14,8"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="999" Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
+                                CornerRadius="9" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="False">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
@@ -349,7 +349,7 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="18,9"/>
+            <Setter Property="Padding" Value="14,8"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -357,9 +357,9 @@
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Border x:Name="Bd"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="999"
+                                CornerRadius="9"
                                 Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
+                                SnapsToDevicePixels="False">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
@@ -393,7 +393,7 @@
             <Setter Property="FontFamily" Value="{StaticResource HeadingFont}"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="20,9"/>
+            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Margin" Value="2,2,2,5"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
@@ -401,10 +401,10 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
                         <Grid>
-                            <Border Background="{DynamicResource AmberStrong}" CornerRadius="999" Margin="0,3,0,-3"/>
+                            <Border Background="{DynamicResource AmberStrong}" CornerRadius="9" Margin="0,3,0,-3"/>
                             <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                    CornerRadius="999" Padding="{TemplateBinding Padding}"
-                                    SnapsToDevicePixels="True">
+                                    CornerRadius="9" Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="False">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
@@ -472,7 +472,7 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="999" Padding="4">
+                                CornerRadius="8" Padding="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -558,10 +558,15 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
                                 <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="26"/>
+                                    </Grid.ColumnDefinitions>
                                     <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
-                                                      ContentSource="SelectionBoxItem"/>
-                                    <TextBlock Text="⌄" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                               Margin="0,0,10,2" Foreground="{DynamicResource TextSecondary}" FontSize="15"/>
+                                                      ContentSource="SelectionBoxItem" ClipToBounds="True"/>
+                                    <Path Grid.Column="1" Data="M 1,1 L 5,5 L 9,1" StrokeThickness="1.5"
+                                          Stroke="{DynamicResource TextSecondary}" StrokeLineJoin="Round"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Grid>
                             </Border>
                             <ToggleButton x:Name="PART_ToggleButton" Background="Transparent" BorderThickness="0"
