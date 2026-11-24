@@ -1489,7 +1489,8 @@ public class BoardCanvas : FrameworkElement
         _activeHandle = handle;
         _dragStartWorld = world;
         _dragStartScreen = ToScreen(world);
-        _dragOriginals = Selection.OrderBy(i => i.Z).Select(i => i.Clone()).ToList();
+        // Преобразования сопоставляют объекты со снимками по индексу в Selection.
+        _dragOriginals = Selection.Select(i => i.Clone()).ToList();
         _dragOriginalBounds = SelectionWorldBounds();
 
         // Ручка поворота остаётся там, где её взяли, до отпускания.

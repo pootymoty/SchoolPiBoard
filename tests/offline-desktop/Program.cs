@@ -60,6 +60,7 @@ internal static class Regression
 
             var app = new App();
             app.InitializeComponent();
+            GroupDragRegression.Run();
             var window = new MainWindow();
             var editor = (EditorView)window.FindName("EditorScreen");
             CheckHomeAppearance(window);
