@@ -60,6 +60,13 @@ internal static class Regression
 
             var app = new App();
             app.InitializeComponent();
+            var canvas = new SchoolPiBoard.Rendering.BoardCanvas();
+            canvas.LoadBoard(new SchoolPiBoard.Models.Board());
+            var palette = new ColorPalette(canvas.Pen2Color);
+            Check(palette.SelectedColor.ToString() == ColorPalette.FixedSwatches[3], "четвёртый цвет второй ручки");
+            canvas.Pen2Color = Colors.Crimson;
+            canvas.LoadBoard(new SchoolPiBoard.Models.Board());
+            Check(canvas.Pen2Color == Colors.Crimson, "ручной выбор цвета второй ручки");
             GroupDragRegression.Run();
             var window = new MainWindow();
             var editor = (EditorView)window.FindName("EditorScreen");

@@ -90,7 +90,8 @@ public class BoardCanvas : FrameworkElement
 
     public Color PenColor { get; set; } = Colors.Black;
     public Color PenCustomColor { get; set; } = Colors.Black;
-    public Color Pen2Color { get; set; } = Colors.Red;
+    public Color Pen2Color { get; set; } = (Color)ColorConverter.ConvertFromString(
+        SchoolPiBoard.Views.ColorPalette.FixedSwatches[3])!;
     public Color Pen2CustomColor { get; set; } = Colors.Red;
     public Color MarkerColor { get; set; } = Color.FromRgb(0x1E, 0x88, 0xE5);
     public Color MarkerCustomColor { get; set; } = Color.FromRgb(0x1E, 0x88, 0xE5);
