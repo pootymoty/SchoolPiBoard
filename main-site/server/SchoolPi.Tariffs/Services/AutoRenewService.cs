@@ -14,11 +14,6 @@ namespace SchoolPi.Tariffs.Services;
 /// иначе продление засчитывалось бы до того, как деньги действительно
 /// пришли.
 ///
-/// TODO: предупреждение письмом за несколько дней до списания — то, что
-/// у доски делает DueForNoticeAsync/EmailTemplates.RenewalSoon — здесь
-/// пока не реализовано: у сервиса ещё нет своей отправки почты. Колонка
-/// renewal_notice_at в схеме уже заведена под это, чтобы не переезжать
-/// на новую версию базы, когда почта появится.
 /// </summary>
 public sealed class AutoRenewService : BackgroundService
 {
@@ -64,7 +59,7 @@ public sealed class AutoRenewService : BackgroundService
         var subscriptions = scope.ServiceProvider.GetRequiredService<SubscriptionService>();
         var licenseServer = scope.ServiceProvider.GetRequiredService<LicenseServerClient>();
 
-        foreach (var due in await subscriptions.DueForRenewalAsync(Ahead, cancellationToken))
+        foreach (var due in await subscriptions.DueForRenewalAsync(TimeSpan.FromDays(3), cancellationToken))
         {
             // Человек уже оплатил вперёд — например, купил тот же или
             // другой тариф, который встанет следующим. Списывать за
@@ -86,9 +81,18 @@ public sealed class AutoRenewService : BackgroundService
                 continue;
             }
 
+            if (due.RenewalNoticeAt == null && due.EndsAt - DateTime.UtcNow > Ahead)
+            {
+                if (await licenseServer.SendNoticeAsync(due.ExternalUserId, plan.Key, plan.Title,
+                    plan.Price, due.InvoiceId!.Value, due.EndsAt, cancellationToken))
+                    await subscriptions.MarkNoticeAsync(due, cancellationToken);
+            }
+            if (due.EndsAt - DateTime.UtcNow > Ahead)
+                continue;
+
             var charged = await licenseServer.ChargeRecurringAsync(
                 due.ExternalUserId, plan.Key, plan.Title, TariffPlans.PeriodDays, plan.Price,
-                due.InvoiceId!.Value, cancellationToken);
+                due.InvoiceId!.Value, due.EndsAt, cancellationToken);
 
             if (charged is null)
             {

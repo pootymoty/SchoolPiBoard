@@ -17,6 +17,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 3s --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +37,17 @@ jobs:
         run: >
           dotnet publish main-site/server/SchoolPi.Tariffs/SchoolPi.Tariffs.csproj
           -c Release -o publish
+
+      - name: Test renewal schedule
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          ConnectionStrings__Postgres: Host=localhost;Database=postgres;Username=postgres;Password=postgres
+          TARIFFS_API_KEY: test-api
+          LicenseServer__Url: http://127.0.0.1:5018
+          LicenseServer__SharedSecret: test-service
+        run: python3 main-site/server/tests/renewal_schedule.py
 
       - name: Pack
         run: tar -czf tariffs-server.tar.gz -C publish .

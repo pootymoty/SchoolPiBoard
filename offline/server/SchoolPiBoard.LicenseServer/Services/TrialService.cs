@@ -47,7 +47,10 @@ public sealed class TrialService
         if (device is null || address is null)
             return new TrialResult(TrialOutcome.BadRequest, default, default, Days);
 
-        var now = DateTime.UtcNow;
+        // PostgreSQL хранит время с точностью до микросекунд. Первый ответ
+        // и ответ после повторного запуска должны содержать одну и ту же дату.
+        var ticks = DateTime.UtcNow.Ticks;
+        var now = new DateTime(ticks - ticks % TimeSpan.TicksPerMicrosecond, DateTimeKind.Utc);
 
         var existing = await _db.Trials.FirstOrDefaultAsync(x => x.HardwareId == device, cancellationToken);
         if (existing is not null)

@@ -50,6 +50,18 @@ jobs:
           Robokassa__Password2: test-result
           Smtp__Host: ''
           Smtp__FromEmail: ''
+          Robokassa__StatusUrl: http://127.0.0.1:5018/status
+          Robokassa__RecurringUrl: http://127.0.0.1:5018/recurring
+          Board__SharedSecret: test-service
+          Tariffs__SharedSecret: test-service
+          Board__CallbackUrl: http://127.0.0.1:5018/board
+          Tariffs__CallbackUrl: http://127.0.0.1:5018/tariffs
+          Robokassa__Board__MerchantLogin: board
+          Robokassa__Tariffs__MerchantLogin: tariffs
+          Robokassa__Board__Password1: test-form
+          Robokassa__Tariffs__Password1: test-form
+          Robokassa__Board__Password2: test-result
+          Robokassa__Tariffs__Password2: test-result
           PGHOST: localhost
           PGUSER: postgres
           PGPASSWORD: postgres
@@ -59,9 +71,17 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" || true' EXIT
           python3 offline/server/tests/payments.py
+          python3 offline/server/tests/renewal_notices.py
 
       - name: Pack
         run: tar -czf license-server.tar.gz -C publish .
+
+      - name: Save tested package
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-server-${{ github.sha }}
+          path: license-server.tar.gz
+          if-no-files-found: error
 
       # Готовый архив кладём в релиз: по такой ссылке его можно забрать
       # обычным curl, без токенов и без установки чего-либо на сервер.

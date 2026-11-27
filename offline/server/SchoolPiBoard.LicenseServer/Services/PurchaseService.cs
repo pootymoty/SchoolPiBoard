@@ -56,7 +56,7 @@ public sealed class PurchaseService
         string description,
         bool autoRenew,
         long? previousInvoiceId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, DateTime? renewalEnd = null)
     {
         var invoiceId = await NextInvoiceIdAsync(cancellationToken);
 
@@ -74,6 +74,8 @@ public sealed class PurchaseService
             PeriodDays = days,
             Description = description,
             AutoRenew = autoRenew,
+            RenewalEnd = renewalEnd,
+            NextStatusCheck = renewalEnd.HasValue ? DateTime.UtcNow.AddMinutes(5) : null,
             PreviousInvoiceId = previousInvoiceId
         };
 
@@ -96,7 +98,7 @@ public sealed class PurchaseService
         string description,
         bool autoRenew,
         long? previousInvoiceId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, DateTime? renewalEnd = null)
     {
         var invoiceId = await NextInvoiceIdAsync(cancellationToken);
 
@@ -114,6 +116,8 @@ public sealed class PurchaseService
             PeriodDays = days,
             Description = description,
             AutoRenew = autoRenew,
+            RenewalEnd = renewalEnd,
+            NextStatusCheck = renewalEnd.HasValue ? DateTime.UtcNow.AddMinutes(5) : null,
             PreviousInvoiceId = previousInvoiceId
         };
 
@@ -149,6 +153,8 @@ public sealed class PurchaseService
             throw;
         }
     }
+
+    public Task SaveAsync(CancellationToken ct) => _db.SaveChangesAsync(ct);
 
     public Task<Payment?> FindByInvoiceAsync(long invoiceId, CancellationToken cancellationToken)
         => _db.Payments.FirstOrDefaultAsync(x => x.InvoiceId == invoiceId, cancellationToken);

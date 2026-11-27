@@ -76,6 +76,12 @@ public class LicenseDbContext : DbContext
         modelBuilder.Entity<Payment>(entity =>
         {
             entity.ToTable("payments");
+            entity.Property(x => x.RenewalEnd).HasColumnName("renewal_end");
+            entity.Property(x => x.NextStatusCheck).HasColumnName("next_status_check");
+            entity.Property(x => x.DeclineReason).HasColumnName("decline_reason");
+            entity.Property(x => x.RetryEligible).HasColumnName("retry_eligible");
+            entity.Property(x => x.FailureNoticeEnd).HasColumnName("failure_notice_end");
+            entity.Property(x => x.AdvanceNoticeEnd).HasColumnName("advance_notice_end");
             entity.HasKey(x => x.Id);
 
             entity.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();

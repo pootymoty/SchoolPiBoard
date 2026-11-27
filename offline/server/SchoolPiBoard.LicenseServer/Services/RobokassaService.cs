@@ -27,6 +27,7 @@ public sealed class RobokassaService
     };
 
     private readonly RobokassaOptions _options;
+    private readonly ILogger<RobokassaService> _logger;
 
     /// <summary>
     /// Магазин подписок — отдельный от магазина лицензий, и запасного
@@ -44,8 +45,9 @@ public sealed class RobokassaService
     /// </summary>
     private readonly RobokassaOptions _tariffs;
 
-    public RobokassaService(ServerOptions server)
+    public RobokassaService(ServerOptions server, ILogger<RobokassaService> logger)
     {
+        _logger = logger;
         _options = server.Robokassa;
 
         _board = server.RobokassaBoard;
@@ -185,18 +187,18 @@ public sealed class RobokassaService
     /// он платил в первый раз, и присылает обычное уведомление на ResultURL —
     /// дальше всё идёт по общему пути.
     /// </summary>
-    public Task<bool> ChargeRecurringAsync(
+    public Task<(bool Accepted, string? Decline, string Diagnostic)> ChargeRecurringAsync(
         HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
         CancellationToken cancellationToken)
         => ChargeRecurringAsync(http, _board, invoiceId, previousInvoiceId, amount, description, cancellationToken);
 
     /// <summary>То же самое, но по счёту, выставленному магазином тарифов основного сайта.</summary>
-    public Task<bool> ChargeTariffsRecurringAsync(
+    public Task<(bool Accepted, string? Decline, string Diagnostic)> ChargeTariffsRecurringAsync(
         HttpClient http, long invoiceId, long previousInvoiceId, decimal amount, string description,
         CancellationToken cancellationToken)
         => ChargeRecurringAsync(http, _tariffs, invoiceId, previousInvoiceId, amount, description, cancellationToken);
 
-    private static async Task<bool> ChargeRecurringAsync(
+    private async Task<(bool Accepted, string? Decline, string Diagnostic)> ChargeRecurringAsync(
         HttpClient http, RobokassaOptions shop, long invoiceId, long previousInvoiceId, decimal amount,
         string description, CancellationToken cancellationToken)
     {
@@ -230,14 +232,43 @@ public sealed class RobokassaService
                 ? $"{shop.MerchantLogin}:{sum}:{invoiceId}:{shop.Password1}"
                 : $"{shop.MerchantLogin}:{sum}:{invoiceId}:{receiptJson}:{shop.Password1}");
 
-        using var response = await http.PostAsync(
-            shop.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
-
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        string body;
+        System.Net.HttpStatusCode status;
+        bool httpSuccess;
+        try
+        {
+            using var response = await http.PostAsync(
+                shop.RecurringUrl, new FormUrlEncodedContent(form), cancellationToken);
+            status = response.StatusCode;
+            httpSuccess = response.IsSuccessStatusCode;
+            body = await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException)
+        {
+            _logger.LogWarning("Счёт {Invoice}: результат запроса неизвестен ({Type}).", invoiceId, e.GetType().Name);
+            throw;
+        }
 
         // Робокасса отвечает строкой: OK при успехе, иначе описание ошибки.
-        return response.IsSuccessStatusCode
-            && body.TrimStart().StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+        var accepted = httpSuccess && body.TrimStart().StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+        // Только явный ответ провайдера. HTML прокси, HTTP 5xx и сетевые ошибки
+        // не содержат достоверной информации об отказе банка.
+        var reply = body.Trim();
+        var reason = reply.StartsWith("error:", StringComparison.OrdinalIgnoreCase)
+            ? reply[6..].Trim() : reply;
+        var decline = reason.ToLowerInvariant() switch
+        {
+            "недостаточно средств" or "insufficient funds" => "недостаточно средств",
+            "card declined" or "отказ банка" => "банк отклонил операцию",
+            "card expired" or "expired card" or "срок действия карты истёк" => "истёк срок действия карты",
+            _ => null
+        };
+        if (!httpSuccess && (int)status != 402)
+            decline = null;
+        var diagnostic = int.TryParse(reason, out var code)
+            ? $"HTTP {(int)status}, код Робокассы {code}"
+            : $"HTTP {(int)status}";
+        return (accepted, decline, diagnostic);
     }
 
     public static string FormatSum(decimal amount) => amount.ToString("0.00", CultureInfo.InvariantCulture);
