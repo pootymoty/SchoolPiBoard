@@ -22,7 +22,7 @@ public partial class EditorView : UserControl
 
     private readonly DispatcherTimer _autoSave = new();
     private List<BoardItem> _clipboard = new();
-    private DataObject? _clipboardOwner;
+    private Guid? _clipboardId;
     private string? _clipboardBoardId;
     private BoardItem? _editingItem;
     private bool _objectPanelAbove;

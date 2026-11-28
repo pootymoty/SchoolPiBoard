@@ -11,11 +11,14 @@ using SchoolPiBoard.Views;
 internal static class Regression
 {
     [STAThread]
-    public static int Main()
+    public static int Main(string[] args)
     {
         try
         {
-            Run();
+            if (args.Length == 2 && args[0] == "--read-clipboard")
+                ExternalClipboardRegression.Read(args[1]);
+            else
+                Run();
             return 0;
         }
         catch (Exception error)
@@ -70,6 +73,7 @@ internal static class Regression
             GroupDragRegression.Run();
             var window = new MainWindow();
             var editor = (EditorView)window.FindName("EditorScreen");
+            ExternalClipboardRegression.Run(editor);
             CheckHomeAppearance(window);
             var field = typeof(EditorView).GetField("_pendingWrite", BindingFlags.NonPublic | BindingFlags.Instance)!;
             foreach (var close in new[] { false, true })
