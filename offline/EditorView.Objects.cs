@@ -401,16 +401,63 @@ public partial class EditorView
 
     private void CopySelection() => TryCopySelection();
 
+    private const string SelectionFormat = "DoskaPi.BoardSelection.Id";
+
+    private static void AddExternalFormats(DataObject data, List<BoardItem> items)
+    {
+        if (items.All(item => item.Kind == ItemKind.Text))
+        {
+            data.SetText(string.Join(Environment.NewLine, items.Select(item => item.Text)), TextDataFormat.UnicodeText);
+            return;
+        }
+
+        BitmapSource bitmap;
+        if (items.Count == 1 && items[0] is { Kind: ItemKind.Image, Rotation: 0, FlipX: false, FlipY: false, Opacity: 1 } image
+            && ItemRenderer.GetImage(image) is { } original)
+        {
+            bitmap = original;
+        }
+        else
+        {
+            var drawing = new DrawingVisual();
+            using (var dc = drawing.RenderOpen())
+            {
+                foreach (var item in items)
+                    ItemRenderer.Draw(dc, item, 1.0);
+            }
+            var bounds = drawing.ContentBounds;
+            if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0)
+                return;
+            var scale = Math.Min(1, 4096 / Math.Max(bounds.Width, bounds.Height));
+            drawing.Transform = new MatrixTransform(scale, 0, 0, scale, -bounds.X * scale, -bounds.Y * scale);
+            var rendered = new RenderTargetBitmap((int)Math.Ceiling(bounds.Width * scale),
+                (int)Math.Ceiling(bounds.Height * scale), 96, 96, PixelFormats.Pbgra32);
+            rendered.Render(drawing);
+            bitmap = rendered;
+        }
+
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(bitmap));
+        var stream = new MemoryStream();
+        png.Save(stream);
+        stream.Position = 0;
+        data.SetData("PNG", stream, false);
+        data.SetImage(bitmap);
+    }
+
     private bool TryCopySelection()
     {
         if (Canvas.Selection.Count == 0)
             return false;
 
         var items = Canvas.CopySelection();
-        var owner = new DataObject("DoskaPi.BoardSelection", Guid.NewGuid().ToString("N"));
+        var id = Guid.NewGuid();
+        var data = new DataObject();
+        data.SetData(SelectionFormat, new MemoryStream(id.ToByteArray()), false);
         try
         {
-            Clipboard.SetDataObject(owner, false);
+            AddExternalFormats(data, items);
+            Clipboard.SetDataObject(data, true);
         }
         catch (System.Runtime.InteropServices.ExternalException)
         {
@@ -418,7 +465,7 @@ public partial class EditorView
             return false;
         }
 
-        _clipboardOwner = owner;
+        _clipboardId = id;
         _clipboardBoardId = _board?.Id;
         _clipboard = items;
         return true;
@@ -434,7 +481,8 @@ public partial class EditorView
     {
         try
         {
-            if (_clipboardOwner != null && Clipboard.IsCurrent(_clipboardOwner))
+            if (_clipboardId is Guid id && Clipboard.GetData(SelectionFormat) is MemoryStream marker
+                && marker.Length == 16 && new Guid(marker.ToArray()) == id)
             {
                 Canvas.PasteItems(_clipboard, centerInView: _clipboardBoardId != _board?.Id, target: target);
                 SelectTool(BoardTool.Cursor);
